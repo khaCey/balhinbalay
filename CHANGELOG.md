@@ -1,5 +1,17 @@
 # Changelog
 
+## v.1.0.00.133 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- UI made more mobile-oriented: larger touch targets (48px min), improved padding and spacing, better readability.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: Touch targets use --bb-tap (48px) for header buttons, listing tabs, view-mode toggle, sort select, favorite button, View Details; header min-height 56px with more padding; listing tabs flex:1 on mobile, 48px min-height; sort bar and results area more padding; property card body padding 16–18px; card title 1.125rem; html -webkit-tap-highlight-color; results-area safe-area insets on mobile; App min-height 100dvh.
+
 ## v.1.0.00.132 — Development
 Date: 2026-02-28
 Type: Dev Change
