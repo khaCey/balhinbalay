@@ -1,0 +1,11 @@
+---
+description: BalhinBalay project conventions — mobile-first, Philippines-wide, filter by available data
+alwaysApply: true
+---
+
+# BalhinBalay project rules
+
+- **Mobile-first**: Design and CSS for mobile first; desktop is a progressive enhancement (e.g. `@media (min-width: 768px)`).
+- **Philippines-wide**: Regions are the official 17 Philippine administrative regions (NCR, CAR, Region I–XIII, BARMM). Data and filters support the whole country.
+- **Show only options with data**: In filters, show only regions (and when applicable cities) that have at least one listing for the current listing type (For Sale / For Rent). Do not show empty regions in dropdowns.
+- **Overflow**: Keep filter sheet and dropdowns contained (no horizontal overflow); use scroll for vertical overflow and `min-height: 0` on flex children that scroll.
