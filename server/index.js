@@ -4,7 +4,7 @@
  */
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
 const express = require('express');
 const cors = require('cors');
 
@@ -21,15 +21,29 @@ if (process.env.DATABASE_URL) {
 }
 app.set('pool', pool);
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || origin.startsWith('capacitor://') || origin.startsWith('http://localhost') || origin.startsWith('http://10.0.2.2') || origin.startsWith('file://')) return cb(null, true);
+    return cb(null, true);
+  }
+}));
 app.use(express.json({ limit: '15mb' }));
 
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // ----- API routes (mount at /api so frontend can proxy or use same origin) -----
+const { getMessaging } = require('./services/push');
+
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, db: !!pool });
+  res.status(200).contentType('application/json').json({
+    ok: true,
+    db: !!pool,
+    push: !!getMessaging()
+  });
+});
+app.get('/api', (req, res) => {
+  res.status(200).contentType('application/json').json({ message: 'BalhinBalay API', health: '/api/health' });
 });
 
 const errorHandler = require('./middleware/errorHandler');
@@ -52,21 +66,23 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 
 // ----- Serve React build (static files + SPA fallback) -----
-if (!API_ONLY) {
+const indexPath = path.join(BUILD_DIR, 'index.html');
+const hasIndex = fs.existsSync(indexPath);
+if (!API_ONLY && hasIndex) {
   app.use(express.static(BUILD_DIR, { index: 'index.html' }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/static')) return next();
-    res.sendFile(path.join(BUILD_DIR, 'index.html'), (err) => {
+    res.sendFile(indexPath, (err) => {
       if (err) next(err);
     });
   });
 } else {
-  app.get('/', (req, res) => res.json({ message: 'API-only mode. Run React dev server on port 3000.' }));
+  app.get('/', (req, res) => res.json({ message: 'API-only mode. Run "npm run build" for static serve, or use React dev server on port 3000.' }));
 }
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`BalhinBalay server running on port ${PORT}`);
   if (API_ONLY) {
     console.log('  Mode:   API-only (no build folder; run "npm run build" for full server)');
@@ -74,5 +90,17 @@ app.listen(PORT, () => {
     console.log(`  Static: ${BUILD_DIR}`);
   }
   console.log(`  API:    http://localhost:${PORT}/api`);
+  console.log(`  Health: http://localhost:${PORT}/api/health`);
   if (!pool) console.log('  DB:     not configured (set DATABASE_URL to enable)');
+  console.log('  [push] checking FCM...');
+  if (getMessaging()) console.log('  Push:   FCM enabled');
+  else console.log('  Push:   disabled (see [push] message above if GOOGLE_APPLICATION_CREDENTIALS is set)');
+});
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Stop the other process or set PORT to a different number.`);
+  } else {
+    console.error('Server error:', err);
+  }
+  process.exit(1);
 });

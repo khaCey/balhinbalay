@@ -50,7 +50,8 @@ async function request(method, path, body = null) {
   try {
     if (text) data = JSON.parse(text);
   } catch {
-    // leave data null
+    // leave data null; use raw text for error display if needed
+    if (text && !res.ok) data = { message: text.length > 200 ? text.slice(0, 200) + '…' : text };
   }
   if (!res.ok) {
     const err = new Error(data?.message || data?.error || res.statusText || 'Request failed');

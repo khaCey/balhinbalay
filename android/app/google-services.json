@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "673713066787",
+    "project_id": "balhinbalay",
+    "storage_bucket": "balhinbalay.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:673713066787:android:1b4f57e8a356ebbac1b296",
+        "android_client_info": {
+          "package_name": "com.balhinbalay.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfKT1PDZj_65t_WTPNqCyqrmMwxWUKY6A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

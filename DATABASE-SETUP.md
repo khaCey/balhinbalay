@@ -58,6 +58,7 @@ node server/run-migrations.js
 psql -d balhinbalay -f server/migrations/add-listing-status.sql
 psql -d balhinbalay -f server/migrations/add-user-role.sql
 psql -d balhinbalay -f server/migrations/add-user-account-status.sql
+psql -d balhinbalay -f server/migrations/add-email-confirmation.sql
 ```
 
 Then set one user as admin (e.g. by email): `UPDATE users SET role = 'admin' WHERE email = 'your@email.com';`

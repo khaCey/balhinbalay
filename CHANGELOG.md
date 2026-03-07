@@ -1,5 +1,614 @@
 # Changelog
 
+## v.1.0.00.178 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Replace Android app launcher icons with assets from the project’s "android icons" folder (mipmap-* and values/ic_launcher_background).
+
+### Changes (detailed)
+
+#### Changed
+- android/app/src/main/res/: mipmap-anydpi-v26, mipmap-ldpi, mipmap-mdpi, mipmap-hdpi, mipmap-xhdpi, mipmap-xxhdpi, mipmap-xxxhdpi, and values/ic_launcher_background.xml replaced/copied from "android icons" folder.
+
+## v.1.0.00.177 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix Android app icon: replace all mipmap launcher assets with logo.png so the default Capacitor/Android icon no longer appears.
+
+### Changes (detailed)
+
+#### Changed
+- android/app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/: ic_launcher.png, ic_launcher_round.png, and ic_launcher_foreground.png in each folder replaced with public/logo.png.
+- android/app/src/main/AndroidManifest.xml: reverted to android:icon="@mipmap/ic_launcher" and android:roundIcon="@mipmap/ic_launcher_round" so standard mipmap resolution is used.
+- android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml and ic_launcher_round.xml: reverted foreground to @mipmap/ic_launcher_foreground (now our logo in each density).
+
+## v.1.0.00.176 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Use public/logo.png as the native app icon for Android and iOS (Capacitor).
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_launcher_foreground.png: copy of public/logo.png used as app icon.
+
+#### Changed
+- android/app/src/main/AndroidManifest.xml: android:icon and android:roundIcon set to @drawable/ic_launcher_foreground (replacing @mipmap/ic_launcher and @mipmap/ic_launcher_round).
+- android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml: foreground drawable set to @drawable/ic_launcher_foreground.
+- android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml: foreground drawable set to @drawable/ic_launcher_foreground.
+- ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png: replaced with public/logo.png (1024×1024 source recommended for best quality).
+
+## v.1.0.00.175 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Add build:tunnel script and doc so tunnel build always uses https://balhinbalay.com (fix "Failed to fetch" with localhost after hard reset).
+
+### Changes (detailed)
+
+#### Added
+- package.json: script build:tunnel (env-cmd -f .env.production craco build).
+- TUNNEL.md: use npm run build:tunnel and optional "rm -rf build" + rebuild if API still shows localhost.
+
+## v.1.0.00.174 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Android app: production build script and docs so app works via tunnel (https://balhinbalay.com/api) from anywhere.
+
+### Changes (detailed)
+
+#### Added
+- package.json: script cap:sync:android:production (env-cmd -f .env.production npm run build && npx cap sync android).
+- CAPACITOR.md: "Production / tunnel (use from anywhere)" and cap:sync:android:production in API URL section and commands table.
+- TUNNEL.md: Android app note and npm run cap:sync:android:production.
+
+## v.1.0.00.173 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Reroute app to use https://balhinbalay.com/api in production builds via .env.production.
+
+### Changes (detailed)
+
+#### Added
+- .env.production: REACT_APP_API_URL=https://balhinbalay.com so production build uses tunnel API.
+- TUNNEL.md: note that production build uses tunnel URL for API.
+
+## v.1.0.00.172 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Add TUNNEL.md: Cloudflare Tunnel (cloudflared) setup to expose local server + React app from outside the network.
+
+### Changes (detailed)
+
+#### Added
+- TUNNEL.md: Install cloudflared, login, create tunnel, config.yml (hostname → localhost:5000), route DNS, run tunnel; optional service; mobile app note for tunnel URL as API base.
+
+## v.1.0.00.171 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Use direct import from @capacitor/push-notifications instead of registerPlugin so the real plugin (and native bridge) is used on device.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: From: registerPlugin('PushNotifications') from @capacitor/core (returned "not implemented" stub). To: import('@capacitor/push-notifications') and use PushNotifications so the official plugin and native implementation are used.
+
+## v.1.0.00.170 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix "PushNotifications plugin is not implemented on android": install @capacitor/push-notifications and run cap sync so native plugin is included.
+
+### Changes (detailed)
+
+#### Fixed
+- @capacitor/push-notifications was in package.json but not installed in node_modules; native Android project had no push-notifications module. Ran npm install @capacitor/push-notifications and npx cap sync android so capacitor.settings.gradle and capacitor.build.gradle include capacitor-push-notifications (fixes "not implemented on android").
+
+## v.1.0.00.169 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push: retry register() after 15s; add "Enable push notifications" in profile drawer on native so user can manually trigger token registration.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: pushRegisterTrigger state; effect re-runs on trigger; retry PushNotifications.register() after 15s; pass isNative and onEnableNotifications to ProfileDrawer.
+- src/components/ProfileDrawer.js: "Notifications" section with "Enable push notifications" button when isNative and onEnableNotifications (triggers push registration again).
+
+## v.1.0.00.168 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix Android build: onResume() override must be public to match BridgeActivity.
+
+### Changes (detailed)
+
+#### Fixed
+- android/.../MainActivity.java: onResume() changed from protected to public so override matches parent (fixes "attempting to assign weaker access privileges").
+
+## v.1.0.00.167 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Android 13+: request POST_NOTIFICATIONS from MainActivity on resume so the system "Allow notifications?" prompt appears when the app opens.
+
+### Changes (detailed)
+
+#### Added
+- android/.../MainActivity.java: requestNotificationPermissionIfNeeded() in onResume; on API 33+ request POST_NOTIFICATIONS if not granted so the system dialog shows (fixes "no allow notifs prompt").
+
+## v.1.0.00.166 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix push on device: use registerPlugin('PushNotifications') from @capacitor/core so plugin resolves in WebView (fixes "Failed to resolve module specifier '@capacitor/push-notifications'").
+
+### Changes (detailed)
+
+#### Fixed
+- src/App.js: From: dynamic import('@capacitor/push-notifications') which fails to resolve in native WebView. To: import('@capacitor/core') then registerPlugin('PushNotifications') so the plugin is provided by the native bridge and no push-notifications module resolution in JS.
+
+## v.1.0.00.165 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push on device: client logs for permission, register(), token, and server POST; log status/data on fail; CAPACITOR debug steps.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: Push flow now logs "Requesting notification permission…", "Permission granted, calling register()…", "Got FCM token, sending to server…", "Token registered with server." or "Failed to register token" with status/data; log when permission not granted.
+- CAPACITOR.md: Added "Debug push on a physical device" (chrome://inspect, what [push] logs mean).
+
+## v.1.0.00.164 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Build for physical Android device: .env.android.device.example and cap:sync:android:device script so phone can reach local server via PC IP.
+
+### Changes (detailed)
+
+#### Added
+- .env.android.device.example: template with YOUR_PC_IP for device build; copy to .env.android.device and set PC IPv4.
+- package.json: script cap:sync:android:device (env-cmd -f .env.android.device npm run build && npx cap sync android).
+- .gitignore: .env.android.device so local IP is not committed.
+- CAPACITOR.md: physical device steps and script in API URL section and commands table.
+
+## v.1.0.00.163 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix user_push_tokens migration: user_id must be UUID to match users(id); run migrations to create table.
+
+### Changes (detailed)
+
+#### Fixed
+- server/migrations/add-user-push-tokens.sql: From: user_id INT REFERENCES users(id) (foreign key failed). To: user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE to match schema.
+
+## v.1.0.00.162 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix FCM never initializing: start with messaging undefined so first call runs init instead of returning cached null.
+
+### Changes (detailed)
+
+#### Fixed
+- server/services/push.js: getMessaging() — From: messaging started as null so first call treated as "cached failure" and never ran Firebase init. To: messaging starts as undefined so first call runs init; null is only set after a failed init.
+
+## v.1.0.00.161 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Load .env with override so GOOGLE_APPLICATION_CREDENTIALS from .env is used even when the shell has an old value.
+
+### Changes (detailed)
+
+#### Changed
+- server/index.js: dotenv.config() now uses override: true so .env values (e.g. correct Firebase key path) override existing process.env from the terminal.
+
+## v.1.0.00.160 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push: when FCM is disabled (cached), log last init error so credential path + file-exists case shows why init failed.
+
+### Changes (detailed)
+
+#### Changed
+- server/services/push.js: Added lastPushError; on init failure store err.message and log stack. When returning cached null, log lastPushError so "credPath set | exists true" case shows the actual Firebase/init error.
+
+## v.1.0.00.159 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push optional: no console spam when FCM not configured; only log "Push: FCM enabled" when it is.
+
+### Changes (detailed)
+
+#### Changed
+- server/services/push.js: When GOOGLE_APPLICATION_CREDENTIALS not set, return null without logging instructions.
+- server/index.js: When push disabled, do not log a line (in-app notifications work without push).
+
+## v.1.0.00.158 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix webpack "Can't resolve '@capacitor/push-notifications'" warning: use webpackIgnore on dynamic import.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: dynamic import of @capacitor/push-notifications now uses /* webpackIgnore: true */ so webpack does not resolve the native-only module at build time; runtime import still works in Capacitor app.
+
+## v.1.0.00.157 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push false: clearer server instructions and .env.example; check credential file exists before init.
+
+### Changes (detailed)
+
+#### Added
+- .env.example: DATABASE_URL and GOOGLE_APPLICATION_CREDENTIALS with short instructions.
+- server/services/push.js: When FCM disabled, log 4-step instructions (Firebase key, save file, add to .env, restart). When path set but file missing, log full path and hint.
+
+## v.1.0.00.156 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push (outside app): FCM channel ID, Android default channel, health push status, token registration log, FCM error log, troubleshooting.
+
+### Changes (detailed)
+
+#### Added
+- server/services/push.js: android.notification.channelId 'default' and priority for Android 8+ display. Log FCM error code/message when a token fails.
+- server/index.js: require getMessaging; /api/health returns push: true/false; startup log "Push: FCM enabled" or "FCM disabled".
+- server/routes/users.js: GET /api/users/me/push-token returns { registered: true/false }. Log "[push] Token registered for user X" on POST success.
+- android/.../MainActivity.java: create default notification channel "Messages" (id: default) in onCreate so FCM notifications show when app is in background.
+- CAPACITOR.md: "Still no push?" checklist (health push, token log, google-services.json, send result).
+
+## v.1.0.00.155 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push (outside app): add listener before register() so token is not missed; document FCM + google-services.json in CAPACITOR.md.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: Push notification listeners (registration + tap) are now added before requestPermissions/register() so the token event is not missed. Log push registration failures to console.
+- CAPACITOR.md: New section "Push notifications (when app is in background or closed)" — Firebase project, google-services.json in android/app, server GOOGLE_APPLICATION_CREDENTIALS, and troubleshooting.
+
+## v.1.0.00.154 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Push/in-app notifications debugging: server logs for FCM, SSE, and chat; in-app toast on new message; proxy buffer off for SSE.
+
+### Changes (detailed)
+
+#### Added
+- server/services/push.js: Log when FCM is disabled (no creds), when no pool, when no tokens for user, and when send succeeds (N ok, M failed).
+- server/chatEvents.js: Log on SSE subscribe (user, connection count) and when notifying user; log when no SSE connection for recipient.
+- server/routes/chat.js: Log when new message is sent and recipient user id.
+- src/context/ChatContext.js: inAppNotification state; show "New message" toast (fixed top) when threads_updated received; auto-clear after 4s; expose inAppNotification in context.
+
+#### Changed
+- src/setupProxy.js: buffer: false on /api proxy so SSE stream is not buffered.
+
+## v.1.0.00.153 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix MessagesModal ReferenceError: compute thread/listing inside effect so threadsWithListing is not used before initialization.
+
+### Changes (detailed)
+
+#### Fixed
+- src/components/MessagesModal.js: initialThreadId effect no longer references threadsWithListing (which was declared later). Effect now builds thread list from getThreads() and allListings inside the effect and finds thread/listing there.
+
+## v.1.0.00.152 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Complete push notification flow: open specific thread from notification tap; FCM credential path from project root; FCM data strings; Android POST_NOTIFICATIONS.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: notificationThreadId state; set from push tap data.threadId; pass initialThreadId and onClearInitialThreadId to MessagesModal.
+- src/components/MessagesModal.js: initialThreadId and onClearInitialThreadId props; useEffect to auto-open that thread when in list (from notification tap).
+- android/app/src/main/AndroidManifest.xml: POST_NOTIFICATIONS permission for FCM on Android 13+.
+
+#### Changed
+- server/services/push.js: Resolve FCM credential path from project root (__dirname/../..) when relative so .env at root works. Ensure all FCM data payload values are strings (required by FCM).
+
+## v.1.0.00.151 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Fix webpack compile: resolve @capacitor/push-notifications only on native via dynamic import; avoid server ENOENT when build/index.html missing.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: Removed top-level import of @capacitor/push-notifications. Push notification registration and listeners now use dynamic import('@capacitor/push-notifications') inside the native-only useEffect so the web build does not resolve the native plugin. Added cancelled guard to avoid adding listeners after unmount.
+- server/index.js: Serve static/SPA fallback only when build/index.html exists (hasIndex). From: serving when BUILD_DIR existed but index.html was missing caused ENOENT. To: require both BUILD_DIR and indexPath to exist before registering static and catch-all.
+
+## v.1.0.00.150 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Server: login error for missing DB column (42703); add npm run migrate; point message to migrate.
+
+### Changes (detailed)
+
+#### Added
+- package.json: script "migrate" runs node server/run-migrations.js (applies add-email-confirmation and other migrations).
+
+#### Changed
+- server/routes/auth.js: catch 42703 (undefined_column) and return message "Database schema out of date. From project root run: npm run migrate".
+
+## v.1.0.00.149 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Server: clearer login 500 handling and messages (DB/schema); log [auth/login] errors.
+
+### Changes (detailed)
+
+#### Changed
+- server/routes/auth.js: login catch logs [auth/login] and message; return specific messages for DB unavailable (503) and missing schema (42P01); otherwise "Login failed. Check server logs for details."
+
+## v.1.0.00.148 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Improve login error messages: clearer fallbacks and use non-JSON response body when present.
+
+### Changes (detailed)
+
+#### Changed
+- src/context/AuthContext.js: login failure fallback message suggests checking email, password, and email verification; catch fallback "Connection problem. Check your network and try again." when no server message.
+- src/api/client.js: when response is not ok and body is not valid JSON, set err.data.message from raw text (truncated) so it can be shown.
+
+## v.1.0.00.147 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix login in Capacitor app: persist auth with Preferences, restore on launch, show server error messages.
+
+### Changes (detailed)
+
+#### Added
+- package.json: dependency @capacitor/preferences.
+- src/context/AuthContext.js: Capacitor Preferences for auth in native app; on mount when Capacitor.isNativePlatform() load auth from Preferences and set user/token; saveAuth now also writes to Preferences when native so login persists across app restarts.
+
+#### Changed
+- src/context/AuthContext.js: saveAuth is async and clears/writes Preferences when on native platform; login catch returns err.userMessage so server messages (e.g. "Please verify your email") are shown.
+
+## v.1.0.00.146 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Allow HTTP API calls from Capacitor app WebView: mixed content, CORS, and domain-config.
+
+### Changes (detailed)
+
+#### Added
+- capacitor.config.ts: android.allowMixedContent: true.
+- android/app/src/main/java/.../MainActivity.java: onResume() calls allowMixedContent() to set WebSettings.MIXED_CONTENT_ALWAYS_ALLOW so fetch() to http://10.0.2.2:5000 works in the app (Chrome in emulator already worked).
+- android/app/src/main/res/xml/network_security_config.xml: domain-config for 10.0.2.2, localhost, 127.0.0.1 with cleartext permitted.
+
+#### Changed
+- server/index.js: CORS origin callback explicitly allows capacitor://, localhost, 10.0.2.2, file://.
+
+## v.1.0.00.145 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Server: make /api/health and /api responses explicit; add listen error handler and Health URL log.
+
+### Changes (detailed)
+
+#### Changed
+- server/index.js: /api/health now sets status 200 and Content-Type application/json explicitly; added GET /api returning { message, health }; server logs Health URL on startup; listen error handler for EADDRINUSE and other errors.
+
+## v.1.0.00.144 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- CAPACITOR.md: add Windows Firewall steps to allow port 5000 so emulator can reach host API.
+
+### Changes (detailed)
+
+#### Changed
+- CAPACITOR.md: new troubleshooting block "If http://10.0.2.2:5000/api/health fails in the emulator's browser" with steps to create an inbound rule for TCP port 5000 (Private/Domain) so the Android emulator can connect to the backend.
+
+## v.1.0.00.143 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Show API base URL in listings error banner to debug emulator connection; document clean rebuild in CAPACITOR.md.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: import baseUrl from api/client; in listings error banner show "— API: <baseUrl>" or "— API: same origin" so user can confirm which URL the app is using.
+- CAPACITOR.md: add clean-rebuild step (delete build then cap:sync:android:emulator); note that error banner shows API URL to verify build.
+
+## v.1.0.00.142 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix Android emulator not connecting to API: use .env.android.emulator for emulator build (avoids .env override), bind server to 0.0.0.0.
+
+### Changes (detailed)
+
+#### Added
+- .env.android.emulator: REACT_APP_API_URL=http://10.0.2.2:5000 (used only by cap:sync:android:emulator).
+- package.json: devDependency env-cmd; cap:sync:android:emulator now runs `env-cmd -f .env.android.emulator npm run build` so the build is not overridden by main .env.
+
+#### Changed
+- server/index.js: app.listen(PORT, '0.0.0.0', ...) so the server accepts connections from the emulator (host 0.0.0.0).
+- CAPACITOR.md: troubleshooting step to restart backend so it listens on 0.0.0.0; note that emulator build uses .env.android.emulator.
+
+## v.1.0.00.141 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- CAPACITOR.md: add troubleshooting for "Failed to fetch" when API runs on host localhost:5000 (rebuild with cap:sync:android:emulator).
+
+### Changes (detailed)
+
+#### Changed
+- CAPACITOR.md: added note under Quick start that "Failed to fetch" / "0 properties found" means app was built with wrong API host; instruct to run `npm run cap:sync:android:emulator` then Run in Android Studio.
+
+## v.1.0.00.140 — Development
+Date: 2026-03-06
+Type: Dev Change
+
+### Summary
+- Wire Android emulator: one-command build/sync/open with emulator API URL; add Quick start to CAPACITOR.md.
+
+### Changes (detailed)
+
+#### Added
+- package.json: devDependency cross-env; scripts cap:sync:android:emulator (build with REACT_APP_API_URL=http://10.0.2.2:5000, then cap sync android), android:emulator (run cap:sync:android:emulator then cap:android).
+- CAPACITOR.md: "Quick start: run in emulator" section (start server, run android:emulator, run in Android Studio); note that backend must be running or API calls fail.
+
+## v.1.0.00.139 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Android-first: allow HTTP (cleartext) for API, add cap:sync:android, docs focused on Android.
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/xml/network_security_config.xml: allow cleartext traffic so HTTP API URLs work (e.g. dev server at 10.0.2.2:5000).
+- package.json: script cap:sync:android (build and sync Android only).
+- CAPACITOR.md: reordered for Android first (prerequisites, build/run steps, API URL), then iOS; documented cap:sync:android.
+
+#### Changed
+- android/app/src/main/AndroidManifest.xml: android:networkSecurityConfig and android:usesCleartextTraffic so backend can be HTTP.
+
+## v.1.0.00.138 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Add Capacitor to build Android and iOS apps from the React web app.
+
+### Changes (detailed)
+
+#### Added
+- package.json: @capacitor/core, @capacitor/cli, @capacitor/android, @capacitor/ios; scripts cap:sync, cap:android, cap:ios.
+- capacitor.config.ts: appId com.balhinbalay.app, appName BalhinBalay, webDir build.
+- android/: Capacitor Android project (open with Android Studio).
+- ios/: Capacitor iOS project (open with Xcode on macOS).
+- CAPACITOR.md: workflow (build/sync, open native IDE), API URL for native builds, useful commands.
+
+## v.1.0.00.137 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Email: default From address to SMTP_USER so IONOS accepts sender (fixes 550 Sender address not allowed).
+
+### Changes (detailed)
+
+#### Fixed
+- server/services/email.js
+  - sendConfirmationEmail()
+  - From: `SMTP_FROM || noreply@SMTP_HOST` (rejected by IONOS when SMTP_FROM unset). To: `SMTP_FROM || SMTP_USER || noreply@SMTP_HOST` so From matches authenticated mailbox.
+
+## v.1.0.00.136 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- .env template: add commented SMTP block (IONOS-ready) so only credentials need to be pasted.
+
+### Changes (detailed)
+
+#### Added
+- .env: Commented block for SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, SMTP_FROM, APP_URL with IONOS host/port and short instructions.
+
+## v.1.0.00.135 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix profile drawer: moved out of header to escape backdrop-filter containment; added AnimatePresence keys; scrim changed from button to div.
+
+### Changes (detailed)
+
+#### Fixed
+- src/App.js: ProfileDrawer moved from inside app-header to top-level (sibling to FavoritesModal). From: drawer rendered inside header, broken by parent backdrop-filter creating fixed-position containment. To: drawer renders at root, position:fixed now correct relative to viewport.
+- src/components/ProfileDrawer.js: Scrim changed from motion.button to motion.div (role=button, onKeyDown) for overlay semantics; added unique keys for AnimatePresence children (profile-drawer-scrim, profile-drawer-panel) for proper exit animations.
+
+## v.1.0.00.134 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Full UI redesign: modern app aesthetic—card-heavy, soft shadows, rounded corners, pill-shaped buttons. New design tokens, updated header, tabs, property cards, modals, profile, Admin, forms.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: New design system (--bb-primary #0d7377, softer shadows, larger radius, typography vars); header with backdrop blur; pill segment tabs; property cards with soft shadow, pill View Details; favorites modal card style; filter sheet, modals; profile drawer, admin stat cards, nav pills; global form/btn overrides; transitions 0.25s ease.
+- public/index.html: theme-color to #0d7377.
+
 ## v.1.0.00.133 — Development
 Date: 2026-02-28
 Type: Dev Change

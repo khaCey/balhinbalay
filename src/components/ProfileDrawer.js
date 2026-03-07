@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onProfile, onLogout, loggingOut }) {
+function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onProfile, onLogout, loggingOut, isNative, onEnableNotifications }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -17,25 +17,29 @@ function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onP
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.button
-            type="button"
-            aria-label="Close menu"
-            className="profile-drawer-scrim"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            tabIndex={-1}
-          />
-          <motion.aside
-            className="profile-drawer-panel"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-          >
-            <div className="profile-drawer-header">
+        <motion.div
+          key="profile-drawer-scrim"
+          role="button"
+          tabIndex={-1}
+          aria-label="Close menu"
+          className="profile-drawer-scrim"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); } }}
+        />
+      )}
+      {open && (
+        <motion.aside
+          key="profile-drawer-panel"
+          className="profile-drawer-panel"
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+        >
+          <div className="profile-drawer-header">
               <div className="profile-drawer-brand">
                 <div className="profile-drawer-user-info">
                   <span className="profile-drawer-email">{user?.email || '—'}</span>
@@ -74,6 +78,17 @@ function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onP
                 </button>
               </div>
 
+              {isNative && onEnableNotifications && (
+                <>
+                  <div className="profile-drawer-section-label">Notifications</div>
+                  <div className="profile-drawer-nav">
+                    <button type="button" onClick={() => { handleAction(onEnableNotifications); onClose(); }}>
+                      <i className="fas fa-bell" aria-hidden />
+                      <span>Enable push notifications</span>
+                    </button>
+                  </div>
+                </>
+              )}
               <div className="profile-drawer-section-label profile-drawer-account">Account</div>
               <div className="profile-drawer-nav">
                 <button type="button" onClick={() => handleAction(onProfile)}>
@@ -101,7 +116,6 @@ function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onP
               </div>
             </div>
           </motion.aside>
-        </>
       )}
     </AnimatePresence>
   );

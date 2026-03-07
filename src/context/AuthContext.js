@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api, setToken, clearToken, getToken, setOn401 } from '../api/client';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 
 const STORAGE_KEY = 'balhinbalay_auth';
 const MIN_PASSWORD_LENGTH = 8;
@@ -29,11 +31,34 @@ const loadStoredAuth = () => {
   }
 };
 
-const saveAuth = (user, token) => {
+const saveAuth = async (user, token) => {
   if (user && token) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, token }));
+    const payload = JSON.stringify({ user, token });
+    try {
+      localStorage.setItem(STORAGE_KEY, payload);
+    } catch (e) {
+      // ignore
+    }
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Preferences.set({ key: STORAGE_KEY, value: payload });
+      } catch (e) {
+        // ignore
+      }
+    }
   } else {
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      // ignore
+    }
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Preferences.remove({ key: STORAGE_KEY });
+      } catch (e) {
+        // ignore
+      }
+    }
   }
 };
 
@@ -50,6 +75,26 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     setOn401(() => setUser(null));
     return () => setOn401(null);
+  }, []);
+
+  // In native app, restore auth from Capacitor Preferences (persists across app restarts)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { value } = await Preferences.get({ key: STORAGE_KEY });
+        if (cancelled || !value) return;
+        const data = JSON.parse(value);
+        if (data && data.token && data.user) {
+          setToken(data.token);
+          setUser(data.user);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -78,14 +123,20 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await api.post('/api/auth/login', { email, password });
       if (!data || !data.ok) {
-        return { ok: false, message: (data && data.message) || 'Login failed.' };
+        const msg = (data && data.message) || 'Login failed. Check your email and password, and that your email is verified.';
+        return { ok: false, message: msg };
       }
       const userObj = data.user ? { id: data.user.id, email: data.user.email, name: data.user.name || data.user.email, role: data.user.role || 'user' } : null;
       setToken(data.token);
       setUser(userObj);
       return { ok: true, user: userObj };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Login failed.' };
+      const msg = (err.data && err.data.message) || err.userMessage || err.message;
+      return {
+        ok: false,
+        message: msg || 'Connection problem. Check your network and try again.',
+        code: err.data && err.data.code
+      };
     }
   };
 
@@ -101,12 +152,27 @@ export const AuthProvider = ({ children }) => {
       if (!data || !data.ok) {
         return { ok: false, message: (data && data.message) || 'Registration failed.' };
       }
+      if (data.requiresConfirmation) {
+        return { ok: true, requiresConfirmation: true, message: data.message || 'Check your email to confirm your account.' };
+      }
       const userObj = data.user ? { id: data.user.id, email: data.user.email, name: data.user.name || data.user.email, role: data.user.role || 'user' } : null;
       setToken(data.token);
       setUser(userObj);
       return { ok: true, user: userObj };
     } catch (err) {
       return { ok: false, message: (err.data && err.data.message) || err.message || 'Registration failed.' };
+    }
+  };
+
+  const resendConfirmation = async (email) => {
+    if (!(email || '').trim()) {
+      return { ok: false, message: 'Email is required.' };
+    }
+    try {
+      const data = await api.post('/api/auth/resend-confirmation', { email });
+      return { ok: data && data.ok, message: (data && data.message) || 'Check your email for the confirmation link.' };
+    } catch (err) {
+      return { ok: false, message: (err.data && err.data.message) || err.message || 'Failed to resend confirmation email.' };
     }
   };
 
@@ -155,6 +221,7 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     register,
+    resendConfirmation,
     logout,
     updateProfile,
     changePassword,

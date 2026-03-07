@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const LoginModal = ({ show, onClose }) => {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, resendConfirmation } = useAuth();
   const [tab, setTab] = useState('login');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
@@ -12,11 +12,16 @@ const LoginModal = ({ show, onClose }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showResend, setShowResend] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setShowResend(false);
     if (tab === 'register') {
       if (email.trim() !== confirmEmail.trim()) {
         setError('Email and confirm email do not match.');
@@ -31,22 +36,47 @@ const LoginModal = ({ show, onClose }) => {
     try {
       const result = tab === 'login' ? await login(email, password) : await register(email, password, name);
       if (result.ok) {
-        onClose();
-        if (result.user && result.user.role === 'admin') {
-          navigate('/admin');
+        if (result.requiresConfirmation) {
+          setSuccess(result.message || 'Check your email to confirm your account.');
+          setTab('login');
+          setPassword('');
+          setConfirmPassword('');
+        } else if (result.user) {
+          onClose();
+          if (result.user.role === 'admin') {
+            navigate('/admin');
+          }
+          setEmail('');
+          setConfirmEmail('');
+          setPassword('');
+          setConfirmPassword('');
+          setName('');
         }
-        setEmail('');
-        setConfirmEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        setName('');
       } else {
         setError(result.message || 'Something went wrong.');
+        setShowResend(result.code === 'EMAIL_NOT_VERIFIED');
       }
     } catch (err) {
       setError(err?.message || 'Something went wrong.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) return;
+    setError('');
+    setSuccess('');
+    setResending(true);
+    try {
+      const result = await resendConfirmation(email);
+      if (result.ok) {
+        setSuccess(result.message || 'Confirmation email sent. Check your inbox.');
+      } else {
+        setError(result.message || 'Failed to resend.');
+      }
+    } finally {
+      setResending(false);
     }
   };
 
@@ -69,7 +99,7 @@ const LoginModal = ({ show, onClose }) => {
                 <button
                   type="button"
                   className={tab === 'login' ? 'active' : ''}
-                  onClick={() => { setTab('login'); setError(''); setConfirmEmail(''); setConfirmPassword(''); }}
+                  onClick={() => { setTab('login'); setError(''); setSuccess(''); setShowResend(false); setConfirmEmail(''); setConfirmPassword(''); }}
                 >
                   Log in
                 </button>
@@ -78,7 +108,7 @@ const LoginModal = ({ show, onClose }) => {
                 <button
                   type="button"
                   className={tab === 'register' ? 'active' : ''}
-                  onClick={() => { setTab('register'); setError(''); setConfirmEmail(''); setConfirmPassword(''); }}
+                  onClick={() => { setTab('register'); setError(''); setSuccess(''); setShowResend(false); setConfirmEmail(''); setConfirmPassword(''); }}
                 >
                   Sign up
                 </button>
@@ -155,7 +185,18 @@ const LoginModal = ({ show, onClose }) => {
                   />
                 </div>
               )}
+              {success && <p className="text-success small mb-2">{success}</p>}
               {error && <p className="text-danger small mb-2">{error}</p>}
+              {showResend && tab === 'login' && (
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm p-0 mb-2 text-primary"
+                  onClick={handleResendConfirmation}
+                  disabled={resending || !email.trim()}
+                >
+                  {resending ? 'Sending...' : 'Resend confirmation email'}
+                </button>
+              )}
               <button type="submit" className="btn btn-primary w-100 btn-loading" disabled={loading}>
                 {loading ? (
                   <>

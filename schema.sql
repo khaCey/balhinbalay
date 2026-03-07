@@ -9,6 +9,9 @@ CREATE TABLE users (
   name           VARCHAR(200),
   role           VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
   account_status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'banned')),
+  email_verified BOOLEAN NOT NULL DEFAULT true,
+  confirmation_token VARCHAR(64),
+  confirmation_expires TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );

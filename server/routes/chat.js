@@ -1,6 +1,7 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { subscribe, notifyUser } = require('../chatEvents');
+const { sendPushToUser } = require('../services/push');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -170,7 +171,18 @@ router.post('/threads/:threadId/messages', async (req, res) => {
     await pool.query('UPDATE chat_threads SET updated_at = now() WHERE id = $1', [threadId]);
     const r = rows[0];
     const recipientUserId = req.user.id === thread[0].user_id ? thread[0].listing_owner_id : thread[0].user_id;
+    console.log('[chat] New message in thread', threadId, '→ notifying recipient user', recipientUserId);
     notifyUser(recipientUserId, { type: 'threads_updated', threadId });
+    const { rows: listingRow } = await pool.query(
+      'SELECT l.title FROM chat_threads t JOIN listings l ON l.id = t.listing_id WHERE t.id = $1',
+      [threadId]
+    );
+    const listingTitle = listingRow[0]?.title || 'a listing';
+    sendPushToUser(pool, recipientUserId, {
+      title: 'New message',
+      body: `Message about ${listingTitle}`,
+      data: { threadId: String(threadId) }
+    }).catch(() => {});
     res.status(201).json({ id: r.id, threadId: r.thread_id, senderId: r.sender_id, text: r.text, createdAt: r.created_at });
   } catch (err) {
     console.error(err);

@@ -56,6 +56,43 @@ router.patch('/me', async (req, res) => {
   }
 });
 
+// GET /api/users/me/push-token — check if current user has any push token registered
+router.get('/me/push-token', async (req, res) => {
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+  try {
+    const { rows } = await pool.query('SELECT 1 FROM user_push_tokens WHERE user_id = $1 LIMIT 1', [req.user.id]);
+    return res.json({ registered: rows.length > 0 });
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Push tokens table not available. Run migrations.' });
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/users/me/push-token — register FCM/APNs token for push notifications (body: { token, platform })
+router.post('/me/push-token', async (req, res) => {
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+  const token = (req.body && req.body.token) ? String(req.body.token).trim() : '';
+  const platform = (req.body && req.body.platform) ? String(req.body.platform).trim().slice(0, 20) : 'android';
+  if (!token) return res.status(400).json({ error: 'token is required' });
+  try {
+    await pool.query(
+      `INSERT INTO user_push_tokens (user_id, token, platform)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, token) DO UPDATE SET platform = EXCLUDED.platform`,
+      [req.user.id, token, platform]
+    );
+    console.log('[push] Token registered for user', req.user.id, 'platform:', platform);
+    return res.json({ ok: true });
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Push tokens table not available. Run migrations.' });
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/users/me/change-password
 router.post('/me/change-password', async (req, res) => {
   const pool = getPool(req);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../context/ChatContext';
 
 function relativeTime(ts) {
@@ -16,9 +16,10 @@ function relativeTime(ts) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const MessagesModal = ({ show, onClose, allListings, onOpenThread }) => {
+const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThreadId, onClearInitialThreadId }) => {
   const { getThreads, getMessagesByThreadId } = useChat();
   const [viewportSize, setViewportSize] = useState(null);
+  const didOpenInitialRef = useRef(false);
 
   useEffect(() => {
     if (!show) return;
@@ -26,6 +27,26 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread }) => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, [show]);
+
+  // When opened from push notification with threadId, auto-open that thread once it's in the list
+  useEffect(() => {
+    if (!show) {
+      didOpenInitialRef.current = false;
+      return;
+    }
+    if (!initialThreadId || didOpenInitialRef.current) return;
+    const rawThreads = getThreads();
+    const threadList = Array.isArray(rawThreads) ? rawThreads : [];
+    const list = Array.isArray(allListings) ? allListings : [];
+    if (!threadList.length) return;
+    const thread = threadList.find((t) => String(t.id) === String(initialThreadId));
+    if (!thread) return;
+    const listing = list.find((l) => l.id === thread.listingId);
+    if (!listing) return;
+    didOpenInitialRef.current = true;
+    onOpenThread(listing, thread.id);
+    onClearInitialThreadId?.();
+  }, [show, initialThreadId, getThreads, allListings, onOpenThread, onClearInitialThreadId]);
 
   useEffect(() => {
     if (!show || typeof window === 'undefined' || !window.visualViewport) return;
@@ -51,8 +72,6 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread }) => {
     };
   }, [show]);
 
-  if (!show) return null;
-
   const rawThreads = getThreads();
   const threadList = Array.isArray(rawThreads) ? rawThreads : [];
   const list = Array.isArray(allListings) ? allListings : [];
@@ -71,6 +90,8 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread }) => {
     (sum, { thread }) => sum + (thread.unreadCount || 0),
     0
   );
+
+  if (!show) return null;
 
   const handleOpen = (listing, threadId) => {
     onOpenThread(listing, threadId);

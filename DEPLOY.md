@@ -80,6 +80,18 @@ chmod 600 .env
 
 Update `YOUR_DB_PASSWORD` to match the user you created. If your server loads `.env` from `server/`, put the same `.env` inside `server/` instead.
 
+**Email confirmation (optional):** To send confirmation emails on signup, add SMTP settings to `.env`:
+
+```
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+APP_URL=https://your-domain.com
+```
+
+Without SMTP, confirmation links are logged to the server console (dev mode).
+
 ---
 
 ## 5. Run the app (one process = API + static site)

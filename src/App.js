@@ -22,6 +22,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ListingsProvider, useListings } from './context/ListingsContext';
 import { UserListingsProvider, useUserListings } from './context/UserListingsContext';
 import { ChatProvider, useChat } from './context/ChatContext';
+import { api, baseUrl } from './api/client';
+import { Capacitor } from '@capacitor/core';
 import { priceRanges } from './data/listings';
 import {
   getCityById,
@@ -34,6 +36,7 @@ import {
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import AddPropertyPage from './pages/AddPropertyPage';
+import ConfirmEmailPage from './pages/ConfirmEmailPage';
 import './App.css';
 
 function AdminRoute() {
@@ -54,6 +57,7 @@ function AppContent() {
   const [chatProperty, setChatProperty] = useState(null);
   const [chatThreadId, setChatThreadId] = useState(null);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [notificationThreadId, setNotificationThreadId] = useState(null);
   const [showFavoritesModal, setShowFavoritesModal] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -224,6 +228,68 @@ function AppContent() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [filteredListings.length, pageSize, viewMode]);
+
+  /* Push notifications (native app): register token when logged in; on tap open Messages. Retry and manual trigger. */
+  const [pushRegisterTrigger, setPushRegisterTrigger] = useState(0);
+  useEffect(() => {
+    if (!user || !Capacitor.isNativePlatform()) return;
+    const cancelledRef = { current: false };
+    let tapListener;
+    let regListener;
+    let retryTimeout;
+    (async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        if (!PushNotifications) throw new Error('PushNotifications plugin not available');
+        if (cancelledRef.current) return;
+        const onRegistration = async ({ value: token }) => {
+          if (cancelledRef.current) return;
+          const platform = Capacitor.getPlatform();
+          try {
+            console.log('[push] Got FCM token, sending to server...');
+            await api.post('/api/users/me/push-token', { token, platform });
+            console.log('[push] Token registered with server.');
+          } catch (e) {
+            console.warn('[push] Failed to register token with server:', e?.message || e, 'status:', e?.status, 'data:', e?.data);
+          }
+        };
+        const onTap = ({ notification }) => {
+          const data = notification.data || {};
+          if (data.threadId) setNotificationThreadId(data.threadId);
+          setShowMessagesModal(true);
+          if (data.threadId && location.pathname !== '/sale' && location.pathname !== '/rent') navigate('/sale');
+        };
+        if (typeof PushNotifications.addListener === 'function') {
+          tapListener = PushNotifications.addListener('pushNotificationActionPerformed', onTap);
+          regListener = PushNotifications.addListener('registration', onRegistration);
+        }
+        if (cancelledRef.current) return;
+        console.log('[push] Requesting notification permission...');
+        const status = await PushNotifications.requestPermissions();
+        if (cancelledRef.current) return;
+        if (status?.receive !== 'granted') {
+          console.warn('[push] Permission not granted:', status?.receive);
+          return;
+        }
+        console.log('[push] Permission granted, calling register()...');
+        await PushNotifications.register();
+        // Retry once after 15s in case FCM token was delayed
+        retryTimeout = setTimeout(() => {
+          if (cancelledRef.current) return;
+          console.log('[push] Retry: calling register() again...');
+          PushNotifications.register?.();
+        }, 15000);
+      } catch (e) {
+        console.warn('[push] Setup failed:', e?.message || e);
+      }
+    })();
+    return () => {
+      cancelledRef.current = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (tapListener?.remove) tapListener.remove();
+      if (regListener?.remove) regListener.remove();
+    };
+  }, [user, location.pathname, navigate, pushRegisterTrigger]);
 
   const listingsByType = useMemo(
     () => listingsToFilter.filter((item) => item.listingType === listingType),
@@ -450,18 +516,7 @@ function AppContent() {
                   >
                     <i className="fas fa-ellipsis-v" aria-hidden></i>
                   </button>
-                  {isMobile ? (
-                    <ProfileDrawer
-                      open={showHeaderMenu}
-                      onClose={() => setShowHeaderMenu(false)}
-                      user={user}
-                      onAddProperty={() => { setShowHeaderMenu(false); navigate('/add-property'); }}
-                      onMyProperties={() => setShowMyPropertiesOnly((v) => !v)}
-                      onProfile={() => { setShowHeaderMenu(false); navigate('/profile'); }}
-                      onLogout={() => setShowLogoutConfirm(true)}
-                      loggingOut={loggingOut}
-                    />
-                  ) : (
+                  {isMobile ? null : (
                     showHeaderMenu && (
                       <>
                         <div
@@ -773,7 +828,7 @@ function AppContent() {
           <main className={`results-area ${!filtersOpen && !isMobile ? 'full' : ''}`}>
             {!listingsLoading && listingsError && (
               <div className="listings-error-banner" style={{ padding: '12px 16px', background: '#f8d7da', color: '#721c24', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <span>{listingsError}</span>
+                <span>{listingsError}{baseUrl ? ` — API: ${baseUrl}` : ' — API: same origin'}</span>
                 <button type="button" onClick={() => refreshListings()} style={{ padding: '6px 14px', cursor: 'pointer', backgroundColor: '#721c24', color: '#fff', border: 'none', borderRadius: 4 }}>
                   Retry
                 </button>
@@ -891,13 +946,16 @@ function AppContent() {
         />
         <MessagesModal
           show={showMessagesModal && !!user}
-          onClose={() => setShowMessagesModal(false)}
+          onClose={() => { setShowMessagesModal(false); setNotificationThreadId(null); }}
           allListings={allListings}
+          initialThreadId={notificationThreadId}
+          onClearInitialThreadId={() => setNotificationThreadId(null)}
           onOpenThread={(listing, threadId) => {
             setChatProperty(listing);
             setChatThreadId(threadId || null);
             setShowMessagesModal(false);
             setShowChatModal(true);
+            setNotificationThreadId(null);
           }}
         />
         <FavoritesModal
@@ -906,6 +964,20 @@ function AppContent() {
           favoriteListings={favoriteListings}
           onSelectProperty={handleOpenProperty}
         />
+        {isMobile && user && (
+          <ProfileDrawer
+            open={showHeaderMenu}
+            onClose={() => setShowHeaderMenu(false)}
+            user={user}
+            onAddProperty={() => { setShowHeaderMenu(false); navigate('/add-property'); }}
+            onMyProperties={() => setShowMyPropertiesOnly((v) => !v)}
+            onProfile={() => { setShowHeaderMenu(false); navigate('/profile'); }}
+            onLogout={() => setShowLogoutConfirm(true)}
+            loggingOut={loggingOut}
+            isNative={Capacitor.isNativePlatform()}
+            onEnableNotifications={() => setPushRegisterTrigger((t) => t + 1)}
+          />
+        )}
         <ConfirmModal
           show={showLogoutConfirm}
           title="Log out"
@@ -958,6 +1030,7 @@ export default function App() {
                           <Route path="/add-property" element={<AddPropertyPage />} />
                           <Route path="/add-property/:id" element={<AddPropertyPage />} />
                           <Route path="/admin" element={<AdminRoute />} />
+                          <Route path="/confirm-email" element={<ConfirmEmailPage />} />
                         </Routes>
                       </LoginModalProvider>
                     </BrowserRouter>

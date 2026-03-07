@@ -12,10 +12,13 @@ export const useChat = () => {
   return context;
 };
 
+const TOAST_DURATION_MS = 4000;
+
 export const ChatProvider = ({ children }) => {
   const { user } = useAuth();
   const [threads, setThreads] = useState([]);
   const [messagesCache, setMessagesCache] = useState({});
+  const [inAppNotification, setInAppNotification] = useState(null);
 
   const fetchThreads = useCallback(async () => {
     if (!user) {
@@ -76,7 +79,11 @@ export const ChatProvider = ({ children }) => {
         const opts = { headers: { Authorization: 'Bearer ' + getToken() }, signal: currentAc.signal };
         fetch(url, opts)
           .then((res) => {
-            if (aborted || !res.ok) return;
+            if (aborted) return;
+            if (!res.ok) {
+              reconnectTimeout = setTimeout(() => connect(RECONNECT_DELAY), RECONNECT_DELAY);
+              return;
+            }
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let buf = '';
@@ -84,7 +91,12 @@ export const ChatProvider = ({ children }) => {
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.slice(6));
-                  if (data.type === 'threads_updated') fetchThreadsRef.current();
+                  if (data.type === 'threads_updated') {
+                    fetchThreadsRef.current();
+                    const at = Date.now();
+                    setInAppNotification({ message: 'New message', at });
+                    setTimeout(() => setInAppNotification((prev) => (prev?.at === at ? null : prev)), TOAST_DURATION_MS);
+                  }
                 } catch (_) {}
               }
             };
@@ -273,12 +285,36 @@ export const ChatProvider = ({ children }) => {
     markThreadRead,
     markThreadReadByListingId,
     sendMessage,
-    loadMessagesForListing
+    loadMessagesForListing,
+    inAppNotification
   };
 
   return (
     <ChatContext.Provider value={value}>
       {children}
+      {inAppNotification && (
+        <div
+          className="chat-in-app-toast"
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
+            padding: '10px 16px',
+            borderRadius: 8,
+            background: 'var(--bs-dark, #212529)',
+            color: '#fff',
+            fontSize: 14,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+            maxWidth: '90vw'
+          }}
+        >
+          {inAppNotification.message}
+        </div>
+      )}
     </ChatContext.Provider>
   );
 };
