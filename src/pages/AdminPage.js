@@ -223,6 +223,31 @@ export default function AdminPage() {
     });
   };
 
+  const handleDeleteUser = async (userId) => {
+    try {
+      await api.delete('/api/admin/users/' + userId);
+      setError('');
+      await fetchUsers();
+      await fetchStats();
+    } catch (err) {
+      setError(err?.userMessage || err?.message || 'Failed to delete user');
+    }
+  };
+
+  const openDeleteUserConfirm = (u) => {
+    setConfirmState({
+      show: true,
+      title: 'Delete user?',
+      message: `Permanently delete ${u.email} and all their data (listings, favorites, saved searches, messages)? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmState((s) => ({ ...s, show: false }));
+        handleDeleteUser(u.id);
+      }
+    });
+  };
+
   const closeConfirm = () => {
     setConfirmState((s) => ({ ...s, show: false, onConfirm: null }));
   };
@@ -444,6 +469,9 @@ export default function AdminPage() {
                             <button type="button" className="admin-btn admin-btn-success admin-btn-sm" onClick={() => handleUserStatus(u.id, 'active')} disabled={u.accountStatus === 'active'}>Activate</button>
                             <button type="button" className="admin-btn admin-btn-warning admin-btn-sm" onClick={() => openSuspendConfirm(u)} disabled={u.accountStatus === 'suspended'}>Suspend</button>
                             <button type="button" className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => openBanConfirm(u)} disabled={u.accountStatus === 'banned'}>Ban</button>
+                            {u.id !== user?.id && (
+                              <button type="button" className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => openDeleteUserConfirm(u)} title="Permanently delete user and all data">Delete</button>
+                            )}
                           </>
                         )}
                       </td>

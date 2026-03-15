@@ -1,5 +1,1586 @@
 # Changelog
 
+## v.1.0.00.277 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Advanced filters (min beds, min baths, property type, furnished) apply only when the user clicks "Apply"; price, region, city, search query, and sort still trigger search immediately.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: applyAdvancedFilters callback that calls fetchSearchListings with current filter state. "Apply" button in the advanced filters panel that calls applyAdvancedFilters. useCallback import.
+- src/App.css: .results-advanced-filters-apply-wrap (grid-column 1 / -1, margin-top, flex), .results-advanced-filters-apply (min-width).
+
+#### Changed
+- src/App.js: From: useEffect to fetch search depended on propertyType, furnishedFilter, minBeds, minBaths, sizeRange — changing any advanced filter triggered an immediate refetch. To: useEffect dependency array no longer includes those; refetch runs only when listingType, price, region, city, searchQuery, or sortBy change. Advanced filter values are applied only when the user clicks "Apply".
+
+## v.1.0.00.276 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Search filters applied in the API query (server-side) instead of client-side. GET /api/listings accepts query params; search results view uses fetchSearchListings and searchResults.
+
+### Changes (detailed)
+
+#### Added
+- server/routes/listings.js: GET `/` now supports query params listingType, priceMin, priceMax, cityId, cityIds, type, furnished, minBeds, minBaths, sizeMin, sizeMax, q (keyword ILIKE), sort (newest|price-asc|price-desc|size-asc|size-desc); builds parameterized WHERE and ORDER BY; LIMIT 500. Keeps includeMine behavior.
+- src/context/ListingsContext.js: buildSearchQueryString(params), searchResults, searchLoading, searchError state; fetchSearchListings(params) calling GET /api/listings with query string from params.
+
+#### Changed
+- src/App.js: From: single client-side filtered list (filteredListings) from full apiListings. To: when hasSearched and not showMyPropertiesOnly, call fetchSearchListings with params derived from filter state; use searchResults for main list; show searchLoading and searchError for search path; keep filteredListingsForMyProperties (client-side) only for My properties; school filter on searchResults or my-properties list; listingsForView uses searchResults or school-filtered or my-properties. PullToRefresh disabled uses searchLoading on search path; error banner shows searchError on search path. setItemsToShow effect depends on listingsForView.
+
+#### Removed
+- src/App.js: Large client-side filteredListings useMemo for the main search path (replaced by server-filtered searchResults and filteredListingsForMyProperties for My properties only).
+
+## v.1.0.00.275 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- “Send reset code to my email” button styled red. Report/flag listing and total move-in fees implemented (backend, form, detail UI).
+
+### Changes (detailed)
+
+#### Added
+- server/migrations/add-move-in-fees-and-reports.sql: listing columns advance_pay, broker_fee, association_fee, utilities_included, reservation_fee; listing_reports table (listing_id, reporter_id, reason, created_at). Registered in run-migrations.js.
+- server/routes/listings.js: COLS and INSERT/PATCH include new move-in fields; POST /:id/report (auth, non-owner only, one report per user per listing, optional reason).
+- server/lib/listings.js: mapListingRow returns advancePay, brokerFee, associationFee, utilitiesIncluded, reservationFee.
+- src/components/AddPropertyForm.js: advance pay, broker fee, association fee, utilities included (checkbox), reservation fee (rent-only); state, initial sync, and submit payload.
+- src/components/PropertyDetailContent.js: Move-in fees section for rent — key money, security deposit, advance pay, broker fee, association fee, reservation fee, utilities included/not, extra fees; total move-in sum. Report/flag: button (non-owner, logged-in), modal with optional reason and submit; api.post report endpoint.
+
+#### Changed
+- src/pages/ProfilePage.js: “Send reset code to my email” button class from btn-outline-secondary to btn-danger (red).
+- MVP.md: Report/flag listing and Total move-in fees marked done in To do (backlog) with implementation refs.
+
+## v.1.0.00.274 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Profile: single “Change password” flow; always requires email 5-digit code (removed current-password form).
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ProfilePage.js: Removed “Change password” section that used current password + new password (no email code). Kept only the email-code flow and renamed it to “Change password” with hint “We’ll send a 5-digit code to your email. Enter the code and choose a new password (at least 8 characters).” Removed changePassword, handlePasswordSubmit, doChangePassword, related state, and ConfirmModal. From: two options (current-password change and reset via email). To: one flow — change password always requires email confirmation (5-digit code).
+
+#### Removed
+- src/pages/ProfilePage.js: ConfirmModal import and usage for change-password confirm; current-password / new-password / confirm-password state and form.
+
+## v.1.0.00.273 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Password reset available when logged in; still requires email confirmation (5-digit code).
+
+### Changes (detailed)
+
+#### Added
+- src/pages/ProfilePage.js: “Reset password (via email)” section — same flow as forgot password: send 5-digit code to user’s email (pre-filled), then enter code + new password + confirm. Cancel/Back to collapse. From: only LoginModal offered reset (forgot password). To: logged-in users can reset password from Profile and must confirm via email code.
+
+## v.1.0.00.272 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- MVP.md: add to To do (backlog) — total move-in fees calculation (key-money, security deposit, advance pay, broker fee, association fee, utilities included/not, reservation fee).
+
+### Changes (detailed)
+
+#### Changed
+- MVP.md: New backlog item for total move-in fees calculation with listed fee types.
+
+## v.1.0.00.271 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- MVP doc: inquiry via chat (no separate view); report/flag moved to To do. Password reset: 5-digit code sent to email, request/reset API, Forgot password flow in LoginModal.
+
+### Changes (detailed)
+
+#### Added
+- server/migrations/add-password-reset-code.sql: password_reset_code (VARCHAR 5), password_reset_expires (TIMESTAMPTZ); registered in run-migrations.js.
+- server/services/email.js: sendPasswordResetCode(toEmail, code, userName) — HTML + text email with 5-digit code.
+- server/routes/auth.js: POST /api/auth/request-password-reset (email) — generate 5-digit code, store with 15-min expiry, send email; POST /api/auth/reset-password (email, code, newPassword) — verify code, update password, clear code.
+- src/context/AuthContext.js: requestPasswordReset(email), resetPassword(email, code, newPassword) and exposed in context value.
+- src/components/LoginModal.js: Forgot password flow — “Forgot password?” link on login tab; reset step “email” (send code) and “code” (enter code + new password + confirm); Back to login; reset state cleared when modal closes.
+
+#### Changed
+- MVP.md: “View inquiries” marked implemented (inquiry via chat). “Report / flag listing” removed from Optional MVP Enhancements and added under new “To do (backlog)” section. Password reset checklist item marked implemented.
+
+## v.1.0.00.270 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Add MVP.md checklist; cross-check features against codebase and mark implemented vs not.
+
+### Changes (detailed)
+
+#### Added
+- MVP.md: Real Estate Platform MVP checklist (User accounts, Property listings, Search & discovery, Property detail, Messaging, Saved properties, Listing management, Notifications, Admin panel, Location, Optional enhancements) with [x]/[ ] per item based on codebase review.
+
+## v.1.0.00.269 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: set isSliding (SliderDragContext) when dragging via thumb hit zones so pull-to-refresh stays disabled.
+
+### Changes (detailed)
+
+#### Fixed
+- src/components/PriceSlider.js: handleThumbPointerDown now calls setSliding(true); handleThumbPointerUpOrCancel calls setSliding(false). From: thumb hit zones did not set isSliding, so PullToRefresh remained enabled and vertical movement while dragging triggered refresh. To: pull-to-refresh is disabled while using the sliders.
+
+## v.1.0.00.268 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: only thumb-sized hit zones are clickable; track has no hit target.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Replaced full-width overlay with two thumb-sized hit divs (price-slider-thumb-hit) positioned at minPct and maxPct, each 28px wide centered on the thumb. Container has pointer-events: none; only the two hit divs have pointer-events: auto. startDrag(which, clientX) and handleThumbPointerDown(e, which) start drag only when pointer is on a hit zone. valueFromX uses railRef for rect. From: single overlay with px hit test still allowed track clicks (bug or coordinate mismatch). To: track has no overlay; only the two small divs over the thumbs receive pointer events.
+- src/App.css: .price-slider-thumb-hit-container (pointer-events: none), .price-slider-thumb-hit (pointer-events: auto); removed full .price-slider-overlay.
+
+## v.1.0.00.267 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: use pixel-based thumb hit area (THUMB_HIT_PX = 14) so only the thumb is clickable, not the track.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Replaced THUMB_HIT_PCT (8%) with THUMB_HIT_PX (14). Hit test now uses distance in px from click to thumb center (minPx, maxPx from rect); only start drag when within 14px of a thumb. From: 8% of track was ~29px on 360px slider so track still felt clickable. To: fixed 14px radius so only the thumb area starts a drag.
+
+## v.1.0.00.266 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: only start drag when pointer is near a thumb (within THUMB_HIT_PCT); track is no longer clickable.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Added THUMB_HIT_PCT (8). In handleOverlayPointerDown, only set activeInputRef and capture when click is within THUMB_HIT_PCT of min or max thumb; otherwise return without starting drag. From: whole track started a drag (left/mid = min, right = max). To: only clicks on or near the thumbs start a drag.
+
+## v.1.0.00.265 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: replace wrapper/overflow approach with transparent overlay that captures all pointer events and updates min/max via valueFromX + onChange so both thumbs are draggable.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Removed input wrappers. Added transparent overlay (price-slider-overlay) over the track; on pointer down we decide min vs max from click position (midpoint between thumbs), set activeInputRef, update value once, setPointerCapture. On pointer move we update the active value from clientX (valueFromX). On pointer up/leave/cancel we release capture. Inputs have pointer-events: none and remain for display only; overlay drives interaction.
+- src/App.css: Replaced wrapper styles with .price-slider-overlay (full width, z-index 3); .price-slider-input pointer-events: none; removed .price-slider-input-wrap and .price-slider-input-active.
+
+## v.1.0.00.264 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: fix dual slider by making min and max wrappers non-overlapping (max wrapper starts at maxPct, not minPct) and giving max wrapper higher z-index.
+
+### Changes (detailed)
+
+#### Fixed
+- src/components/PriceSlider.js: Max wrapper left set to maxPct% and width to (100-maxPct)% so it does not overlap min wrapper (0 to maxPct). maxInputLeft/maxInputWidth use (100-maxPct) so thumb stays correct. From: max wrapper spanned minPct–100 and overlapped min wrapper (0–maxPct); min had z-index 2 so it captured clicks meant for the max thumb. To: wrappers are adjacent (0–maxPct and maxPct–100), no overlap; max handle receives events on the right.
+- src/App.css: .price-slider-input-wrap-max z-index 2, .price-slider-input-wrap-min z-index 1 so max wins at boundary.
+
+## v.1.0.00.263 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: fix end (max) handle not movable by using wrapper divs with overflow hidden instead of clip-path (clip-path does not limit hit-testing in some browsers).
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Wrap each range input in a div (price-slider-input-wrap) that limits hit area: min wrapper width minWrapWidth% (max(maxPct, 5)), max wrapper left minPct%, width maxWrapWidth% (max(100-minPct, 5)). Inputs sized/positioned so thumb remains correct; max input uses left/width so it spans full rail. From: clip-path on inputs did not restrict pointer events so max handle still could not be moved. To: wrappers create non-overlapping hit regions so both thumbs are draggable.
+- src/App.css: .price-slider-input-wrap (absolute, overflow hidden, pointer-events auto); .price-slider-input-wrap-min z-index 2; .price-slider-input top 0, width/left from inline styles; removed clip-path approach.
+
+## v.1.0.00.262 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: both handles movable via clip-path hit areas; Advanced Filters label and centered toggle.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PriceSlider.js: Min and max inputs use inline clip-path so hit areas do not overlap (min: left 0 to maxPct%; max: minPct% to 100%). From: min input on top (z-index 2) captured all events so max handle could not be moved. To: both thumbs independently draggable.
+- src/App.js: Toggle text "More filters" -> "Advanced Filters"; wrap toggle in results-advanced-filters-toggle-wrap for centering.
+- src/App.css: .results-advanced-filters-toggle-wrap added (flex, justify-content: center) to center Advanced Filters button horizontally.
+
+## v.1.0.00.261 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Price slider: fix min handle not movable (z-index); disable pull-to-refresh and swipe navigation while dragging; advanced filters hidden by default and tucked with price selector in a collapsible "More filters" section.
+
+### Changes (detailed)
+
+#### Added
+- src/context/SliderDragContext.js: SliderDragProvider, useSliderDrag(); isSliding state and setSliding so PriceSlider can signal drag and PullToRefresh/MainLayout can disable during drag.
+- src/App.js: showAdvancedFilters state (default false); results-filters-wrap grouping price slider + "More filters" toggle + collapsible results-advanced-filters panel; SliderDragProvider wraps MainLayout route; useSliderDrag() in AppContent; PullToRefresh disabled when isSliding.
+- src/App.css: .results-filters-wrap, .results-advanced-filters-toggle, .results-filters-wrap .results-price-slider-wrap and .results-advanced-filters overrides so filters are one card with slider and tucked panel.
+
+#### Changed
+- src/App.css: .price-slider-input-min z-index 2, .price-slider-input-max z-index 1. From: max on top so min handle could not be dragged. To: min on top so first handle is movable.
+- src/components/PriceSlider.js: useSliderDrag(); pointer handlers (onPointerDown/Up/Leave/Cancel) on both range inputs call setSliding(true/false).
+- src/components/MainLayout.js: useSliderDrag(); handleSwipeEnd returns early when isSliding so swipe does not navigate while dragging slider.
+
+## v.1.0.00.260 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Push token registration runs once per session instead of on every page change.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PushTokenHandler.js: Register effect now depends on userId (user?.id), not user object, and uses a ref for navigate so route changes do not re-run the effect. From: effect re-ran when user or navigate reference changed (e.g. on navigation), causing repeated "[push] Token registered" server calls. To: registration runs only when startupRevokeDone, userId, pushEnabled, or trigger change (i.e. once after login when push is enabled, or when user toggles push in Settings).
+
+## v.1.0.00.259 — Development
+Date: 2026-03-12
+Type: Dev Change
+
+### Summary
+- Fix app getting stuck on search results page: remove currentResultsState from restore effect deps to break restore/persist effect loop that could freeze navigation.
+
+### Changes (detailed)
+
+#### Fixed
+- src/App.js: Restore-filters effect no longer lists currentResultsState in dependency array. From: persist effect updated context -> restore effect ran (currentResultsState in deps) -> setState -> persist ran again -> infinite re-render loop, app stuck. To: restore runs only when hasSearched, lastSearchState, or listingType changes; still reads currentResultsState inside effect for restore on mount/return to tab.
+
+## v.1.0.00.258 — Development
+Date: 2026-03-12
+Type: Dev Change
+
+### Summary
+- Fix second bottom nav highlight when swiping: restrict pill background to .active; hover on non-active no longer uses same background (sticky hover on touch).
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .app-bottom-nav-item:hover no longer sets background; added .app-bottom-nav-item:hover:not(.active) { background: transparent }. From: hover used same background as .active so a second tab could show the pill (sticky hover on touch). To: only .active has the pill background.
+
+## v.1.0.00.257 — Development
+Date: 2026-03-12
+Type: Dev Change
+
+### Summary
+- Add dark mode control to Settings: ThemeContext with System / Light / Dark; preference stored in localStorage and overrides system when set.
+
+### Changes (detailed)
+
+#### Added
+- src/context/ThemeContext.js: ThemeProvider, useTheme(); theme preference 'system' | 'light' | 'dark' in localStorage (balhinbalay_theme); applies data-theme and theme-color; when 'system' uses matchMedia('prefers-color-scheme: dark').
+- src/pages/SettingsPage.js: Appearance section with Dark mode buttons (System, Light, Dark) using useTheme().
+
+#### Changed
+- src/App.js: Wrap app in ThemeProvider; remove inline theme useEffect (theme logic moved to ThemeContext).
+
+## v.1.0.00.256 — Development
+Date: 2026-03-12
+Type: Dev Change
+
+### Summary
+- Nav: prevent second tab highlight when swiping (tap :active style + blur after swipe).
+- Results: add advanced search block under price sliders (min beds, min baths, property type, furnished).
+- Filters: persist results filters in SearchContext (currentResultsState) so they survive swipe navigation.
+- Theme: auto-detect device dark mode (prefers-color-scheme) and apply dark theme (data-theme + CSS variables).
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: Advanced search block (results-advanced-filters) under price slider when hasSearched: min beds, min baths, property type, furnished dropdowns; useEffect to persist current filters to SearchContext (setCurrentResultsState); useEffect to detect prefers-color-scheme: dark and set data-theme + theme-color meta; hasRestoredFiltersRef to avoid overwriting context on first mount.
+- src/App.css: .app-bottom-nav-item:active { background: transparent }; .results-advanced-filters grid and labels; [data-theme="dark"] variable overrides and body background/color.
+- src/context/SearchContext.js: currentResultsState (object keyed by listingType), setCurrentResultsStateForListing(listingType, state) in provider value.
+
+#### Changed
+- src/components/MainLayout.js: document.activeElement?.blur?.() after navigate() in handleSwipeEnd so no nav button retains focus/active state.
+- src/App.js: Restore effect prefers currentResultsState[listingType] over lastSearchState when available; persist effect writes filter state via setCurrentResultsStateForListing(listingType, ...) so sale and rent each keep their own filters.
+- src/context/SearchContext.js: SearchProvider holds currentResultsState as { sale?: state, rent?: state } and exposes setCurrentResultsStateForListing.
+
+## v.1.0.00.255 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Bottom nav: block taps briefly after swipe navigation so touch end does not highlight a second tab (fixes "two highlighted pages" when swiping left/right).
+
+### Changes (detailed)
+
+#### Added
+- src/components/MainLayout.js: navBlockedAfterSwipe state and navBlockTimeoutRef; after handleSwipeEnd navigates, set navBlockedAfterSwipe true for NAV_BLOCK_AFTER_SWIPE_MS (350ms) and apply app-bottom-nav-blocked class to nav.
+- src/App.css: .app-bottom-nav-blocked { pointer-events: none; }.
+
+#### Changed
+- src/components/MainLayout.js: handleSwipeEnd now clears any existing timeout and starts a new one when a swipe navigation occurs; nav gets conditional class for blocked state. useEffect cleanup clears navBlockTimeoutRef on unmount.
+
+## v.1.0.00.254 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Pull-to-refresh: use scroll container scrollTop and add dead zone so the indicator does not show on small drags (e.g. when using handles).
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PullToRefresh.js: getScrollTop() now returns containerRef.current?.parentElement?.scrollTop ?? 0 instead of window scroll. From: pull activated whenever window was at top (window scroll always 0 in this app), so any downward drag showed refresh. To: pull only activates when the list (results-area) is scrolled to the top. Added MIN_PULL_TO_SHOW = 25; onTouchMove and onPointerMove only set pullY when delta > MIN_PULL_TO_SHOW; showIndicator = pullY > MIN_PULL_TO_SHOW || refreshing. From: indicator showed on any pullY > 0. To: small drags (e.g. handles) do not show the indicator or trigger refresh.
+
+## v.1.0.00.253 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Search: highlight Search tab in bottom nav on /sale and /rent; add header with back button and title (For Sale / For Rent) on results view.
+- Menu: replace profile sidebar with full-page menu at /menu; bottom nav Menu navigates to /menu.
+- Headers: introduce shared PageHeader component and unify all page headers with structure (back + title + optional right) and visual refresh (typography, shadow); migrate all pages and search filter pages to PageHeader; remove obsolete search-filter header CSS.
+
+### Changes (detailed)
+
+#### Added
+- src/components/PageHeader.js: New component PageHeader(title, onBack?, right?, className?) for unified back + title + optional right slot.
+- src/pages/MenuPage.js: Full-page menu with PageHeader, user chip, Main (Add property, My properties, Saved properties, Saved searches), Account (Settings, Delete account, Profile, Log out); redirects to / when not logged in; own logout ConfirmModal.
+- src/App.js: Route path="menu" element={<MenuPage />}; PageHeader import; sale/rent results header uses PageHeader with title "For Sale"/"For Rent" and onBack to /.
+- src/App.css: .page-header box-shadow, .page-header-back-placeholder, .page-header-right, .page-header-right-placeholder; .menu-page .menu-page-body for scroll and safe-area; .chat-page-header .page-header-title max-width 60vw.
+
+#### Changed
+- src/components/MainLayout.js: isSearchActive when path is /sale or /rent; Search nav item gets active class and aria-current; Menu nav item navigates to /menu instead of opening ProfileDrawer; removed ProfileDrawer, ConfirmModal, showHeaderMenu, showLogoutConfirm, loggingOut, handleOpenSavedSearches, useListings.
+- src/App.css: .page-header unified layout (flex, back/placeholder 40px, title flex:1, right/placeholder); .page-header-title font-size 1.2rem, font-weight 700; chat-page-header keeps sticky/z-index, .chat-page-title replaced by .chat-page-header .page-header-title.
+- src/pages/SavedPage.js, MessagesPage.js, PropertyPage.js, SettingsPage.js, AddPropertyPage.js, ProfilePage.js, ChatPage.js, SearchCityPage.js, SearchKeywordPage.js, SearchSchoolPage.js: Use PageHeader component instead of raw page-header/search-filter-page-header markup.
+- src/components/PageHeader.js: Supports title as React node; optional className prop for header element.
+
+#### Removed
+- src/App.css: .search-filter-page-header, .search-filter-page-back, .search-filter-page-title (replaced by PageHeader using .page-header).
+
+## v.1.0.00.252 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Remove remaining filter modal: drop FiltersOpenProvider, filter sheet/backdrop/floating button CSS, and desktop sidebar layout so no filter modal can appear.
+
+### Changes (detailed)
+
+#### Removed
+- src/App.js: FiltersOpenProvider import and wrapper; filter modal is not rendered anywhere, provider was unused.
+- src/App.css: .floating-filters-btn, .btn-filter-trigger, .filter-backdrop, .filter-sheet, .filter-sheet-handle, .filter-sheet-header, .filter-sheet-close, .filter-sidebar-content (sheet block); desktop media query block for filter-backdrop/filter-sheet/filter-sidebar-content; .App.desktop-filters-closed .listing-tabs. .app-header-actions icon rule no longer references .btn-filter-trigger.
+
+#### Changed
+- src/App.css: .app-layout-desktop .results-area margin-left set to 0 (no sidebar); removed .results-area.full margin-left override.
+
+## v.1.0.00.251 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat: show timestamp once per minute; fix getMinuteKey to use date milliseconds so messages in the same minute share one timestamp.
+
+### Changes (detailed)
+
+#### Fixed
+- src/pages/ChatPage.js: getMinuteKey(ts) now derives the minute key from new Date(ts).getTime() instead of Number(ts). From: timestamps (ISO strings) produced NaN key so every message showed time. To: same-minute messages share key, only first message of each minute shows time.
+- src/components/ChatModal.js: same getMinuteKey fix as ChatPage.js.
+
+## v.1.0.00.250 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Native: no account logged in on first install; first-launch detection clears any restored auth so a fresh install (or backup restore) starts logged out.
+
+### Changes (detailed)
+
+#### Changed
+- src/context/AuthContext.js: On native, initial user state is null (no sync restore from localStorage). In the native useEffect, if Preferences has no "balhinbalay_has_launched" flag, treat as first launch: clear auth from localStorage and Preferences, set the flag, and keep user null. Only restore auth from Preferences when the flag is already set (subsequent launches). Ensures a fresh install or restore-from-backup does not show a previously logged-in account.
+
+## v.1.0.00.249 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Push: revoke token on every app startup (before auth); only re-register after startup revoke so device never keeps receiving after logout.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PushTokenHandler.js: On native, run revoke with stored token as soon as the handler mounts (every app cold start). Set startupRevokeDone when done (or when non-native / no token). Register effect now waits for startupRevokeDone so we never register then immediately revoke. Ensures server drops this device’s token on open; token is re-added only if user is logged in.
+
+## v.1.0.00.248 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix push revoke never running: move push token register/revoke into PushTokenHandler that is always mounted; revoke was in AppContent which only mounts on /sale and /rent so logged-out users on home or other routes never revoked.
+
+### Changes (detailed)
+
+#### Added
+- src/components/PushTokenHandler.js: New component that handles FCM token registration (when user + push enabled) and revoke (when no user). Rendered once inside PushProvider so it runs on every route. Ensures revoke runs when user is logged out on any screen (home, messages, etc.).
+
+#### Changed
+- src/App.js: Render PushTokenHandler inside PushProvider. Removed all push/revoke logic from AppContent. Dropped unused imports (api, Capacitor, useCallback).
+
+## v.1.0.00.247 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Harden push revoke: retry revoke on app visibility when no user; clear stored token after revoke; useCallback for revoke so it can be reused.
+
+### Changes (detailed)
+
+#### Added
+- src/context/PushContext.js: clearStoredToken() to remove push token from state and Preferences (used after successful revoke so device does not keep a stale token).
+
+#### Changed
+- src/App.js: Revoke logic extracted to revokeToken callback; revoke runs on mount when no user and again on visibilitychange when no user. After successful revoke, clearStoredToken() is called. Added useCallback import.
+
+## v.1.0.00.246 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix app receiving push when no user is logged in: revoke device token on server when app runs with no user so device stops getting notifications until someone logs in.
+
+### Changes (detailed)
+
+#### Added
+- server/routes/users.js: POST /api/users/revoke-push-token (no auth), body { token }; deletes that token from user_push_tokens so the device stops receiving push. Mounted before authMiddleware.
+
+#### Changed
+- src/App.js: When user is null and native, effect runs and calls revoke-push-token with stored token so server removes that device from all users.
+
+## v.1.0.00.245 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix device still receiving push for other accounts: send stored FCM token to server whenever logged-in user is set so device is reassigned to current account (FCM often does not fire registration again after user switch).
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js
+  - Push setup effect: On run (e.g. after login), send any stored FCM token to server immediately via getStoredToken + POST /me/push-token so the device is reassigned to the current user even when the registration event does not fire again. Also send stored token on the 15s retry. Extracted sendTokenToServer helper used by both registration callback and stored-token path.
+
+## v.1.0.00.244 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix push notifications for wrong account: one device = one account for push; remove token on logout; reassign token to current user on register.
+
+### Changes (detailed)
+
+#### Changed
+- server/routes/users.js
+  - POST /me/push-token: Before inserting, DELETE FROM user_push_tokens WHERE token = $1 so the token is removed from any other user; one FCM token is only associated with the current user (fixes same device receiving notifications for a previously logged-in account).
+- src/context/AuthContext.js
+  - logout(): Now async; calls DELETE /api/users/me/push-token before clearing local auth so the device stops receiving push for that account after logout.
+
+## v.1.0.00.243 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Ensure new chats are loaded when opening Messages: refetch threads on Messages page and modal open; createOrGetThread refetches after create.
+
+### Changes (detailed)
+
+#### Changed
+- src/context/ChatContext.js
+  - createOrGetThread(listingId): After creating a thread, call fetchThreads() instead of optimistically appending a minimal thread so the list has full API shape and new chats appear.
+  - Expose refreshThreads (alias of fetchThreads) in context value so consumers can trigger a refetch.
+- src/pages/MessagesPage.js: Call refreshThreads() when the Messages page mounts (when user is set) so opening the list loads new chats.
+- src/components/MessagesModal.js: Call refreshThreads() when the messages modal is shown so the thread list is fresh when opened.
+
+## v.1.0.00.242 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Revert notification icon to project icon.png (white + transparent).
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_notification.png: copy of project root icon.png.
+
+#### Removed
+- android/app/src/main/res/drawable/ic_notification.xml: removed so FCM uses PNG (AndroidManifest meta-data still points to @drawable/ic_notification).
+
+## v.1.0.00.241 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix notification icon white square: set FCM default icon in AndroidManifest; simplify vector to 24x24 viewport house so status bar shows shape correctly.
+
+### Changes (detailed)
+
+#### Changed
+- android/app/src/main/AndroidManifest.xml: added meta-data com.google.firebase.messaging.default_notification_icon pointing to @drawable/ic_notification so FCM uses our icon when building the notification.
+- android/app/src/main/res/drawable/ic_notification.xml: simplified to 24x24 viewport and single house path (M12,2L2,9v13h6v-6h8v6h6V9L12,2z) so transparent areas are clear and icon is not rendered as a solid block.
+
+## v.1.0.00.240 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix notification icon still showing as white square: use vector of app launcher house shape (white only) so status bar shows correct icon.
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_notification.xml: VectorDrawable using same house body path as ic_launcher_foreground, white fill only (24dp, status bar compatible).
+
+#### Removed
+- android/app/src/main/res/drawable/ic_notification.png: PNG still rendered as white square (Android uses alpha only; vector guarantees correct shape).
+
+## v.1.0.00.239 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Use project icon.png (white with transparency) as notification icon again; remove vector fallback.
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_notification.png: copy of project root icon.png (white + transparent) for FCM small icon.
+
+#### Removed
+- android/app/src/main/res/drawable/ic_notification.xml: vector house icon removed so PNG is used.
+
+## v.1.0.00.238 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix notification status bar icon showing as white square: use a white silhouette vector so Android tints it correctly.
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_notification.xml: VectorDrawable white house silhouette for notification small icon.
+
+#### Removed
+- android/app/src/main/res/drawable/ic_notification.png: replaced by vector (full-color icon rendered as solid white in status bar).
+
+## v.1.0.00.237 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Use project icon.png as the small notification icon for Android push notifications.
+
+### Changes (detailed)
+
+#### Added
+- android/app/src/main/res/drawable/ic_notification.png: copy of project root icon.png for FCM notification small icon.
+
+#### Changed
+- server/services/push.js: set android.notification.icon to 'ic_notification' in the FCM payload so push notifications show the app icon in the status bar and notification tray.
+
+## v.1.0.00.236 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Remove the floating filter button and filter modal/sheet altogether. Filtering is done via home page categories, search filter pages, and the price slider on the results page.
+
+### Changes (detailed)
+
+#### Removed
+- src/App.js: FilterSidebar import and both filter sheet blocks (mobile AnimatePresence + desktop); floating-filters-btn; filtersOpen state and all setFiltersOpen / filtersOpenRequested logic; handleApplyFilters; useFiltersOpen usage; AnimatePresence/motion import.
+- src/components/MainLayout.js: useFiltersOpen import and requestOpenFilters() call from handleOpenSavedSearches.
+
+#### Changed
+- src/App.js: App layout now only has header + app-layout-desktop div + main.results-area; results-area gets 'full' when !isMobile; resize handler no longer toggles filtersOpen.
+
+## v.1.0.00.235 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Move price slider to results page above SortBar; put Sort (label + dropdown) next to results count on the left; restore Price Range dropdown in filter panel.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: PriceSlider in results area above SortBar (when hasSearched), wrapped in .results-price-slider-wrap.
+- src/App.css: .results-price-slider-wrap; .sort-bar-left as flex row with count + Sort.
+
+#### Changed
+- src/components/SortBar.js: Sort label and dropdown moved into .sort-bar-left (after count); view toggle only in .sort-bar-right.
+- src/components/FilterSidebar.js: Price Range slider removed; Price Range dropdown restored; priceMin, priceMax, onPriceChange props removed.
+- src/App.js: FilterSidebar calls no longer pass priceMin, priceMax, onPriceChange.
+
+## v.1.0.00.234 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Add dual-handle price range slider (bubbles, ticks, track) in filters; add priceMin/priceMax state and persist in search/saved state. Restyle results bar (count, view toggle, sort).
+
+### Changes (detailed)
+
+#### Added
+- src/components/PriceSlider.js: dual-handle range slider with min/max bubbles, track fill, ticks; formatPrice (₱k/₱M/Any); listing-type config (sale/rent).
+- src/data/listings.js: priceSliderConfig (sale: 0–10M step 500k; rent: 0–100k step 5k).
+- src/App.css: .price-slider, .price-bubble, .price-slider-rail, .price-slider-track, .price-slider-range, .price-slider-tick, .price-slider-input and thumb styles; z-index for min/max inputs.
+
+#### Changed
+- src/App.js: priceMin, priceMax state; filter uses effectivePriceMin/effectivePriceMax (fallback to priceRangeIndex preset); handlePriceChange; currentFilterState, submitSearch, applySavedSearchState, hydrate include priceMin/priceMax; FilterSidebar receives priceMin, priceMax, onPriceChange.
+- src/components/FilterSidebar.js: Price Range dropdown replaced with PriceSlider; props priceMin, priceMax, onPriceChange; display values from preset when priceMin/priceMax null.
+- src/context/SearchContext.js: defaultSearchState and normalized state include priceMin, priceMax.
+- src/context/SavedSearchesContext.js: serializeFilterState and deserializeFilterState include priceMin, priceMax, furnishedFilter.
+- src/App.css: .sort-bar restyled (card-like container, padding, border, shadow); .results-count, .view-mode-toggle, .btn-view-mode, .sort-select updated (heights, hover, pill style).
+
+## v.1.0.00.233 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fix page scroll: lock html/body/#root to viewport with overflow hidden; add .app-root and .app-root-inner wrappers and flex chain so only .results-area scrolls.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: .app-root and .app-root-inner wrappers around app tree.
+- src/components/MainLayout.js: .app-layout-wrap div wrapping outlet and nav so flex layout applies.
+- src/App.css: .app-layout-wrap, .app-root / .app-root-inner and descendant flex chain for no-scroll layout.
+
+#### Changed
+- src/index.css: html height 100% overflow hidden; body height 100% overflow hidden; #root height 100% min-height 0 overflow hidden display flex flex-direction column.
+- src/App.css: .app-with-bottom-nav uses flex 1 min-height 0 instead of height 100vh.
+
+## v.1.0.00.232 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- No scroll on home, filter pages, saved, messages; only search results area scrolls. Header stays fixed (does not move when scrolling results).
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css
+ - .app-with-bottom-nav: height 100vh/100dvh, overflow hidden, flex column; .app-with-bottom-nav > *: flex 1 min-height 0 so outlet content fills viewport without body scroll.
+ - .App: flex column, min-height 0, overflow hidden (no fixed height); .app-header: flex-shrink 0; .App > div: flex 1 min-height 0 flex column overflow hidden; .results-area: flex 1 min-height 0 overflow-y auto (only this area scrolls on results page).
+ - .home-page, .search-filter-page: flex 1 min-height 0 overflow hidden (no scroll).
+ - .page-with-header: flex column min-height 0 overflow hidden; .page-header: flex-shrink 0; .page-content: min-height 0 (flex 1 already) so Saved/Messages scroll only inside .page-content.
+ - .search-filter-page-header: flex-shrink 0; .search-filter-page-main: min-height 0.
+
+## v.1.0.00.231 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- UI centered vertically: home page and search filter pages (e.g. city) use full viewport height and center main content vertically.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css
+ - .home-page: min-height 100vh/100dvh, align-items: center so toggle + cards are vertically centered.
+ - .search-filter-page: min-height 100vh/100dvh, flex column; .search-filter-page-main: flex: 1, flex column, justify-content: center so form is vertically centered below the header.
+
+## v.1.0.00.230 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- City search: Region, Province, and City dropdowns always visible (Province shown between Region and City, disabled until a region is selected). Map: clicking Map on home goes straight to results in map view (no intermediate “Show on map” page); /search/map still redirects to map results.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/SearchCityPage.js
+ - Province dropdown always rendered between Region and City; disabled when no region or region is “all”. showProvince no longer gates visibility.
+- src/pages/HomePage.js
+ - Map card: on click calls submitSearch({ listingType, view: 'map', ...defaults }) and navigate to /sale or /rent (results in map view). Added useSearch, defaultSearchState.
+- src/pages/SearchMapPage.js
+ - From: page with “Show on map” button. To: redirect-only; on mount submitSearch with view 'map' and navigate to /listingType (replace), render null. Keeps /search/map URL working.
+
+## v.1.0.00.229 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Listing type toggle redesigned to match reference: sliding knob over “For Rent” / “For Sale” text, hidden checkbox, pill track with primary-colour knob that slides on toggle.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/ListingTypeToggle.js
+ - From: button with track + thumb + label. To: label wrapping hidden checkbox and .listing-type-toggle div with two spans (For Rent, For Sale). Checked = For Sale (knob right), unchecked = For Rent (knob left). handleChange toggles via checkbox state.
+- src/App.css
+ - .listing-type-toggle-wrap: container with flex/center; .toggle-input: visually hidden; .listing-type-toggle: 160px × 44px pill track, ::before as sliding knob (76px × 36px, primary); spans 50% width, text colour flips (active = white, inactive = muted). .toggle-input:checked + .listing-type-toggle::before { transform: translateX(76px) } and span colour toggles.
+
+## v.1.0.00.228 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat badge shows unread chats count (threads with unread), not total unread messages. Chat timestamps moved outside bubbles (right for sent, left for received) and shown only for the first message per minute. Sale/Rent is a single ON/OFF switch (ON = For Sale, OFF = For Rent) only on Home; removed from results page. Filter modal simplified: no Sale/Rent or location; added Furnished filter; filter modal always shows keyword, price, property type, furnished, advanced. Swipe left/right between nav pages (Home → Saved → Messages → Search).
+
+### Changes (detailed)
+
+#### Added
+- src/context/ChatContext.js
+ - unreadChatCount: number of threads with at least one unread message (for badge).
+- src/pages/ChatPage.js, src/components/ChatModal.js
+ - Timestamp outside bubble (right for me, left for them); showTimeForMessage(msg, prevMsg) and getMinuteKey(ts) so only first message per minute shows time.
+- src/App.css
+ - .chat-panel-message-row, .chat-panel-message-row-me/them, .chat-panel-time-outside for timestamp outside bubble.
+- src/components/ListingTypeToggle.js
+ - Redesigned as single switch (role="switch", aria-checked): ON = For Sale, OFF = For Rent; track + thumb; label shows current mode.
+- src/App.css
+ - .listing-type-toggle-switch-btn, .listing-type-toggle-switch-track, .listing-type-toggle-switch-thumb, .listing-type-toggle-switch-on (thumb slides right when sale).
+- src/components/FilterSidebar.js
+ - furnishedFilter, onFurnishedFilterChange props; Furnished dropdown (Any / Furnished / Semi-furnished / Unfurnished). When !locationOnly, form shows only Property Type, Price Range, Furnished (no Region/Province/City, no Listing Type).
+- src/App.js
+ - furnishedFilter state; filter by item.furnished in filteredListings; currentFilterState and submitSearch include furnishedFilter; hydrate and applySavedSearchState set furnishedFilter.
+- src/context/SearchContext.js
+ - furnishedFilter in defaultSearchState and normalized submit state.
+- src/components/MainLayout.js
+ - SWIPE_ROUTES, getSwipeRouteIndex(); touchStartRef, handleSwipeStart, handleSwipeEnd: swipe left → next tab, swipe right → prev tab (threshold 50px, horizontal > vertical).
+
+#### Changed
+- src/components/MainLayout.js
+ - messagesPillData.count uses unreadChatCount from useChat() instead of summing thread unread messages.
+- src/pages/MessagesPage.js, src/components/MessagesModal.js
+ - displayableUnreadCount uses unreadChatCount from useChat() for badge.
+- src/App.js
+ - Removed listing-tabs block and ListingTypeToggle from results page; removed ListingTypeToggle import. Removed handleListingTypeChange. FilterSidebar calls: removed onListingTypeChange; added furnishedFilter, onFurnishedFilterChange; locationOnly={false} so filter modal never shows location.
+- src/components/FilterSidebar.js
+ - Removed Listing Type dropdown. When !locationOnly, form has only Property Type, Price Range, Furnished (location fields only when locationOnly).
+
+#### Removed
+- src/App.js
+ - handleListingTypeChange (no longer used after removing Sale/Rent from filter).
+
+## v.1.0.00.227 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Sale/Rent control styled as one button: single pill container with two segments inside (no gap); active segment uses primary background.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/ListingTypeToggle.js
+ - Wrapped the two option buttons in a .listing-type-toggle-inner div so they render as one contiguous pill.
+- src/App.css
+ - .listing-type-toggle: removed gap. .listing-type-toggle-inner: new wrapper with single border and border-radius (one pill). .listing-type-toggle-option: no individual border/radius, transparent background; first/last get inner radius; .active fills with primary color.
+
+## v.1.0.00.226 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Home search flow and category filter pages: home categories centered; each category (City, Keyword, Map, School) has a dedicated full-page filter screen; Submit navigates to results and persists last search; results page shows "Search now" when no search yet and last results when returning; bottom nav Search goes to results only.
+
+### Changes (detailed)
+
+#### Added
+- src/context/SearchContext.js
+ - SearchProvider, useSearch(): lastSearchState, hasSearched, submitSearch(state) to persist last search across navigation.
+- src/pages/SearchCityPage.js
+ - SearchCityPage(): Full-page city filter (region, province, city); Submit calls submitSearch and navigates to /sale or /rent.
+- src/pages/SearchKeywordPage.js
+ - SearchKeywordPage(): Full-page keyword input; Submit submits and navigates to results.
+- src/pages/SearchMapPage.js
+ - SearchMapPage(): Full-page "Show on map" action; Submit with view=map and navigate to results.
+- src/pages/SearchSchoolPage.js
+ - SearchSchoolPage(): Full-page school selector; Submit with selectedSchoolId and navigate to results.
+- src/App.css
+ - .home-page-inner, .search-filter-page*, .search-now-empty: centered home layout; shared filter page layout; "Search now" empty state.
+
+#### Changed
+- src/pages/HomePage.js
+ - Card click navigates to /search/:path (city|keyword|map|school) with listingType in query; added .home-page-inner wrapper for centering.
+- src/App.js
+ - SearchProvider wraps routes. Routes for /search/city, /search/keyword, /search/map, /search/school. AppContent: useSearch(); hydrate filter state from lastSearchState when hasSearched; view derived from lastSearchState.view when hasSearched; "Search now" empty state when !hasSearched; handleApplyFilters calls submitSearch and setFiltersOpen(false); both FilterSidebars use onApply={handleApplyFilters}.
+- src/components/MainLayout.js
+ - handleSearch: navigate to /rent or /sale based on lastSearchState.listingType when hasSearched, else /sale; no longer opens filter sheet.
+- src/App.css
+ - .home-page: flex + center; .home-page-inner max-width 480px for centered categories.
+
+## v.1.0.00.225 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Home page redesign: default landing is a 4-card search framework (City, Map, Keyword, School) with a single Sale/Rent toggle. Each card navigates to the corresponding filtered view; city uses location-only filters, map opens map view, keyword shows search bar and results, school uses a school selector and nearby properties by distance.
+
+### Changes (detailed)
+
+#### Added
+- src/components/ListingTypeToggle.js
+ - ListingTypeToggle(): Single toggle for For Sale / For Rent; supports controlled (value/onChange) for Home and URL-synced on listing pages.
+- src/pages/HomePage.js
+ - HomePage(): Four search cards (City, Map, Keyword, School) and Sale/Rent toggle; cards navigate to /sale or /rent with ?view=city|map|search|school.
+- src/data/schools.js
+ - schools array, getSchoolById(): Static list of Philippine schools/universities with coordinates for nearby-properties search.
+- src/utils/distance.js
+ - haversineKm(): Haversine distance in km for filtering listings by distance from selected school.
+
+#### Changed
+- src/App.js
+ - AppContent(): Replaced Sale/Rent NavLinks with ListingTypeToggle. Added useSearchParams for view; effectiveViewMode forces map when view=map; view=search shows SearchBar at top; view=city opens filter sheet on mobile and uses locationOnly FilterSidebar; view=school adds school selector and schoolFilteredListings (distance-filtered, 10 km). listingsForView and visibleListings drive results; handleViewDetails uses visibleListings; map uses listingsForView and index-based handler.
+ - Index route now renders HomePage instead of Navigate to /sale.
+- src/components/FilterSidebar.js
+ - locationOnly prop: when true, shows only region/province/city and Apply button; hides SearchBar, saved presets, listing type, property type, price, advanced filters.
+- src/components/MainLayout.js
+ - handleLogoHome: From navigate('/sale') to navigate('/'). isHomeActive: From path === '/' || '/sale' || '/rent' to path === '/' only.
+- src/App.css
+ - Replaced .listing-tab with .listing-type-toggle / .listing-type-toggle-option. Added .home-page, .home-search-cards, .home-search-card, .results-search-bar-wrap, .school-selector-wrap, .home-search-card:focus-visible.
+
+#### Removed
+- src/App.js
+ - NavLink import and two listing tabs (For Sale / For Rent) in favor of ListingTypeToggle.
+- src/App.css
+ - .listing-tab, .listing-tab.active, .listing-tab:active (replaced by toggle classes).
+
+## v.1.0.00.224 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat behavior stabilized per mobile UX requirements: opens already at latest message, header remains fixed when focusing textbox, and messages/composer track keyboard movement together.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Initial open could visually scroll from top to bottom; keyboard inset changes did not always keep messages anchored with composer movement.
+ - To: Added `messagesListRef` and deterministic bottom anchoring (`scrollTop = scrollHeight`) in `useLayoutEffect`; added double-RAF re-anchor on keyboard inset updates while composer is focused; unified bottom sync via shared `activeInset`; kept focus-after-send behavior.
+- src/App.css
+ - .chat-page, .chat-page-header
+ - From: Chat container/header positioning allowed viewport/keyboard interactions to move header unexpectedly.
+ - To: Chat page pinned with `position: fixed; inset: 0`; header restored to `position: sticky; top: 0` inside fixed chat layout for stable top positioning.
+
+## v.1.0.00.223 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat now opens at the bottom immediately (no visible scroll-down), and header remains fixed while composer/messages move without transition jitter.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Messages appeared to load at top then animate to bottom.
+ - To: Added `useLayoutEffect` auto-scroll to end on thread/message updates so initial render starts at bottom with no visible animation.
+- src/App.css
+ - .chat-page-header, .chat-page-form
+ - From: Header used `position: sticky`; composer had transform transition that could jitter.
+ - To: Header set to `position: relative` (fixed by layout, not scrolling pane); removed composer transition for stable keyboard movement.
+
+## v.1.0.00.222 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Reduced chat open/keyboard jitter and restored stable sticky header behavior while typing.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Keyboard inset transform/padding applied immediately on open, which could jitter; header appeared unstable during focus transitions.
+ - To: Added focus-gated keyboard offset (`activeInset` = `keyboardInset` only when input is focused). Messages/composer move only during active typing, removing startup jitter.
+- src/App.css
+ - .chat-page-header, .chat-page-messages, .chat-page-form
+ - To: Reinforced header width for sticky stability, added `overscroll-behavior: contain` on messages pane, and shortened form transform transition to reduce visible jitter.
+
+## v.1.0.00.221 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat keyboard UX improved: keyboard now stays open after sending, and messages track the input bar movement as it rises/falls with keyboard.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Keyboard could close after one send; form offset used margin causing less smooth coupling with message pane.
+ - To: Added `inputRef` focus restore after send, prevented send button from stealing focus (`onMouseDown`/`onTouchStart` preventDefault), moved form using `transform: translateY(-keyboardInset)` while message list uses matching bottom padding.
+- src/App.css
+ - .chat-page-form
+ - Added transform transition/will-change for smoother keyboard-linked movement.
+
+## v.1.0.00.220 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Removed chat header jitter on input focus by stopping full-container viewport repositioning; keyboard handling now only adjusts bottom inset for the form/messages.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Applied `visualViewport` `top/height` to the whole chat container, which could cause header jitter while keyboard animates.
+ - To: Keep chat container static; retain keyboard inset logic only for `chat-page-form` margin and `chat-page-messages` bottom padding.
+
+## v.1.0.00.219 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat input now moves up with the mobile keyboard while keeping the header pinned.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Header stability improved, but message form could remain behind keyboard on some mobile WebViews.
+ - To: Added keyboard inset calculation from `visualViewport` (`innerHeight - (vv.height + vv.offsetTop)`) plus `window.resize` fallback; apply inset to chat form `marginBottom` and message list `paddingBottom` so input and latest messages stay visible above keyboard.
+
+## v.1.0.00.218 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fixed chat header shifting when focusing the message textbox on mobile keyboards.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ChatPage.js
+ - ChatPage()
+ - From: Keyboard/viewport resize could move the header when input focused.
+ - To: Added `visualViewport` resize/scroll handling and applied viewport-bound fixed layout (`top`, `height`) so the chat container tracks the visual viewport while keeping the header stable.
+
+## v.1.0.00.217 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Chat header now stays fixed at the top while messages scroll.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css
+ - .chat-page, .chat-page-header, .chat-page-body
+ - From: Header relied on default flow; page/body could scroll in a way that let the header move.
+ - To: Chat page now uses fixed viewport height with overflow hidden; header is explicitly `position: sticky; top: 0; z-index: 60`; body overflow is hidden so only message pane scrolls under a pinned header.
+
+## v.1.0.00.216 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Restored bottom-nav Menu icon to the expected menu glyph.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/MainLayout.js
+ - MainLayout()
+ - From: Menu button icon used `fa-ellipsis-v`.
+ - To: Menu button icon now uses `fa-bars`.
+
+## v.1.0.00.215 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Android emulator build now uses the live API/domain instead of localhost alias.
+
+### Changes (detailed)
+
+#### Changed
+- .env.android.emulator
+ - REACT_APP_API_URL
+ - From: `http://10.0.2.2:5000`
+ - To: `https://balhinbalay.com`
+
+## v.1.0.00.214 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Bottom nav is now hidden on chat pages and remains visible elsewhere.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/MainLayout.js
+ - MainLayout()
+ - From: `showNav` was always `true` (nav visible on all routes).
+ - To: `showNav = !path.startsWith('/chat/')` so chat route hides the nav while all other pages keep it visible.
+
+## v.1.0.00.213 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Fixed broken tick image in confirmation emails by embedding `tick.png` inline as CID attachment (email-safe), with URL fallback.
+
+### Changes (detailed)
+
+#### Changed
+- server/services/email.js
+ - sendConfirmationEmail(toEmail, confirmUrl, userName)
+ - From: `<img src="${APP_URL}/tick.png">`, which breaks when the public URL/file is unavailable.
+ - To: Resolve local `tick.png` from known paths and send as inline attachment (`cid:bb-verify-tick`); fallback to `${APP_URL}/tick.png` only if no local file is found.
+
+## v.1.0.00.212 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Confirmation email now uses `tick.png` image instead of a text tick character, positioned in the card header area above the title.
+
+### Changes (detailed)
+
+#### Changed
+- server/services/email.js
+ - sendConfirmationEmail(toEmail, confirmUrl, userName)
+ - From: A green text checkmark character (`✔`) above the heading.
+ - To: An image icon (`tick.png`) loaded from `${APP_URL}/tick.png` (fallback base `https://balhinbalay.com`) and centered above the heading for cleaner hierarchy.
+
+## v.1.0.00.211 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Sample confirmation email now defaults to production app URL instead of localhost.
+
+### Changes (detailed)
+
+#### Changed
+- server/send-sample-email.js
+ - main()
+ - From: sampleUrl defaulted to `http://localhost:3000`.
+ - To: sampleUrl now defaults to `https://balhinbalay.com` when `APP_URL` is not set.
+
+## v.1.0.00.210 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Registration confirmation email now uses your provided HTML card template with a styled verify button and live verification link.
+
+### Changes (detailed)
+
+#### Changed
+- server/services/email.js
+ - sendConfirmationEmail(toEmail, confirmUrl, userName)
+ - From: Minimal inline HTML paragraphs with a plain link.
+ - To: Full HTML email layout (centered white card on gray background), green check icon, title/body text, blue CTA button, info/footer text. Button `href` now uses `${confirmUrl}`.
+
+## v.1.0.00.209 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Bottom nav stays visible on property details: higher z-index so it stays on top; property detail content has bottom padding so it does not sit under the nav when scrolled.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .app-bottom-nav z-index 140 to 1000; .property-detail-page-content padding-bottom added (72px + safe area) so scrollable content clears the nav.
+
+## v.1.0.00.208 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Bottom nav is visible on all pages: property, chat, profile, settings, add-property, admin, confirm-email now render inside MainLayout so the nav bar stays at the bottom everywhere.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: Nested all routes under MainLayout (property/:id, chat/:threadId, profile, settings, add-property, admin, confirm-email).
+- src/components/MainLayout.js: showNav always true; removed useChatModal and usePropertyModal.
+
+## v.1.0.00.207 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Property page has one header only: the teal bar with back + title + actions (favorite, share, edit/unlist). Duplicate page header removed.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js: Removed separate page header; PropertyDetailContent is shown with showBackButton and onBack so the teal bar is the only header (back | title | actions).
+- src/App.css: Property page uses single .modal-header as sticky header; removed .property-page .page-header and .property-page-title; teal header has safe-area padding and sticks on scroll.
+
+## v.1.0.00.206 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Property screen is now a real page, not a modal on a page: PropertyPage renders page header + PropertyDetailContent only (no PropertyModal, no modal wrapper). Same content, normal page layout and scroll.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js: Renders a normal page (property-page, page-header with back + title, page-content) and PropertyDetailContent directly; no PropertyModal or asPage.
+- src/App.css: Property page styles use .property-detail-page-content; page scrolls via main.page-content overflow-y auto; removed modal-as-page and old property-page-content modal overrides for this flow.
+
+## v.1.0.00.204 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Property page is now the same PropertyModal component in “page” mode (asPage): one component for both overlay modal and full-page view; back button in header when as page.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PropertyModal.js: Added `asPage` prop; when true, no backdrop, show back button instead of close, pass showBackButton/onBack to PropertyDetailContent.
+- src/components/PropertyDetailContent.js: Added `showBackButton` and `onBack`; render back button in header when set.
+- src/pages/PropertyPage.js: Renders PropertyModal with `asPage` and same handlers (no separate page layout or PropertyDetailContent); still handles not-found and unlist ConfirmModal.
+- src/App.css: .property-modal-as-page (fixed full viewport, full-width dialog/content), .property-detail-back-btn (header back button), desktop override so as-page modal stays full width.
+
+## v.1.0.00.203 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Property page layout is now full-bleed: no side margins, no card-style rounded corners so it reads as a true full page.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .property-page uses full viewport height and elevated surface background; .property-page .page-content and .property-page-content have zero horizontal (and top) padding; .property-page-content .modal-content forced to full width, no border-radius, no box-shadow; modal-body keeps internal padding; desktop media query override so property page modal-content stays edge-to-edge.
+
+## v.1.0.00.202 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Property detail and Chat are now full pages (/property/:id, /chat/:threadId) so Android back (and browser back) navigate back instead of closing modals.
+
+### Changes (detailed)
+
+#### Added
+- src/components/PropertyDetailContent.js: Shared property detail UI used by PropertyModal and PropertyPage.
+- src/pages/PropertyPage.js: Full-page property detail at /property/:id; back button and hardware back go to previous screen; Chat opens /chat/:threadId; Edit/Unlist handled on page.
+- src/pages/ChatPage.js: Full-page chat at /chat/:threadId; back returns to messages or previous screen.
+- src/context/ChatContext.js: createOrGetThread(listingId) to get or create a thread and return thread id for navigation.
+- Routes /property/:id and /chat/:threadId (outside MainLayout so no bottom nav on these screens).
+- App.css: .property-page, .property-page-content, .chat-page, .chat-page-body, .chat-page-messages, .chat-page-form styles.
+
+#### Changed
+- src/components/PropertyModal.js: Now renders PropertyDetailContent inside modal wrapper (kept for any legacy use).
+- src/context/ChatModalContext.js: openChat(property, threadId) now navigates to /chat/:threadId when threadId is set; ChatModal no longer rendered.
+- src/App.js: Listing tap and handleOpenProperty navigate to /property/:id; removed PropertyModal, showModal, selectedProperty, unlist ConfirmModal from AppContent; openProperty state effect navigates to /property/:id; push notification with threadId navigates to /chat/:threadId.
+- src/pages/MessagesPage.js: Thread tap navigates to /chat/:threadId; push state threadId triggers navigate to /chat/:threadId; removed useChatModal.
+- src/pages/SavedPage.js: Saved property tap navigates to /property/:id instead of /sale with state.
+- src/pages/SavedPage.js: useListings() now uses listings (not apiListings).
+
+#### Removed
+- Property detail and chat modal flow from main app flow; modals replaced by page navigation.
+
+## v.1.0.00.201 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages list: bold text for unread threads, normal weight for read.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/MessagesPage.js: Add class messages-panel-row-has-unread on row when thread.unreadCount > 0.
+- src/App.css: .messages-panel-row-name default font-weight 500; .messages-panel-row-has-unread .messages-panel-row-name font-weight 700; .messages-panel-row-preview default 400, unread 600.
+
+## v.1.0.00.200 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages list preview now shows their message text without having to open the thread. API returns last message per thread; client uses it for preview.
+
+### Changes (detailed)
+
+#### Added
+- server/routes/chat.js: GET /api/chat/threads now includes last_message_text, last_message_at, last_message_sender_id per thread; response adds lastMessage: { text, createdAt, senderId }.
+- src/context/ChatContext.js: thread shape now includes lastMessage from API.
+- src/pages/MessagesPage.js: use thread.lastMessage from API for preview when available (useAuth for isFromUser); fall back to getMessagesByThreadId cache when API lastMessage not present.
+
+#### Changed
+- Messages list shows the other person's message or "Sent X ago" / "now" immediately from thread list data instead of only after opening the conversation.
+
+## v.1.0.00.199 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages list preview: show their message text when last message is from them; when last message is from you show "Sent X m/h" or "now" instead of "You: ...".
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/MessagesPage.js: Preview line shows other participant's message when last message is from them; when last message is from current user, show "Sent {relativeTime}" or "now" instead of "You: [message]".
+
+## v.1.0.00.198 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Bottom nav stays visible when navigating to Saved, Messages, Sale, Rent (nav on top of pages). MainLayout wraps these routes and renders the nav; ProfileDrawer and logout moved to layout.
+
+### Changes (detailed)
+
+#### Added
+- src/context/FiltersOpenContext.js: openRequested, requestOpen, clearRequest so MainLayout Search can request filters open on sale/rent.
+- src/context/PropertyModalContext.js: isPropertyModalOpen, setPropertyModalOpen so MainLayout can hide nav when property modal is open.
+- src/components/MainLayout.js: Layout with Outlet + bottom nav + ProfileDrawer + logout ConfirmModal; showNav when !isChatModalOpen && !isPropertyModalOpen; Search calls requestOpenFilters and navigates to /sale if needed.
+
+#### Changed
+- src/App.js: Routes for /, /sale, /rent, /saved, /messages nested under MainLayout; FiltersOpenProvider and PropertyModalProvider wrap Routes. AppContent: removed bottom nav, ProfileDrawer, logout ConfirmModal, handleLogoHome; added useFiltersOpen (open filters when requested), usePropertyModal (setPropertyModalOpen(showModal)); removed showHeaderMenu, loggingOut, showLogoutConfirm state.
+- MainLayout provides bottom nav and padding for all main tabs so the nav stays on top when switching pages.
+
+## v.1.0.00.197 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages list: unread dot on the right; name on top and message/preview below; show last message or "Sent X ago"; smaller avatar and text.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/MessagesPage.js: Row order avatar → main → unread dot. Main content: name (title + otherParticipantName) on top; below show last message text or "Sent {relativeTime}" when no message. Preview always shown when available.
+- src/App.css: .messages-panel-row smaller padding and min-height; .messages-panel-row-avatar 40px; .messages-panel-row-main column layout (name then preview); .messages-panel-row-name 0.875rem; .messages-panel-row-preview 0.8125rem; .messages-panel-row-unread 8px, margin-left: auto (right side). Removed .messages-panel-row-top.
+
+## v.1.0.00.196 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages page showed no threads despite notifications: fixed wrong ListingsContext prop (listings not apiListings). Threads now show even when listing not in main feed (use thread.listingTitle fallback).
+
+### Changes (detailed)
+
+#### Fixed
+- src/pages/MessagesPage.js: From: useListings() destructured apiListings (undefined), so allListings was [] and every thread was filtered out. To: use listings from useListings(), so Messages page shows all threads. Also show threads whose listing is not in the feed by using a fallback listing object (id, title from thread.listingTitle, images: []).
+
+## v.1.0.00.195 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Messages is a full page at /messages (not a modal). Messages put back on the bottom nav; opening a thread opens the chat modal (from context). Push notification navigates to /messages with threadId.
+
+### Changes (detailed)
+
+#### Added
+- src/context/ChatModalContext.js: ChatModalProvider holds openChat/closeChat state and renders ChatModal; useChatModal() for opening chat from any route; Back to messages navigates to /messages.
+- src/pages/MessagesPage.js: Full-page messages list with back header; uses useChat(), useListings(), useChatModal(); supports location.state.threadId for push deep link.
+- src/App.js: Route /messages → MessagesPage; ChatModalProvider wraps Routes; Messages back on bottom nav (navigate to /messages or openLogin); unread badge on Messages nav item.
+- src/App.css: .messages-page, .messages-page-content, .messages-page-list, .messages-page-badge.
+
+#### Changed
+- src/App.js: From: Messages as floating pill + MessagesModal. To: Messages as bottom nav item → /messages page; ChatModal and open state moved to ChatModalContext; PropertyModal onOpenChat uses openChat(p, null); push onTap navigates to /messages with state.threadId.
+- src/App.js: Removed showChatModal, chatProperty, chatThreadId, showMessagesModal, notificationThreadId; use useChatModal() and anyModalOpen = isChatModalOpen || showModal.
+
+#### Removed
+- src/App.js: MessagesModal import and usage; floating-messages-pill; ChatModal render from AppContent (now in ChatModalProvider).
+
+## v.1.0.00.194 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Saved is a full page at /saved instead of a pull-up modal. Messages moved to floating pill (nav no longer under it). Filter is a floating circle button at top-right (~15% from top).
+
+### Changes (detailed)
+
+#### Added
+- src/pages/SavedPage.js: full-page Saved with back header and favorite list; uses useFavorites + useListings; opening a property navigates to /sale with state.openProperty so AppContent opens the property modal.
+- src/App.js: Route /saved → SavedPage; useEffect to open property modal when location.state.openProperty is set; floating-filters-btn (top 15%, right); floating-messages-pill (above bottom nav).
+- src/App.css: .floating-filters-btn (fixed top 15%, right); .floating-messages-pill and .floating-messages-pill-badge; .saved-page, .saved-page-empty, .saved-page-list, .saved-page-card, etc.
+
+#### Changed
+- src/App.js: From: header with filter button, bottom nav with Messages in center. To: header without filter; Saved in nav navigates to /saved; Messages removed from nav and shown as floating pill; filter is floating circle at top-right.
+- src/App.js: ProfileDrawer onOpenSavedProperties now navigates to /saved instead of opening FavoritesModal.
+- src/App.css: Removed .app-header-filter-btn; added floating filter and messages pill styles.
+
+#### Removed
+- src/App.js: FavoritesModal import and usage; showFavoritesModal state. FavoritesModal component file kept for possible reuse.
+
+## v.1.0.00.193 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Header: logo removed, filter button in header. Bottom nav: Home, Saved, Messages (center), Search, Menu/Log in. Pull-to-refresh: spinning loader always visible during refresh.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: app-header-filter-btn in header (opens filters); app-bottom-nav with Home, Saved, Messages (center), Search, Menu/Log in; app-has-bottom-nav class for content padding.
+- src/App.css: .app-header-filter-btn; .app-bottom-nav, .app-bottom-nav-item, .app-bottom-nav-messages, .app-bottom-nav-messages-badge, .app-has-bottom-nav .results-area padding; .pull-to-refresh-indicator-active, .pull-to-refresh-spinner.
+
+#### Changed
+- src/App.js: From: header with logo + app-header-actions (Favorites, Search, Menu/Login). To: header with filter button only. From: floating-filters-btn and floating-messages-pill. To: bottom nav with all actions, Messages in center.
+- src/App.css: From: logo and header-actions grid/layout. To: header filter button layout. Removed floating-filters-btn and floating-messages-pill blocks.
+- src/components/PullToRefresh.js: When refreshing, indicator uses opacity 1 and class pull-to-refresh-indicator-active; spinner has pull-to-refresh-spinner class for visibility.
+
+#### Removed
+- src/App.js: logo button and image; app-header-actions block; floating-filters-btn; floating-messages-pill.
+
+## v.1.0.00.192 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Confirm email page: send confirmation request only once so the first click shows success instead of "invalid or already used" (fixes double run in React Strict Mode).
+
+### Changes (detailed)
+
+#### Fixed
+- src/pages/ConfirmEmailPage.js: use requestSentRef so the confirm API is called only once; From: effect could run twice (e.g. Strict Mode), second request failed after first cleared token and UI showed error. To: single request, UI shows success on first click.
+
+## v.1.0.00.191 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- New accounts start as 'pending' until email is confirmed; confirm-email sets them to 'active'. Admin UI shows Pending badge; login blocked for pending.
+
+### Changes (detailed)
+
+#### Added
+- server/migrations/add-account-status-pending.sql: allow account_status 'pending'; drop and re-add check constraint.
+- server/run-migrations.js: add add-account-status-pending.sql to migrations list.
+- src/App.css: .admin-badge-status-pending for Admin Users table.
+
+#### Changed
+- server/routes/auth.js: register INSERT sets account_status = 'pending'. confirm-email UPDATE also sets account_status = 'active'. login rejects status === 'pending' with same message as unverified email (verify your email / EMAIL_NOT_VERIFIED).
+
+## v.1.0.00.190 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Confirmation email link: when API runs on localhost:5000, use http://localhost:3000 so the link opens the React app.
+
+### Changes (detailed)
+
+#### Changed
+- server/routes/auth.js (getAppUrl): From: using req.get('host') so link could be localhost:5000. To: if host is localhost:5000 use http://localhost:3000; APP_URL still overrides when set.
+
+## v.1.0.00.189 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Admin: add "Delete" user action that permanently removes a user and all their data from the database (listings, favorites, saved searches, chat, etc.). Cannot delete own account.
+
+### Changes (detailed)
+
+#### Added
+- server/routes/admin.js: DELETE /api/admin/users/:id — admin only; deletes target user's listings then user row (CASCADE removes related data). Returns 400 if targeting self, 404 if user not found, 204 on success.
+- src/pages/AdminPage.js: "Delete" button per user row (hidden for current admin), openDeleteUserConfirm(u), handleDeleteUser(userId); confirm modal explains permanent deletion.
+
+## v.1.0.00.188 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Delete account: visible in profile drawer; opening it navigates to Settings and scrolls to the delete section.
+
+### Changes (detailed)
+
+#### Added
+- ProfileDrawer: "Delete account" button in Account section (danger style) that navigates to /settings#delete-account.
+- App.js: onDeleteAccount prop for ProfileDrawer (navigate to /settings#delete-account).
+- SettingsPage: useLocation, deleteSectionRef; useEffect scrolls to #delete-account-section when hash is #delete-account (when logged in).
+
+#### Changed
+- None.
+
+## v.1.0.00.187 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Delete account: backend endpoint and Settings UI to permanently delete the user and all associated data (listings, favorites, saved searches, chat, push tokens, etc.). Requires password confirmation. Logout now clears stored auth.
+
+### Changes (detailed)
+
+#### Added
+- server/routes/users.js: DELETE /api/users/me — requires body { password }; verifies password then deletes user's listings and user row (CASCADE removes favorites, saved_searches, recently_viewed, user_push_tokens, chat_threads, chat_messages, thread_reads).
+- src/pages/SettingsPage.js: "Delete account" section with password field and "Delete my account" button; on success calls logout and navigates to /sale.
+- src/App.css: .settings-delete-section for spacing/border above delete block.
+
+#### Changed
+- src/api/client.js: api.delete(path, body) now accepts optional body for DELETE requests.
+- src/context/AuthContext.js: logout() now calls saveAuth(null, null) so stored auth (localStorage + Capacitor Preferences) is cleared and user is not restored on next load.
+
+## v.1.0.00.186 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Email confirmation: clearer message when link is invalid or already used; hint on confirm page to try logging in if link was already clicked.
+
+### Changes (detailed)
+
+#### Changed
+- server/routes/auth.js (GET /confirm-email): From: returning "Invalid confirmation token." when token not found. To: returning "This link is invalid or was already used. Try logging in; if it doesn't work, use \"Resend confirmation email\" on the sign-in page."
+- src/pages/ConfirmEmailPage.js: From: error state showed only message and button. To: also show hint "If you already clicked this link once, your email may be confirmed. Try logging in."
+- src/App.css: added .confirm-email-hint for spacing below the hint.
+
+## v.1.0.00.185 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- LoginModal: show/hide password buttons (eye icon) on Password and Confirm password; UI text "Passwords match" / "Passwords do not match" on signup.
+
+### Changes (detailed)
+
+#### Added
+- src/components/LoginModal.js: state showPassword, showConfirmPassword; eye/eye-slash toggle buttons for both password fields; "Passwords match." (green) and "Passwords do not match." (red) below Confirm password when both fields have content.
+- src/App.css: .password-input-wrap, .password-toggle-btn for inline show/hide password button.
+
+## v.1.0.00.184 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Search history: "Saved searches" in profile drawer (opens filter sheet); enlarged saved-filters section in FilterSidebar (full-width, larger touch targets, clearer title). Chat/mobile: message row min-height and avatar fallback in MessagesModal.
+
+### Changes (detailed)
+
+#### Added
+- ProfileDrawer: `onOpenSavedSearches` prop and "Saved searches" button (opens filter sheet from sidebar).
+- App.js: pass `onOpenSavedSearches={() => setFiltersOpen(true)}` to ProfileDrawer.
+
+#### Changed
+- FilterSidebar (App.css): .filter-saved-presets wider padding and spacing; .filter-saved-list-title 1rem; .filter-saved-item min-height 44px, padding 12px 0; .filter-saved-item-name 0.9375rem; .filter-saved-item-actions .btn min-height 36px.
+- MessagesModal: thread row avatar fallback (fa-home icon when listing has no image); .messages-panel-row min-height 56px for touch targets.
+
+#### Fixed
+- src/pages/ProfilePage.js: destructure `refreshUser` from useAuth() so avatar upload/remove can refresh user state (fixes no-undef build error).
+
+## v.1.0.00.183 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Skip rental search options in current plan; document in FUTURE_PLANS.md. Plan-to-finish: only search history (enlarge/move) remains; execution order renumbered.
+
+### Changes (detailed)
+
+#### Added
+- FUTURE_PLANS.md: rental search options (rental_term, school/university) documented for later implementation.
+
+#### Changed
+- .cursor/plans/plan-to-finish.md: removed "Search UI" (rental_term, school) from remaining work; section 2 is now "Search history (saved filters)" only; execution order 1–5 (was 1–6); quick reference "Search" → "Search history"; note added that rental search moved to FUTURE_PLANS.md.
+
+## v.1.0.00.182 — Development
+Date: 2026-02-28
+Type: Dev Change
+
+### Summary
+- Profile picture: migration avatar_url, GET/PATCH /me and POST/DELETE /me/avatar, ProfileDrawer avatar display, Profile page upload/remove.
+
+### Changes (detailed)
+
+#### Added
+- server/migrations/add-user-avatar.sql: add users.avatar_url VARCHAR(500).
+- server/run-migrations.js: include add-user-avatar.sql.
+- server/routes/users.js: POST /me/avatar (body image dataUrl), DELETE /me/avatar; GET/PATCH /me include avatar_url.
+- src/context/AuthContext.js: refreshUser(), updateProfile accepts avatar_url; login and native restore call refreshUser.
+- src/components/ProfileDrawer.js: show user avatar image when avatar_url set, else placeholder icon; baseUrl for relative URLs.
+- src/pages/ProfilePage.js: Profile photo section with change/remove, fileToDataUrl, resizeImageToDataUrl, api post/delete avatar.
+- src/App.css: profile-drawer-avatar img, profile-avatar-preview styles.
+
+#### Changed
+- server/routes/users.js: GET /me and PATCH /me return/accept avatar_url; PATCH validates length.
+
+## v.1.0.00.181 — Development
+Date: 2026-03-08
+Type: Dev Change
+
+### Summary
+- Push notifications toggle: user preference (DB push_enabled), API GET/PATCH /me, Settings page toggle, server skips sending when disabled.
+
+### Changes (detailed)
+
+#### Added
+- server/migrations/add-user-push-enabled.sql: add users.push_enabled BOOLEAN DEFAULT true.
+- server/run-migrations.js: include add-user-push-enabled.sql.
+
+#### Changed
+- server/routes/users.js: GET /me and PATCH /me include push_enabled; PATCH accepts push_enabled.
+- server/services/push.js: sendPushToUser checks user push_enabled and skips if false.
+- src/pages/SettingsPage.js: Notifications section with push toggle (native); syncs with server, PATCH and DELETE token on toggle.
+- src/context/PushContext.js: setPushEnabled updates state immediately.
+
+## v.1.0.00.180 — Development
+Date: 2026-03-08
+Type: Dev Change
+
+### Summary
+- Map coordinates: MapPicker center fallback to default when city/barangay missing.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/AddPropertyForm.js: MapPicker center prop adds fallback { lat: 10.3157, lng: 123.8854 }.
+
+## v.1.0.00.179 — Development
+Date: 2026-03-07
+Type: Dev Change
+
+### Summary
+- Phase 1 plan: owner listing delete becomes unlist (soft); add confirmation button after add/edit property (no auto-navigation).
+
+### Changes (detailed)
+
+#### Changed
+- server/routes/listings.js: DELETE /api/listings/:id now sets status = unlisted instead of removing the row; returns 200 with updated listing.
+- src/context/UserListingsContext.js: deleteListing renamed to unlistListing.
+- src/App.js: use unlistListing; confirm modal and handler updated to Unlist.
+- src/components/PropertyModal.js: owner button label to Unlist, icon fa-eye-slash.
+- src/components/AddPropertyForm.js: after submit success, show Back to listings button; removed setTimeout auto-navigation.
+
 ## v.1.0.00.178 — Development
 Date: 2026-03-07
 Type: Dev Change

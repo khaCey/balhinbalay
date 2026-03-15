@@ -29,7 +29,10 @@ router.get('/threads', async (req, res) => {
                LEFT JOIN thread_reads tr ON tr.thread_id = t.id AND tr.user_id = $1
                WHERE m.thread_id = t.id AND m.sender_id != $1
                  AND m.created_at > COALESCE(tr.read_at, '1970-01-01'::timestamptz)
-              ) AS unread_count
+              ) AS unread_count,
+              (SELECT m.text FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_text,
+              (SELECT m.created_at FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_at,
+              (SELECT m.sender_id FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_sender_id
        FROM chat_threads t
        JOIN listings l ON l.id = t.listing_id
        LEFT JOIN users u ON u.id = t.user_id
@@ -41,6 +44,13 @@ router.get('/threads', async (req, res) => {
     res.json(rows.map(r => {
       const isOwner = r.listing_owner_id === req.user.id;
       const otherName = isOwner ? (r.inquirer_name || 'Inquirer') : (r.owner_name || 'Owner');
+      const lastMessage = (r.last_message_text != null || r.last_message_at != null)
+        ? {
+            text: r.last_message_text || '',
+            createdAt: r.last_message_at,
+            senderId: r.last_message_sender_id
+          }
+        : null;
       return {
         id: r.id,
         listingId: r.listing_id,
@@ -50,7 +60,8 @@ router.get('/threads', async (req, res) => {
         otherParticipantName: otherName,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
-        unreadCount: r.unread_count != null ? r.unread_count : 0
+        unreadCount: r.unread_count != null ? r.unread_count : 0,
+        lastMessage
       };
     }));
   } catch (err) {

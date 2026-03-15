@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { priceRanges } from '../data/listings';
 import { philippineRegions, getCitiesByRegion, getCitiesByRegionAndProvince } from '../data/cities';
 import SearchBar from './SearchBar';
 import { useSavedSearches } from '../context/SavedSearchesContext';
@@ -8,6 +7,7 @@ const FilterSidebar = ({
   listingType,
   propertyType,
   priceRangeIndex,
+  furnishedFilter = '',
   selectedRegion,
   selectedProvince = '',
   selectedCity,
@@ -18,11 +18,11 @@ const FilterSidebar = ({
   minBeds,
   minBaths,
   sizeRange,
-  onListingTypeChange,
-  onRegionChange,
-  onProvinceChange,
   onPropertyTypeChange,
   onPriceRangeChange,
+  onFurnishedFilterChange,
+  onRegionChange,
+  onProvinceChange,
   onCityChange,
   onSearchChange,
   onSearchClear,
@@ -31,7 +31,8 @@ const FilterSidebar = ({
   onApplySavedState,
   currentFilterState,
   isMobile,
-  hideHeader = false
+  hideHeader = false,
+  locationOnly = false
 }) => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -50,7 +51,7 @@ const FilterSidebar = ({
     const state = getSearch(id);
     if (state) onApplySavedState?.(state);
   };
-  const currentPriceRanges = priceRanges[listingType] || [];
+
   const citiesFromRegionAndProvince = getCitiesByRegionAndProvince(selectedRegion || 'all', selectedProvince || null);
   const allCitiesEntry = getCitiesByRegion(selectedRegion || 'all').find((c) => c.id === 'cebu-province');
   const citiesWithAll = allCitiesEntry
@@ -67,22 +68,25 @@ const FilterSidebar = ({
   const showProvince = selectedRegion && selectedRegion !== 'all' && availableProvinces.length > 0;
 
   return (
-    <div className="filter-sidebar-content" onClick={(e) => e.stopPropagation()}>
+    <div className={`filter-sidebar-content${locationOnly ? ' filter-sidebar-content-location-only' : ''}`} onClick={(e) => e.stopPropagation()}>
       {!hideHeader && (
         <div className="filter-sidebar-header">
-          <h2>Search Filters</h2>
+          <h2>{locationOnly ? 'Choose location' : 'Search Filters'}</h2>
           <button className="filter-close-btn" onClick={onApply} aria-label="Close filters">
             <i className="fas fa-times"></i>
           </button>
         </div>
       )}
 
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={onSearchChange}
-        onClear={onSearchClear}
-      />
+      {!locationOnly && (
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          onClear={onSearchClear}
+        />
+      )}
 
+      {!locationOnly && (
       <div className="filter-saved-presets">
         <div className="filter-saved-save-row">
           <label htmlFor="filter-saved-name" className="visually-hidden">Filter preset name</label>
@@ -137,96 +141,93 @@ const FilterSidebar = ({
           </ul>
         )}
       </div>
+      )}
 
       <form className="row g-3 mt-3" onSubmit={(e) => e.preventDefault()}>
-        <div className="col-12">
-          <label className="form-label filter-label">Region</label>
-          <select
-            className="form-select"
-            value={selectedRegion || 'all'}
-            onChange={(e) => onRegionChange(e.target.value)}
-          >
-            {visibleRegions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-        {showProvince && (
-          <div className="col-12">
-            <label className="form-label filter-label">Province</label>
-            <select
-              className="form-select"
-              value={selectedProvince}
-              onChange={(e) => onProvinceChange(e.target.value)}
-            >
-              <option value="">All Provinces</option>
-              {availableProvinces.map((prov) => (
-                <option key={prov} value={prov}>
-                  {prov}
-                </option>
-              ))}
-            </select>
-          </div>
+        {locationOnly ? (
+          <>
+            <div className="col-12">
+              <label className="form-label filter-label">Region</label>
+              <select
+                className="form-select"
+                value={selectedRegion || 'all'}
+                onChange={(e) => onRegionChange(e.target.value)}
+              >
+                {visibleRegions.map((region) => (
+                  <option key={region.id} value={region.id}>
+                    {region.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {showProvince && (
+              <div className="col-12">
+                <label className="form-label filter-label">Province</label>
+                <select
+                  className="form-select"
+                  value={selectedProvince}
+                  onChange={(e) => onProvinceChange(e.target.value)}
+                >
+                  <option value="">All Provinces</option>
+                  {availableProvinces.map((prov) => (
+                    <option key={prov} value={prov}>
+                      {prov}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="col-12">
+              <label className="form-label filter-label">City</label>
+              <select
+                className="form-select"
+                value={effectiveCity}
+                onChange={(e) => onCityChange(e.target.value)}
+              >
+                {citiesForDropdown.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="col-12">
+              <label className="form-label filter-label">Property Type</label>
+              <select
+                className="form-select"
+                value={propertyType}
+                onChange={(e) => onPropertyTypeChange(e.target.value)}
+              >
+                <option value="">All Types</option>
+                <option value="House">House</option>
+                <option value="Apartment">Apartment</option>
+                <option value="Condo">Condo</option>
+                <option value="Land">Land</option>
+                <option value="Boarding House">Boarding House</option>
+                <option value="Room">Room</option>
+              </select>
+            </div>
+            <div className="col-12">
+              <label className="form-label filter-label">Furnished</label>
+              <select
+                className="form-select"
+                value={furnishedFilter}
+                onChange={(e) => onFurnishedFilterChange(e.target.value)}
+              >
+                <option value="">Any</option>
+                <option value="furnished">Furnished</option>
+                <option value="semi-furnished">Semi-furnished</option>
+                <option value="unfurnished">Unfurnished</option>
+              </select>
+            </div>
+          </>
         )}
-        <div className="col-12">
-          <label className="form-label filter-label">City</label>
-          <select
-            className="form-select"
-            value={effectiveCity}
-            onChange={(e) => onCityChange(e.target.value)}
-          >
-            {citiesForDropdown.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col-12">
-          <label className="form-label filter-label">Listing Type</label>
-          <select
-            className="form-select"
-            value={listingType}
-            onChange={(e) => onListingTypeChange(e.target.value)}
-          >
-            <option value="sale">For Sale</option>
-            <option value="rent">For Rent</option>
-          </select>
-        </div>
-        <div className="col-12">
-          <label className="form-label filter-label">Property Type</label>
-          <select
-            className="form-select"
-            value={propertyType}
-            onChange={(e) => onPropertyTypeChange(e.target.value)}
-          >
-            <option value="">All Types</option>
-            <option value="House">House</option>
-            <option value="Apartment">Apartment</option>
-            <option value="Condo">Condo</option>
-            <option value="Land">Land</option>
-            <option value="Boarding House">Boarding House</option>
-            <option value="Room">Room</option>
-          </select>
-        </div>
-        <div className="col-12">
-          <label className="form-label filter-label">Price Range</label>
-          <select
-            className="form-select"
-            value={priceRangeIndex}
-            onChange={(e) => onPriceRangeChange(parseInt(e.target.value))}
-          >
-            {currentPriceRanges.map((range, idx) => (
-              <option key={idx} value={idx}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-        </div>
       </form>
 
+      {!locationOnly && (
       <div className="mt-3">
         <button
           className="btn btn-link text-decoration-none advanced-filters-toggle"
@@ -300,10 +301,11 @@ const FilterSidebar = ({
           </div>
         )}
       </div>
+      )}
 
       <button type="button" className="btn-apply-filters" onClick={(e) => { e.stopPropagation(); onApply?.(); }}>
-        <i className="fas fa-search me-2"></i>
-        Search Properties
+        <i className={locationOnly ? 'fas fa-check me-2' : 'fas fa-search me-2'} aria-hidden />
+        {locationOnly ? 'Apply' : 'Search Properties'}
       </button>
     </div>
   );

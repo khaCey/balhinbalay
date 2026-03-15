@@ -12,11 +12,35 @@ export const useListings = () => {
   return context;
 };
 
+function buildSearchQueryString(params) {
+  if (!params || typeof params !== 'object') return '';
+  const searchParams = new URLSearchParams();
+  if (params.listingType) searchParams.set('listingType', params.listingType);
+  if (params.priceMin != null && params.priceMin !== '') searchParams.set('priceMin', String(params.priceMin));
+  if (params.priceMax != null && params.priceMax !== '') searchParams.set('priceMax', String(params.priceMax));
+  if (params.cityId) searchParams.set('cityId', params.cityId);
+  if (params.cityIds && params.cityIds.length > 0) searchParams.set('cityIds', params.cityIds.join(','));
+  if (params.type) searchParams.set('type', params.type);
+  if (params.furnished) searchParams.set('furnished', params.furnished);
+  if (params.minBeds != null && params.minBeds > 0) searchParams.set('minBeds', String(params.minBeds));
+  if (params.minBaths != null && params.minBaths > 0) searchParams.set('minBaths', String(params.minBaths));
+  if (params.sizeMin != null && params.sizeMin > 0) searchParams.set('sizeMin', String(params.sizeMin));
+  if (params.sizeMax != null && params.sizeMax !== Infinity && params.sizeMax > 0) searchParams.set('sizeMax', String(params.sizeMax));
+  if (params.q) searchParams.set('q', params.q.trim());
+  if (params.sort) searchParams.set('sort', params.sort);
+  const qs = searchParams.toString();
+  return qs ? '?' + qs : '';
+}
+
 export const ListingsProvider = ({ children }) => {
   const { user } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const refreshListings = useCallback(async () => {
     setLoading(true);
@@ -33,6 +57,22 @@ export const ListingsProvider = ({ children }) => {
     }
   }, [user]);
 
+  const fetchSearchListings = useCallback(async (params) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const qs = buildSearchQueryString(params);
+      const url = '/api/listings' + qs;
+      const data = await api.get(url);
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setSearchResults([]);
+      setSearchError(err.message || 'Failed to load search results');
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     refreshListings();
   }, [refreshListings]);
@@ -41,7 +81,11 @@ export const ListingsProvider = ({ children }) => {
     listings,
     loading,
     error,
-    refreshListings
+    refreshListings,
+    searchResults,
+    searchLoading,
+    searchError,
+    fetchSearchListings
   };
 
   return (

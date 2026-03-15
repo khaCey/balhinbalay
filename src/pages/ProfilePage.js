@@ -1,28 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLoginModal } from '../context/LoginModalContext';
-import ConfirmModal from '../components/ConfirmModal';
+import PageHeader from '../components/PageHeader';
+import { api, baseUrl } from '../api/client';
 
 const MIN_PASSWORD_LENGTH = 8;
+const AVATAR_MAX_DIM = 400;
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizeImageToDataUrl(dataUrl, maxDim) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
 
 function ProfilePage() {
   const navigate = useNavigate();
-  const { user, updateProfile, changePassword } = useAuth();
+  const { user, updateProfile, refreshUser, requestPasswordReset, resetPassword } = useAuth();
   const { openLogin } = useLoginModal();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
   const [editingProfileField, setEditingProfileField] = useState(null);
-  const [showChangePasswordConfirm, setShowChangePasswordConfirm] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const avatarInputRef = useRef(null);
+  const [resetStep, setResetStep] = useState(null);
+  const [resetCode, setResetCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -77,52 +119,95 @@ function ProfilePage() {
     }
   };
 
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-    setPasswordError('');
-    setPasswordSuccess(false);
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match.');
-      return;
+  const avatarUrl = user?.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : (baseUrl || '') + user.avatar_url) : null;
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    e.target.value = '';
+    setAvatarError('');
+    setAvatarLoading(true);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const resized = await resizeImageToDataUrl(dataUrl, AVATAR_MAX_DIM);
+      const { avatar_url: newUrl } = await api.post('/api/users/me/avatar', { image: resized });
+      await refreshUser();
+      if (!newUrl) setAvatarError('Image could not be processed.');
+    } catch (err) {
+      setAvatarError(err?.message || 'Upload failed.');
+    } finally {
+      setAvatarLoading(false);
     }
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      setPasswordError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    setShowChangePasswordConfirm(true);
   };
 
-  const doChangePassword = async () => {
-    setShowChangePasswordConfirm(false);
-    setPasswordError('');
-    setPasswordSuccess(false);
-    setPasswordLoading(true);
+  const handleAvatarRemove = async () => {
+    setAvatarError('');
+    setAvatarLoading(true);
     try {
-      const result = await changePassword(currentPassword, newPassword);
-      if (result.ok) {
-        setPasswordSuccess(true);
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        setPasswordError(result.message || 'Could not change password.');
-      }
+      await api.delete('/api/users/me/avatar');
+      await refreshUser();
     } catch (err) {
-      setPasswordError(err?.message || 'Could not change password.');
+      setAvatarError(err?.message || 'Remove failed.');
     } finally {
-      setPasswordLoading(false);
+      setAvatarLoading(false);
+    }
+  };
+
+  const handleRequestResetCode = async (e) => {
+    e.preventDefault();
+    const emailToUse = (user?.email || '').trim();
+    if (!emailToUse) {
+      setResetError('Email is required.');
+      return;
+    }
+    setResetError('');
+    setResetSuccess('');
+    setResetLoading(true);
+    try {
+      const result = await requestPasswordReset(emailToUse);
+      if (result.ok) {
+        setResetSuccess(result.message || 'Check your email for the reset code.');
+        setResetStep('code');
+      } else {
+        setResetError(result.message || 'Failed to send code.');
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+    if (resetNewPassword.length < MIN_PASSWORD_LENGTH) {
+      setResetError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const result = await resetPassword(user?.email || '', resetCode, resetNewPassword);
+      if (result.ok) {
+        setResetSuccess(result.message || 'Password updated.');
+        setResetStep(null);
+        setResetCode('');
+        setResetNewPassword('');
+        setResetConfirmPassword('');
+      } else {
+        setResetError(result.message || 'Reset failed.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
   if (!user) {
     return (
       <div className="profile-page">
-        <header className="page-header">
-          <button type="button" className="page-header-back" onClick={() => navigate('/sale')} aria-label="Back">
-            <i className="fas fa-arrow-left" aria-hidden />
-          </button>
-          <h1 className="page-header-title">Account</h1>
-        </header>
+        <PageHeader title="Account" onBack={() => navigate('/sale')} />
         <main className="page-content">
           <div className="page-section page-section-gate">
             <p className="page-gate-text">Log in to view your profile.</p>
@@ -138,13 +223,43 @@ function ProfilePage() {
   return (
     <>
       <div className="profile-page">
-        <header className="page-header">
-          <button type="button" className="page-header-back" onClick={handleBack} aria-label="Back">
-            <i className="fas fa-arrow-left" aria-hidden />
-          </button>
-          <h1 className="page-header-title">Account</h1>
-        </header>
+        <PageHeader title="Account" onBack={handleBack} />
         <main className="page-content">
+          <section className="page-section profile-page-section">
+            <h6 className="profile-section-title">Profile photo</h6>
+            <div className="profile-avatar-block d-flex align-items-center gap-3 mb-4">
+              <div className="profile-avatar-preview">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" />
+                ) : (
+                  <i className="fas fa-user" aria-hidden />
+                )}
+              </div>
+              <div className="d-flex flex-column gap-2">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="d-none"
+                  onChange={handleAvatarChange}
+                  disabled={avatarLoading}
+                />
+                <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => avatarInputRef.current?.click()} disabled={avatarLoading}>
+                  {avatarLoading ? (
+                    <><i className="fas fa-spinner fa-spin me-1" aria-hidden /> Updating...</>
+                  ) : (
+                    'Change photo'
+                  )}
+                </button>
+                {avatarUrl && (
+                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleAvatarRemove} disabled={avatarLoading}>
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
+            {avatarError && <p className="text-danger small mb-2">{avatarError}</p>}
+          </section>
           <section className="page-section profile-page-section">
             <h6 className="profile-section-title">Profile</h6>
             <p className="profile-section-hint">Tap the pencil next to a field to edit it.</p>
@@ -209,61 +324,101 @@ function ProfilePage() {
 
           <section className="page-section profile-page-section profile-section-password">
             <h6 className="profile-section-title">Change password</h6>
-            <p className="profile-section-hint">Enter your current password and choose a new one (at least 8 characters).</p>
-            <form onSubmit={handlePasswordSubmit}>
-              <div className="mb-3">
-                <label className="form-label">Current password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">New password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  minLength={MIN_PASSWORD_LENGTH}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Confirm new password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  minLength={MIN_PASSWORD_LENGTH}
-                  autoComplete="new-password"
-                />
-              </div>
-              {passwordError && <p className="text-danger small mb-2">{passwordError}</p>}
-              {passwordSuccess && <p className="text-success small mb-2">Password changed.</p>}
-              <button type="submit" className="btn btn-outline-primary" disabled={passwordLoading}>
-                {passwordLoading ? 'Updating...' : 'Change password'}
+            <p className="profile-section-hint">We’ll send a 5-digit code to your email. Enter the code and choose a new password (at least 8 characters).</p>
+            {resetStep === null && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => { setResetStep('email'); setResetError(''); setResetSuccess(''); }}
+              >
+                Send reset code to my email
               </button>
-            </form>
+            )}
+            {resetStep === 'email' && (
+              <form onSubmit={handleRequestResetCode}>
+                <div className="mb-3">
+                  <label className="form-label">Email</label>
+                  <input type="email" className="form-control" value={user?.email || ''} readOnly disabled aria-readonly />
+                </div>
+                {resetSuccess && <p className="text-success small mb-2">{resetSuccess}</p>}
+                {resetError && <p className="text-danger small mb-2">{resetError}</p>}
+                <button type="submit" className="btn btn-outline-primary" disabled={resetLoading}>
+                  {resetLoading ? 'Sending...' : 'Send code'}
+                </button>
+                <button type="button" className="btn btn-link btn-sm ms-2" onClick={() => { setResetStep(null); setResetError(''); setResetSuccess(''); }}>
+                  Cancel
+                </button>
+              </form>
+            )}
+            {resetStep === 'code' && (
+              <form onSubmit={handleResetPasswordSubmit}>
+                <div className="mb-3">
+                  <label className="form-label">Email</label>
+                  <input type="email" className="form-control" value={user?.email || ''} readOnly disabled aria-readonly />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">5-digit code</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="12345"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    maxLength={5}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">New password</label>
+                  <div className="password-input-wrap">
+                    <input
+                      type={showResetPassword ? 'text' : 'password'}
+                      className="form-control"
+                      placeholder="••••••••"
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      required
+                      minLength={MIN_PASSWORD_LENGTH}
+                      autoComplete="new-password"
+                    />
+                    <button type="button" className="password-toggle-btn" onClick={() => setShowResetPassword((v) => !v)} aria-label={showResetPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
+                      <i className={showResetPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} aria-hidden />
+                    </button>
+                  </div>
+                  <p className="form-text small text-muted mb-0">At least 8 characters.</p>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Confirm password</label>
+                  <div className="password-input-wrap">
+                    <input
+                      type={showResetConfirmPassword ? 'text' : 'password'}
+                      className="form-control"
+                      placeholder="••••••••"
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      required
+                      minLength={MIN_PASSWORD_LENGTH}
+                      autoComplete="new-password"
+                    />
+                    <button type="button" className="password-toggle-btn" onClick={() => setShowResetConfirmPassword((v) => !v)} aria-label={showResetConfirmPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
+                      <i className={showResetConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+                {resetSuccess && <p className="text-success small mb-2">{resetSuccess}</p>}
+                {resetError && <p className="text-danger small mb-2">{resetError}</p>}
+                <button type="submit" className="btn btn-outline-primary" disabled={resetLoading}>
+                  {resetLoading ? 'Resetting...' : 'Reset password'}
+                </button>
+                <button type="button" className="btn btn-link btn-sm ms-2" onClick={() => { setResetStep('email'); setResetCode(''); setResetNewPassword(''); setResetConfirmPassword(''); setResetError(''); setResetSuccess(''); }}>
+                  Back
+                </button>
+              </form>
+            )}
           </section>
         </main>
       </div>
-      <ConfirmModal
-        show={showChangePasswordConfirm}
-        title="Change password"
-        message="Are you sure you want to change your password?"
-        confirmLabel="Confirm"
-        cancelLabel="Cancel"
-        onConfirm={doChangePassword}
-        onCancel={() => setShowChangePasswordConfirm(false)}
-      />
     </>
   );
 }

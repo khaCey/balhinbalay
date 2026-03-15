@@ -8,7 +8,7 @@ const { sendConfirmationEmail } = require('./services/email');
 
 // Override in .env with SAMPLE_EMAIL_TO=your-other@email.com to test a different inbox
 const toEmail = process.env.SAMPLE_EMAIL_TO || 'khacey.salvador@gmail.com';
-const sampleUrl = (process.env.APP_URL || 'http://localhost:3000') + '/confirm-email?token=sample-token-123';
+const sampleUrl = (process.env.APP_URL || 'https://balhinbalay.com') + '/confirm-email?token=sample-token-123';
 const userName = 'Khacey';
 
 function withTimeout(promise, ms, message) {
@@ -26,7 +26,7 @@ async function main() {
   try {
     const result = await withTimeout(
       sendConfirmationEmail(toEmail, sampleUrl, userName),
-      12000,
+      50000,
       'SMTP connection timed out (check host/port/firewall).'
     );
     if (result.sent) {

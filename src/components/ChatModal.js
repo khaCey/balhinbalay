@@ -88,6 +88,18 @@ const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getMinuteKey = (ts) => {
+    if (ts == null) return null;
+    const ms = new Date(ts).getTime();
+    return Number.isNaN(ms) ? null : Math.floor(ms / 60000);
+  };
+  const showTimeForMessage = (msg, prevMsg) => {
+    const key = getMinuteKey(msg.timestamp);
+    if (key == null) return false;
+    if (!prevMsg) return true;
+    return getMinuteKey(prevMsg.timestamp) !== key;
+  };
+
   return (
     <div className="chat-panel-wrap instagram-style" style={{ display: 'block' }} tabIndex="-1">
       <div className="chat-panel-backdrop" onClick={onClose} aria-hidden />
@@ -117,9 +129,6 @@ const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
             <span className="chat-panel-header-title">{property.title}</span>
           </div>
           <div className="chat-panel-header-actions">
-            <button type="button" className="chat-panel-icon-btn" aria-label="Full screen">
-              <i className="fas fa-expand" aria-hidden></i>
-            </button>
             <button type="button" className="chat-panel-icon-btn" onClick={onClose} aria-label="Close">
               <i className="fas fa-times" aria-hidden></i>
             </button>
@@ -132,18 +141,34 @@ const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
                 Start the conversation. Messages are stored in this app.
               </p>
             )}
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`chat-panel-bubble ${msg.isFromUser ? 'chat-panel-bubble-me' : 'chat-panel-bubble-them'}`}
-              >
-                {!msg.isFromUser && <span className="chat-panel-sender">{msg.senderName}</span>}
-                <p className="chat-panel-text">{msg.text}</p>
-                <div className="chat-panel-bubble-footer">
-                  <span className="chat-panel-time">{formatTime(msg.timestamp)}</span>
+            {messages.map((msg, idx) => {
+              const prevMsg = idx > 0 ? messages[idx - 1] : null;
+              const showTime = showTimeForMessage(msg, prevMsg);
+              const isMe = msg.isFromUser;
+              return (
+                <div
+                  key={msg.id}
+                  className={`chat-panel-message-row ${isMe ? 'chat-panel-message-row-me' : 'chat-panel-message-row-them'}`}
+                >
+                  {!isMe && (
+                    <span className="chat-panel-time-outside">
+                      {showTime ? formatTime(msg.timestamp) : '\u00A0'}
+                    </span>
+                  )}
+                  <div
+                    className={`chat-panel-bubble ${isMe ? 'chat-panel-bubble-me' : 'chat-panel-bubble-them'}`}
+                  >
+                    {!isMe && <span className="chat-panel-sender">{msg.senderName}</span>}
+                    <p className="chat-panel-text">{msg.text}</p>
+                  </div>
+                  {isMe && (
+                    <span className="chat-panel-time-outside">
+                      {showTime ? formatTime(msg.timestamp) : '\u00A0'}
+                    </span>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
           <form className="chat-panel-form" onSubmit={handleSubmit}>

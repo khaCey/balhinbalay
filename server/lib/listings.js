@@ -21,7 +21,19 @@ function mapListingRow(row) {
       email: row.contact_email || ''
     },
     datePosted: row.date_posted,
-    status: row.status || 'approved'
+    status: row.status || 'approved',
+    keyMoney: row.key_money != null ? Number(row.key_money) : null,
+    securityDeposit: row.security_deposit != null ? Number(row.security_deposit) : null,
+    extraFees: row.extra_fees || null,
+    advancePay: row.advance_pay != null ? Number(row.advance_pay) : null,
+    brokerFee: row.broker_fee != null ? Number(row.broker_fee) : null,
+    associationFee: row.association_fee != null ? Number(row.association_fee) : null,
+    utilitiesIncluded: row.utilities_included != null ? !!row.utilities_included : null,
+    reservationFee: row.reservation_fee != null ? Number(row.reservation_fee) : null,
+    furnished: row.furnished || null,
+    sold: !!row.sold,
+    currentlyRented: !!row.currently_rented,
+    availableFrom: row.available_from || null
   };
   if (!listing.images || listing.images.length === 0) {
     listing.images = ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'];

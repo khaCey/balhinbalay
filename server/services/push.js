@@ -67,6 +67,13 @@ async function sendPushToUser(pool, userId, { title, body, data = {} }) {
     return;
   }
   try {
+    const { rows: userRows } = await pool.query(
+      'SELECT COALESCE(push_enabled, true) AS push_enabled FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userRows[0] || userRows[0].push_enabled === false) {
+      return; // user has disabled push
+    }
     const { rows } = await pool.query(
       'SELECT id, token FROM user_push_tokens WHERE user_id = $1',
       [userId]
@@ -86,7 +93,8 @@ async function sendPushToUser(pool, userId, { title, body, data = {} }) {
         priority: 'high',
         notification: {
           channelId: 'default',
-          priority: 'high'
+          priority: 'high',
+          icon: 'ic_notification'
         }
       },
       tokens

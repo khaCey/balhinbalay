@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLoginModal } from '../context/LoginModalContext';
 import { useListings } from '../context/ListingsContext';
 import AddPropertyForm from '../components/AddPropertyForm';
+import PageHeader from '../components/PageHeader';
 
 function AddPropertyPage() {
   const navigate = useNavigate();
@@ -26,12 +27,7 @@ function AddPropertyPage() {
   if (!user) {
     return (
       <div className="add-property-page">
-        <header className="page-header">
-          <button type="button" className="page-header-back" onClick={() => navigate('/sale')} aria-label="Back">
-            <i className="fas fa-arrow-left" aria-hidden />
-          </button>
-          <h1 className="page-header-title">{isEdit ? 'Edit property' : 'Add property'}</h1>
-        </header>
+        <PageHeader title={isEdit ? 'Edit property' : 'Add property'} onBack={() => navigate('/sale')} />
         <main className="page-content">
           <div className="page-section page-section-gate">
             <p className="page-gate-text">Log in to add or edit a property.</p>
@@ -46,12 +42,7 @@ function AddPropertyPage() {
 
   return (
     <div className="add-property-page">
-      <header className="page-header">
-        <button type="button" className="page-header-back" onClick={handleBack} aria-label="Back">
-          <i className="fas fa-arrow-left" aria-hidden />
-        </button>
-        <h1 className="page-header-title">{isEdit ? 'Edit property' : 'Add property'}</h1>
-      </header>
+      <PageHeader title={isEdit ? 'Edit property' : 'Add property'} onBack={handleBack} />
       <main className="page-content">
         <div className="page-section add-property-page-form">
           <AddPropertyForm

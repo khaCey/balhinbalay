@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { baseUrl } from '../api/client';
 
@@ -8,6 +8,7 @@ function ConfirmEmailPage() {
   const token = searchParams.get('token');
   const [status, setStatus] = useState('loading'); // loading | success | error | invalid
   const [message, setMessage] = useState('');
+  const requestSentRef = useRef(false);
 
   useEffect(() => {
     if (!token || !token.trim()) {
@@ -15,6 +16,9 @@ function ConfirmEmailPage() {
       setMessage('Invalid confirmation link.');
       return;
     }
+    if (requestSentRef.current) return;
+    requestSentRef.current = true;
+
     const url = `${baseUrl}/api/auth/confirm-email?token=${encodeURIComponent(token)}`;
     fetch(url)
       .then((res) => res.json())
@@ -67,6 +71,9 @@ function ConfirmEmailPage() {
             </div>
             <h1>Confirmation failed</h1>
             <p>{message}</p>
+            <p className="confirm-email-hint text-muted small mt-2 mb-0">
+              If you already clicked this link once, your email may be confirmed. Try logging in.
+            </p>
             <button type="button" className="btn btn-primary confirm-email-btn" onClick={handleGoToLogin}>
               Go to log in
             </button>

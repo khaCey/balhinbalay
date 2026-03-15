@@ -668,3 +668,9 @@ export const priceRanges = {
     { label: 'Over ₱20k', min: 20000, max: Infinity }
   ]
 };
+
+/** Bounds and step for the price range slider by listing type */
+export const priceSliderConfig = {
+  sale: { min: 0, max: 10000000, step: 500000, tickStep: 2500000 },
+  rent: { min: 0, max: 100000, step: 5000, tickStep: 25000 }
+};

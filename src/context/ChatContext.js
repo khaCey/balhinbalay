@@ -37,7 +37,8 @@ export const ChatProvider = ({ children }) => {
         listingOwnerId: t.listingOwnerId,
         otherParticipantName: t.otherParticipantName,
         updatedAt: t.updatedAt,
-        unreadCount: t.unreadCount != null ? t.unreadCount : 0
+        unreadCount: t.unreadCount != null ? t.unreadCount : 0,
+        lastMessage: t.lastMessage || null
       })));
     } catch {
       setThreads([]);
@@ -233,6 +234,11 @@ export const ChatProvider = ({ children }) => {
     [threads]
   );
 
+  const unreadChatCount = useMemo(
+    () => threads.filter((t) => (t.unreadCount || 0) > 0).length,
+    [threads]
+  );
+
   const markThreadReadByListingId = useCallback(
     async (listingId) => {
       const matching = threads.filter((t) => t.listingId === listingId);
@@ -274,6 +280,24 @@ export const ChatProvider = ({ children }) => {
     [threads, fetchMessagesForThread, fetchThreads]
   );
 
+  const createOrGetThread = useCallback(
+    async (listingId) => {
+      if (!user) return null;
+      const matching = threads.filter((t) => t.listingId === listingId);
+      const existing = matching.length > 0 ? matching.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] : null;
+      if (existing) return existing.id;
+      try {
+        const created = await api.post('/api/chat/threads', { listingId });
+        await fetchThreads();
+        return created.id;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    },
+    [user, threads, fetchThreads]
+  );
+
   const value = {
     getMessages,
     getThreadListingIds,
@@ -282,10 +306,13 @@ export const ChatProvider = ({ children }) => {
     loadMessagesForThreadId,
     getUnreadCount,
     unreadCount,
+    unreadChatCount,
     markThreadRead,
     markThreadReadByListingId,
     sendMessage,
     loadMessagesForListing,
+    createOrGetThread,
+    refreshThreads: fetchThreads,
     inAppNotification
   };
 

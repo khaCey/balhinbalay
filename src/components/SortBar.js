@@ -10,6 +10,20 @@ const SortBar = ({ sortBy, viewMode, onSortChange, onViewModeChange, totalResult
         <span className="results-count">
           <strong>{totalResults}</strong> {resultsText}
         </span>
+        <label htmlFor="sort-dropdown" className="sort-bar-label">Sort:</label>
+        <select
+          id="sort-dropdown"
+          className="form-select sort-select"
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value)}
+          aria-label="Sort results by"
+        >
+          <option value="newest">Newest first</option>
+          <option value="price-low">Price: low to high</option>
+          <option value="price-high">Price: high to low</option>
+          <option value="size-large">Size: largest first</option>
+          <option value="size-small">Size: smallest first</option>
+        </select>
       </div>
       <div className="sort-bar-right">
         <div className="view-mode-toggle">
@@ -35,17 +49,6 @@ const SortBar = ({ sortBy, viewMode, onSortChange, onViewModeChange, totalResult
             <i className="fas fa-map"></i>
           </button>
         </div>
-        <select
-          className="form-select sort-select"
-          value={sortBy}
-          onChange={(e) => onSortChange(e.target.value)}
-        >
-          <option value="newest">Newest First</option>
-          <option value="price-low">Price: Low to High</option>
-          <option value="price-high">Price: High to Low</option>
-          <option value="size-large">Size: Largest First</option>
-          <option value="size-small">Size: Smallest First</option>
-        </select>
       </div>
     </div>
   );

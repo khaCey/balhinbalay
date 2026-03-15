@@ -88,7 +88,7 @@ export const api = {
   post: (path, body) => request('POST', path, body),
   postFormData: (path, formData) => requestFormData('POST', path, formData),
   patch: (path, body) => request('PATCH', path, body),
-  delete: (path) => request('DELETE', path)
+  delete: (path, body) => request('DELETE', path, body ?? null)
 };
 
 async function requestFormData(method, path, formData) {

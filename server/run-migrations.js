@@ -21,7 +21,13 @@ const migrations = [
   'add-listing-status-unlisted.sql',
   'add-thread-reads.sql',
   'add-email-confirmation.sql',
-  'add-user-push-tokens.sql'
+  'add-user-push-tokens.sql',
+  'add-user-push-enabled.sql',
+  'add-listing-payments-furnished-sold.sql',
+  'add-user-avatar.sql',
+  'add-account-status-pending.sql',
+  'add-password-reset-code.sql',
+  'add-move-in-fees-and-reports.sql'
 ];
 
 const pool = new Pool({ connectionString: DATABASE_URL });

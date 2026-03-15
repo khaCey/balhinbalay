@@ -94,7 +94,7 @@ The app uses `REACT_APP_API_URL` for the backend. On device/emulator, `localhost
   ```bash
   npm run cap:sync:android:production
   ```
-  Then open Android Studio and run the app on a device or emulator. The app will work from any network; ensure the tunnel (or your server) is running so `https://balhinbalay.com` is reachable.
+  This uses `.env.production` (`REACT_APP_API_URL=https://balhinbalay.com`). Then open Android Studio and run the app in the emulator or on a device; the app will call the tunnel URL, not localhost. Keep the tunnel and server running.
 
 ---
 

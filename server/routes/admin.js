@@ -139,4 +139,22 @@ router.patch('/users/:id', async (req, res, next) => {
   }
 });
 
+// DELETE /api/admin/users/:id — permanently delete user and all their data (admin only; cannot delete self)
+router.delete('/users/:id', async (req, res, next) => {
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+  const id = req.params.id;
+  if (id === req.user.id) return res.status(400).json({ error: 'Cannot delete your own account' });
+  try {
+    const { rows: existing } = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    if (!existing[0]) return res.status(404).json({ error: 'User not found' });
+    await pool.query('DELETE FROM listings WHERE owner_id = $1', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (err) {
+    err.status = 500;
+    next(err);
+  }
+});
+
 module.exports = router;

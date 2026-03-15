@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { signToken, authMiddleware } = require('../middleware/auth');
-const { sendConfirmationEmail } = require('../services/email');
+const { sendConfirmationEmail, sendPasswordResetCode } = require('../services/email');
 
 const router = express.Router();
 
@@ -11,8 +11,10 @@ function getPool(req) {
 }
 
 function getAppUrl(req) {
-  const url = process.env.APP_URL || req.protocol + '://' + (req.get('host') || 'localhost:3000');
-  return url.replace(/\/$/, '');
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
+  const host = req.get('host') || '';
+  if (host === 'localhost:5000') return 'http://localhost:3000';
+  return (req.protocol + '://' + (host || 'localhost:3000')).replace(/\/$/, '');
 }
 
 // POST /api/auth/register
@@ -33,8 +35,8 @@ router.post('/register', async (req, res) => {
   const confirmationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
   try {
     const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash, name, email_verified, confirmation_token, confirmation_expires)
-       VALUES ($1, $2, $3, false, $4, $5)
+      `INSERT INTO users (email, password_hash, name, email_verified, confirmation_token, confirmation_expires, account_status)
+       VALUES ($1, $2, $3, false, $4, $5, 'pending')
        RETURNING id, email, name, role, account_status`,
       [normalizedEmail, passwordHash, safeName, confirmationToken, confirmationExpires]
     );
@@ -69,7 +71,7 @@ router.get('/confirm-email', async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      `UPDATE users SET email_verified = true, confirmation_token = NULL, confirmation_expires = NULL
+      `UPDATE users SET email_verified = true, confirmation_token = NULL, confirmation_expires = NULL, account_status = 'active'
        WHERE confirmation_token = $1 AND confirmation_expires > now()
        RETURNING id, email`,
       [token]
@@ -79,7 +81,10 @@ router.get('/confirm-email', async (req, res) => {
       if (expired.length > 0) {
         return res.status(400).json({ ok: false, message: 'Confirmation link has expired. Please request a new one.' });
       }
-      return res.status(400).json({ ok: false, message: 'Invalid confirmation token.' });
+      return res.status(400).json({
+        ok: false,
+        message: 'This link is invalid or was already used. Try logging in; if it doesn\'t work, use "Resend confirmation email" on the sign-in page.'
+      });
     }
     return res.json({ ok: true, message: 'Email confirmed. You can now log in.' });
   } catch (err) {
@@ -151,7 +156,7 @@ router.post('/login', async (req, res) => {
     const status = (user.account_status || 'active').toLowerCase();
     if (status === 'suspended') return res.status(403).json({ ok: false, message: 'Account suspended.' });
     if (status === 'banned') return res.status(403).json({ ok: false, message: 'Account banned.' });
-    if (!user.email_verified) {
+    if (status === 'pending' || !user.email_verified) {
       return res.status(400).json({
         ok: false,
         message: 'Please verify your email before logging in. Check your inbox or request a new confirmation link.',
@@ -169,6 +174,84 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ ok: false, message: 'Database schema out of date. From project root run: npm run migrate' });
     }
     return res.status(500).json({ ok: false, message: 'Login failed. Check server logs for details.' });
+  }
+});
+
+// POST /api/auth/request-password-reset
+router.post('/request-password-reset', async (req, res) => {
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+  const { email } = req.body || {};
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    return res.status(400).json({ ok: false, message: 'Email is required.' });
+  }
+  const code = String(Math.floor(10000 + Math.random() * 90000));
+  const expires = new Date(Date.now() + 15 * 60 * 1000);
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, name FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+    const user = rows[0];
+    if (!user) {
+      return res.json({ ok: true, message: 'If an account exists for this email, a reset code was sent.' });
+    }
+    await pool.query(
+      'UPDATE users SET password_reset_code = $1, password_reset_expires = $2 WHERE id = $3',
+      [code, expires, user.id]
+    );
+    try {
+      await sendPasswordResetCode(normalizedEmail, code, user.name);
+    } catch (emailErr) {
+      console.error('Failed to send password reset email:', emailErr.message);
+      return res.status(500).json({ ok: false, message: 'Failed to send reset code. Try again later.' });
+    }
+    return res.json({ ok: true, message: 'Check your email for the reset code.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: 'Request failed.' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+  const { email, code, newPassword } = req.body || {};
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const codeStr = (code != null ? String(code) : '').trim();
+  if (!normalizedEmail || !codeStr) {
+    return res.status(400).json({ ok: false, message: 'Email and code are required.' });
+  }
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ ok: false, message: 'Password must be at least 8 characters.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, password_reset_code, password_reset_expires FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+    const user = rows[0];
+    if (!user || user.password_reset_code !== codeStr) {
+      return res.status(400).json({ ok: false, message: 'Invalid or expired code.' });
+    }
+    if (!user.password_reset_expires || new Date(user.password_reset_expires) < new Date()) {
+      await pool.query(
+        'UPDATE users SET password_reset_code = NULL, password_reset_expires = NULL WHERE id = $1',
+        [user.id]
+      );
+      return res.status(400).json({ ok: false, message: 'Code has expired. Request a new one.' });
+    }
+    const passwordHash = bcrypt.hashSync(newPassword, 10);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, password_reset_code = NULL, password_reset_expires = NULL WHERE id = $2',
+      [passwordHash, user.id]
+    );
+    return res.json({ ok: true, message: 'Password updated. You can log in now.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: 'Reset failed.' });
   }
 });
 

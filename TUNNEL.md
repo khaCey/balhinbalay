@@ -2,21 +2,30 @@
 
 Use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) (cloudflared) to expose your BalhinBalay server (React + API on port 5000) so you can access it from outside your network via a public HTTPS URL.
 
-**Production build (tunnel):** Use the tunnel API URL by building with:
-```bash
-npm run build:tunnel
-```
-This uses `.env.production` (`REACT_APP_API_URL=https://balhinbalay.com`). If you still see "API: http://localhost:5000", remove the old build and rebuild (Windows: `Remove-Item -Recurse -Force build` or delete the `build` folder in Explorer; Mac/Linux: `rm -rf build`):
-```bash
-npm run build:tunnel
-```
-Then restart the server (`node server/index.js`). The served app will call `https://balhinbalay.com/api`.
+**Website and Android both use the tunnel:** Build once with the tunnel URL; the same build is used for the site and (after sync) for the Android app.
 
-**Android app (use from anywhere):** To build the Android app so it uses the tunnel API (works on any network, not just your Wi‑Fi), run:
-```bash
-npm run cap:sync:android:production
-```
-Then run the app from Android Studio. The app will call `https://balhinbalay.com/api`; keep the tunnel and server running so the domain is reachable.
+1. **Build for tunnel (website + API):**
+   ```bash
+   npm run build:tunnel:clean
+   ```
+   (Or `npm run build:tunnel`. Use `build:tunnel:clean` if the site still shows "API: http://localhost:5000".)  
+   This uses `.env.production` (`REACT_APP_API_URL=https://balhinbalay.com`).
+
+2. **Start the server**, then **run the tunnel**:
+   ```bash
+   node server/index.js
+   ```
+   In another terminal:
+   ```bash
+   cloudflared tunnel run balhinbalay
+   ```
+   The **website** at https://balhinbalay.com will now call `https://balhinbalay.com/api`.
+
+3. **Android app (optional):** To have the app use the tunnel too, sync the same production build:
+   ```bash
+   npm run cap:sync:android:production:clean
+   ```
+   Then run the app from Android Studio. Website and app both use `https://balhinbalay.com`.
 
 ---
 

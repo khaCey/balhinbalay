@@ -17,7 +17,7 @@ function relativeTime(ts) {
 }
 
 const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThreadId, onClearInitialThreadId }) => {
-  const { getThreads, getMessagesByThreadId } = useChat();
+  const { getThreads, getMessagesByThreadId, unreadChatCount, refreshThreads } = useChat();
   const [viewportSize, setViewportSize] = useState(null);
   const didOpenInitialRef = useRef(false);
 
@@ -27,6 +27,11 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThread
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, [show]);
+
+  /* Refetch threads when modal opens so new chats appear */
+  useEffect(() => {
+    if (show) refreshThreads();
+  }, [show, refreshThreads]);
 
   // When opened from push notification with threadId, auto-open that thread once it's in the list
   useEffect(() => {
@@ -86,10 +91,7 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThread
     .filter(Boolean)
     .sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
 
-  const displayableUnreadCount = threadsWithListing.reduce(
-    (sum, { thread }) => sum + (thread.unreadCount || 0),
-    0
-  );
+  const displayableUnreadCount = typeof unreadChatCount === 'number' ? unreadChatCount : 0;
 
   if (!show) return null;
 
@@ -150,7 +152,11 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThread
                       <span className="messages-panel-row-unread" aria-label="Unread" />
                     )}
                     <div className="messages-panel-row-avatar">
-                      <img src={listing.images?.[0]} alt="" />
+                      {listing.images?.[0] ? (
+                        <img src={listing.images[0]} alt="" />
+                      ) : (
+                        <i className="fas fa-home" aria-hidden style={{ fontSize: '1.25rem', color: 'var(--bb-text-muted)' }} />
+                      )}
                     </div>
                     <div className="messages-panel-row-main">
                       <div className="messages-panel-row-top">

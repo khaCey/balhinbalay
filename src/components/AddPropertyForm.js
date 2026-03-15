@@ -136,6 +136,18 @@ function AddPropertyForm({ initialListing, onSuccess }) {
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [keyMoney, setKeyMoney] = useState('');
+  const [securityDeposit, setSecurityDeposit] = useState('');
+  const [extraFees, setExtraFees] = useState('');
+  const [advancePay, setAdvancePay] = useState('');
+  const [brokerFee, setBrokerFee] = useState('');
+  const [associationFee, setAssociationFee] = useState('');
+  const [utilitiesIncluded, setUtilitiesIncluded] = useState(false);
+  const [reservationFee, setReservationFee] = useState('');
+  const [furnished, setFurnished] = useState('');
+  const [sold, setSold] = useState(false);
+  const [currentlyRented, setCurrentlyRented] = useState(false);
+  const [availableFrom, setAvailableFrom] = useState('');
   const [contactName, setContactName] = useState(user?.name || '');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState(user?.email || '');
@@ -181,6 +193,18 @@ function AddPropertyForm({ initialListing, onSuccess }) {
       setBaths(initialListing.baths ? String(initialListing.baths) : '');
       setSizeSqm(initialListing.sizeSqm ? String(initialListing.sizeSqm) : (initialListing.size ? String(parseInt(initialListing.size, 10) || '') : ''));
       setDescription(initialListing.description || '');
+      setKeyMoney(initialListing.keyMoney != null ? String(initialListing.keyMoney) : '');
+      setSecurityDeposit(initialListing.securityDeposit != null ? String(initialListing.securityDeposit) : '');
+      setExtraFees(initialListing.extraFees || '');
+      setAdvancePay(initialListing.advancePay != null ? String(initialListing.advancePay) : '');
+      setBrokerFee(initialListing.brokerFee != null ? String(initialListing.brokerFee) : '');
+      setAssociationFee(initialListing.associationFee != null ? String(initialListing.associationFee) : '');
+      setUtilitiesIncluded(!!initialListing.utilitiesIncluded);
+      setReservationFee(initialListing.reservationFee != null ? String(initialListing.reservationFee) : '');
+      setFurnished(initialListing.furnished || '');
+      setSold(!!initialListing.sold);
+      setCurrentlyRented(!!initialListing.currentlyRented);
+      setAvailableFrom(initialListing.availableFrom || '');
       const imgs = Array.isArray(initialListing.images) ? initialListing.images : [];
       const firstUrl = imgs.find((u) => typeof u === 'string' && (u.startsWith('http') || u.startsWith('https')));
       setImageUrl(firstUrl || '');
@@ -230,10 +254,11 @@ function AddPropertyForm({ initialListing, onSuccess }) {
     const city = getCityById(validCityId);
     const cityName = city ? city.displayName : 'Cebu City';
     const locationTrimmed = location.trim();
-    let coords = city?.coordinates || { lat: 10.3157, lng: 123.8854 };
     const latNum = parseFloat(manualLat);
     const lngNum = parseFloat(manualLng);
-    if (!Number.isNaN(latNum) && !Number.isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180) {
+    const hasValidManual = !Number.isNaN(latNum) && !Number.isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
+    let coords;
+    if (hasValidManual) {
       coords = { lat: latNum, lng: lngNum };
     } else if (locationTrimmed) {
       const fromLookup = getBarangayCoordinates(locationTrimmed, cityName);
@@ -241,8 +266,10 @@ function AddPropertyForm({ initialListing, onSuccess }) {
         coords = fromLookup;
       } else {
         const geocoded = await geocodeAddress(locationTrimmed, cityName, city?.coordinates);
-        if (geocoded) coords = geocoded;
+        coords = geocoded || city?.coordinates || { lat: 10.3157, lng: 123.8854 };
       }
+    } else {
+      coords = city?.coordinates || { lat: 10.3157, lng: 123.8854 };
     }
     const urlImages = imageUrl.trim() && (imageUrl.startsWith('http') || imageUrl.startsWith('https')) ? [imageUrl.trim()] : [];
     const defaultImage = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80';
@@ -267,7 +294,19 @@ function AddPropertyForm({ initialListing, onSuccess }) {
         agentName: contactName.trim() || user?.name,
         phone: contactPhone.trim() || '',
         email: contactEmail.trim() || user?.email || ''
-      }
+      },
+      keyMoney: keyMoney.trim() ? parseInt(keyMoney, 10) || null : null,
+      securityDeposit: securityDeposit.trim() ? parseInt(securityDeposit, 10) || null : null,
+      extraFees: extraFees.trim() || null,
+      advancePay: advancePay.trim() ? parseInt(advancePay, 10) || null : null,
+      brokerFee: brokerFee.trim() ? parseInt(brokerFee, 10) || null : null,
+      associationFee: associationFee.trim() ? parseInt(associationFee, 10) || null : null,
+      utilitiesIncluded: listingType === 'rent' ? utilitiesIncluded : null,
+      reservationFee: reservationFee.trim() ? parseInt(reservationFee, 10) || null : null,
+      furnished: furnished.trim() || null,
+      sold: listingType === 'sale' ? sold : false,
+      currentlyRented: listingType === 'rent' ? currentlyRented : false,
+      availableFrom: listingType === 'rent' && availableFrom.trim() ? availableFrom.trim() : null
     };
     try {
       if (isEdit && initialListing) {
@@ -285,12 +324,15 @@ function AddPropertyForm({ initialListing, onSuccess }) {
       setBaths('');
       setSizeSqm('');
       setDescription('');
+      setKeyMoney('');
+      setSecurityDeposit('');
+      setExtraFees('');
+      setFurnished('');
+      setSold(false);
+      setCurrentlyRented(false);
+      setAvailableFrom('');
       setImageUrl('');
       setUploadedImages([]);
-      setTimeout(() => {
-        setSubmitted(false);
-        onSuccess?.();
-      }, 1200);
     } catch (err) {
       setSubmitError(err?.userMessage || err?.message || err?.data?.error || err?.data?.message || 'Failed to save listing.');
     } finally {
@@ -301,11 +343,15 @@ function AddPropertyForm({ initialListing, onSuccess }) {
   return (
     <>
       {submitted ? (
-        <p className="text-success text-center py-4">
+        <div className="text-success text-center py-4">
           <i className="fas fa-check-circle fa-2x mb-2" />
-          <br />
-          {isEdit ? 'Property updated.' : 'Your listing has been submitted and is pending approval. It will appear in the main feed once an admin approves it.'}
-        </p>
+          <p className="mb-3">
+            {isEdit ? 'Property updated.' : 'Your listing has been submitted and is pending approval. It will appear in the main feed once an admin approves it.'}
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => onSuccess?.()}>
+            Back to listings
+          </button>
+        </div>
       ) : (
         <form onSubmit={handleSubmit}>
           <section className="add-property-form-section">
@@ -351,6 +397,44 @@ function AddPropertyForm({ initialListing, onSuccess }) {
               />
               {listingType === 'rent' && <small className="text-muted">per month</small>}
             </div>
+            {listingType === 'rent' && (
+              <>
+                <div className="mb-3">
+                  <label className="form-label">Key money (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={keyMoney} onChange={(e) => setKeyMoney(e.target.value)} placeholder="e.g. 50000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Security deposit (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} placeholder="e.g. 15000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Extra fees (optional)</label>
+                  <input type="text" className="form-control" value={extraFees} onChange={(e) => setExtraFees(e.target.value)} placeholder="e.g. Other fees (text)" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Advance pay (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={advancePay} onChange={(e) => setAdvancePay(e.target.value)} placeholder="e.g. 1 month" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Broker fee (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={brokerFee} onChange={(e) => setBrokerFee(e.target.value)} placeholder="e.g. 5000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Association fee (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={associationFee} onChange={(e) => setAssociationFee(e.target.value)} placeholder="e.g. monthly" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-check">
+                    <input type="checkbox" className="form-check-input" checked={utilitiesIncluded} onChange={(e) => setUtilitiesIncluded(e.target.checked)} />
+                    <span className="form-check-label">Utilities included</span>
+                  </label>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Reservation fee (optional) ₱</label>
+                  <input type="number" className="form-control" min="0" value={reservationFee} onChange={(e) => setReservationFee(e.target.value)} placeholder="e.g. 5000" />
+                </div>
+              </>
+            )}
           </section>
 
           <section className="add-property-form-section">
@@ -400,7 +484,11 @@ function AddPropertyForm({ initialListing, onSuccess }) {
             {showMapPicker && (
               <div className="mb-3">
                 <MapPicker
-                  center={getCityById(validCityId)?.coordinates}
+                  center={
+                    (location.trim() && getBarangayCoordinates(location.trim(), getCityById(validCityId)?.displayName || 'Cebu City'))
+                    || getCityById(validCityId)?.coordinates
+                    || { lat: 10.3157, lng: 123.8854 }
+                  }
                   markerPosition={
                     manualLat && manualLng && !Number.isNaN(parseFloat(manualLat)) && !Number.isNaN(parseFloat(manualLng))
                       ? { lat: parseFloat(manualLat), lng: parseFloat(manualLng) }
@@ -432,6 +520,37 @@ function AddPropertyForm({ initialListing, onSuccess }) {
                 <input type="number" className="form-control" min="0" value={sizeSqm} onChange={(e) => setSizeSqm(e.target.value)} />
               </div>
             </div>
+            <div className="mb-3">
+              <label className="form-label">Furnished</label>
+              <select className="form-select" value={furnished} onChange={(e) => setFurnished(e.target.value)}>
+                <option value="">—</option>
+                <option value="furnished">Furnished</option>
+                <option value="semi-furnished">Semi-furnished</option>
+                <option value="unfurnished">Unfurnished</option>
+              </select>
+            </div>
+            {listingType === 'sale' && (
+              <div className="mb-3">
+                <label className="form-check">
+                  <input type="checkbox" className="form-check-input" checked={sold} onChange={(e) => setSold(e.target.checked)} />
+                  <span className="form-check-label">Mark as sold (hidden from main feed; you still see it in My properties)</span>
+                </label>
+              </div>
+            )}
+            {listingType === 'rent' && (
+              <>
+                <div className="mb-3">
+                  <label className="form-check">
+                    <input type="checkbox" className="form-check-input" checked={currentlyRented} onChange={(e) => setCurrentlyRented(e.target.checked)} />
+                    <span className="form-check-label">Currently being rented</span>
+                  </label>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Next availability (optional)</label>
+                  <input type="text" className="form-control" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)} placeholder="e.g. March 2026 or Available now" />
+                </div>
+              </>
+            )}
             <div className="mb-3">
               <label className="form-label">Description</label>
               <textarea

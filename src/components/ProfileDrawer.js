@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { baseUrl } from '../api/client';
 
-function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onProfile, onLogout, loggingOut, isNative, onEnableNotifications }) {
+function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onOpenSavedProperties, onOpenSavedSearches, onSettings, onProfile, onDeleteAccount, onLogout, loggingOut, isNative }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -58,7 +59,11 @@ function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onP
             <div className="profile-drawer-body">
               <div className="profile-drawer-chip">
                 <div className="profile-drawer-avatar">
-                  <i className="fas fa-user" aria-hidden />
+                  {user?.avatar_url ? (
+                    <img src={(user.avatar_url.startsWith('http') ? user.avatar_url : (baseUrl || '') + user.avatar_url)} alt="" />
+                  ) : (
+                    <i className="fas fa-user" aria-hidden />
+                  )}
                 </div>
                 <div>
                   <span className="profile-drawer-name">{user?.name || user?.email || 'User'}</span>
@@ -76,21 +81,34 @@ function ProfileDrawer({ open, onClose, user, onAddProperty, onMyProperties, onP
                   <i className="fas fa-house" aria-hidden />
                   <span>My properties</span>
                 </button>
+                {onOpenSavedProperties && (
+                  <button type="button" onClick={() => { handleAction(onOpenSavedProperties); onClose(); }}>
+                    <i className="fas fa-heart" aria-hidden />
+                    <span>Saved properties</span>
+                  </button>
+                )}
+                {onOpenSavedSearches && (
+                  <button type="button" onClick={() => { handleAction(onOpenSavedSearches); onClose(); }}>
+                    <i className="fas fa-bookmark" aria-hidden />
+                    <span>Saved searches</span>
+                  </button>
+                )}
               </div>
 
-              {isNative && onEnableNotifications && (
-                <>
-                  <div className="profile-drawer-section-label">Notifications</div>
-                  <div className="profile-drawer-nav">
-                    <button type="button" onClick={() => { handleAction(onEnableNotifications); onClose(); }}>
-                      <i className="fas fa-bell" aria-hidden />
-                      <span>Enable push notifications</span>
-                    </button>
-                  </div>
-                </>
-              )}
               <div className="profile-drawer-section-label profile-drawer-account">Account</div>
               <div className="profile-drawer-nav">
+                {onSettings && (
+                  <button type="button" onClick={() => { handleAction(onSettings); onClose(); }}>
+                    <i className="fas fa-gear" aria-hidden />
+                    <span>Settings</span>
+                  </button>
+                )}
+                {onDeleteAccount && (
+                  <button type="button" className="profile-drawer-item-danger" onClick={() => { handleAction(onDeleteAccount); onClose(); }}>
+                    <i className="fas fa-trash-alt" aria-hidden />
+                    <span>Delete account</span>
+                  </button>
+                )}
                 <button type="button" onClick={() => handleAction(onProfile)}>
                   <i className="fas fa-circle-user" aria-hidden />
                   <span>Profile</span>

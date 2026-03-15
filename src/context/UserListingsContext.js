@@ -33,7 +33,7 @@ export const UserListingsProvider = ({ children }) => {
     await refreshListings();
   };
 
-  const deleteListing = async (id) => {
+  const unlistListing = async (id) => {
     await api.delete('/api/listings/' + id);
     await refreshListings();
   };
@@ -46,7 +46,7 @@ export const UserListingsProvider = ({ children }) => {
     userListings,
     addListing,
     updateListing,
-    deleteListing,
+    unlistListing,
     getListingsByOwner
   };
 

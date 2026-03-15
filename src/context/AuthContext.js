@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 const STORAGE_KEY = 'balhinbalay_auth';
+const LAUNCHED_KEY = 'balhinbalay_has_launched';
 const MIN_PASSWORD_LENGTH = 8;
 
 const AuthContext = createContext();
@@ -64,6 +65,7 @@ const saveAuth = async (user, token) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
+    if (Capacitor.isNativePlatform()) return null;
     const { user: storedUser, token } = loadStoredAuth();
     if (storedUser && token) {
       setToken(token);
@@ -77,18 +79,33 @@ export const AuthProvider = ({ children }) => {
     return () => setOn401(null);
   }, []);
 
-  // In native app, restore auth from Capacitor Preferences (persists across app restarts)
+  // On native: first launch after install (or restore) → clear any restored auth so no account appears logged in
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let cancelled = false;
     (async () => {
       try {
+        const { value: launched } = await Preferences.get({ key: LAUNCHED_KEY });
+        if (cancelled) return;
+        if (launched !== '1') {
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            await Preferences.remove({ key: STORAGE_KEY });
+            await Preferences.set({ key: LAUNCHED_KEY, value: '1' });
+          } catch (_) {}
+          if (!cancelled) {
+            clearToken();
+            setUser(null);
+          }
+          return;
+        }
         const { value } = await Preferences.get({ key: STORAGE_KEY });
         if (cancelled || !value) return;
         const data = JSON.parse(value);
         if (data && data.token && data.user) {
           setToken(data.token);
           setUser(data.user);
+          refreshUser().catch(() => {});
         }
       } catch {
         // ignore
@@ -119,6 +136,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
+  const refreshUser = async () => {
+    if (!getToken()) return;
+    try {
+      const data = await api.get('/api/users/me');
+      if (data) {
+        setUser(prev => ({ ...prev, id: data.id, email: data.email, name: data.name || data.email, push_enabled: data.push_enabled, avatar_url: data.avatar_url ?? prev?.avatar_url }));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const login = async (email, password) => {
     try {
       const data = await api.post('/api/auth/login', { email, password });
@@ -129,6 +158,7 @@ export const AuthProvider = ({ children }) => {
       const userObj = data.user ? { id: data.user.id, email: data.user.email, name: data.user.name || data.user.email, role: data.user.role || 'user' } : null;
       setToken(data.token);
       setUser(userObj);
+      if (userObj) refreshUser().catch(() => {});
       return { ok: true, user: userObj };
     } catch (err) {
       const msg = (err.data && err.data.message) || err.userMessage || err.message;
@@ -176,9 +206,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const requestPasswordReset = async (email) => {
+    if (!(email || '').trim()) {
+      return { ok: false, message: 'Email is required.' };
+    }
+    try {
+      const data = await api.post('/api/auth/request-password-reset', { email });
+      return { ok: data && data.ok, message: (data && data.message) || 'Check your email for the reset code.' };
+    } catch (err) {
+      return { ok: false, message: (err.data && err.data.message) || err.message || 'Failed to send reset code.' };
+    }
+  };
+
+  const resetPassword = async (email, code, newPassword) => {
+    if (!(email || '').trim() || !(code != null ? String(code).trim() : '')) {
+      return { ok: false, message: 'Email and code are required.' };
+    }
+    if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+      return { ok: false, message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
+    }
+    try {
+      const data = await api.post('/api/auth/reset-password', { email, code, newPassword });
+      return { ok: data && data.ok, message: (data && data.message) || 'Password updated. You can log in now.' };
+    } catch (err) {
+      return { ok: false, message: (err.data && err.data.message) || err.message || 'Reset failed.' };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await api.delete('/api/users/me/push-token');
+    } catch (_) {
+      // ignore; token may already be invalid or server unavailable
+    }
     clearToken();
     setUser(null);
+    saveAuth(null, null);
   };
 
   const updateProfile = async (updates) => {
@@ -187,9 +250,10 @@ export const AuthProvider = ({ children }) => {
       const body = {};
       if (updates.name !== undefined) body.name = updates.name;
       if (updates.email !== undefined) body.email = updates.email;
+      if (updates.avatar_url !== undefined) body.avatar_url = updates.avatar_url;
       const data = await api.patch('/api/users/me', body);
       if (data) {
-        setUser(prev => ({ ...prev, id: data.id, email: data.email, name: data.name || data.email, role: data.role || (prev && prev.role) || 'user' }));
+        setUser(prev => ({ ...prev, id: data.id, email: data.email, name: data.name || data.email, role: data.role || (prev && prev.role) || 'user', avatar_url: data.avatar_url ?? prev?.avatar_url }));
         return { ok: true };
       }
       return { ok: false, message: 'Update failed.' };
@@ -222,9 +286,12 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     resendConfirmation,
+    requestPasswordReset,
+    resetPassword,
     logout,
     updateProfile,
     changePassword,
+    refreshUser,
     isLoggedIn: !!user
   };
 
