@@ -23,6 +23,10 @@
 .env.test.local
 .env.production.local
 
+# Firebase / Google service account keys (never commit)
+*firebase*adminsdk*.json
+*-firebase-*.json
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
