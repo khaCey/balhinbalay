@@ -2,6 +2,40 @@
 
 Use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) (cloudflared) to expose your BalhinBalay server (React + API on port 5000) so you can access it from outside your network via a public HTTPS URL.
 
+---
+
+## How do I install cloudflared?
+
+There is **no npm package** — install the binary for your OS:
+
+**Linux (e.g. Ubuntu):**
+```bash
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+cloudflared --version
+```
+
+**macOS:** `brew install cloudflared`
+
+**Windows (PowerShell):** `winget install Cloudflare.cloudflared`
+
+Or download any OS from: https://github.com/cloudflare/cloudflared/releases
+
+---
+
+## Reset / re-setup cloudflared
+
+If the tunnel stopped working or you’re on a new machine:
+
+1. **Install cloudflared** (see [How do I install cloudflared?](#how-do-i-install-cloudflared) above, or full details in [Install cloudflared](#1-install-cloudflared) below).
+2. **Log in:** `cloudflared tunnel login` (browser opens; cert saved to `~/.cloudflared/cert.pem`).
+3. **Reuse or create tunnel:**
+   - **Reuse:** If you still have the tunnel (same Cloudflare account), list it: `cloudflared tunnel list`. If `balhinbalay` exists, note its ID and skip to step 4.
+   - **New:** `cloudflared tunnel create balhinbalay` and note the **tunnel ID** (UUID).
+4. **Config:** Edit `~/.cloudflared/config.yml` (see [Configure the tunnel](#4-configure-the-tunnel)). Use your tunnel ID and hostname (e.g. `balhinbalay.com`), and point ingress to `http://localhost:5000`.
+5. **DNS:** Ensure a CNAME exists: `cloudflared tunnel route dns balhinbalay balhinbalay.com` (or add it in Cloudflare Dashboard).
+6. **Run:** Start the server (`npm run server` or `node server/index.js`), then in another terminal: **`npm run tunnel`** (runs `cloudflared tunnel run balhinbalay`).
+
 **Website and Android both use the tunnel:** Build once with the tunnel URL; the same build is used for the site and (after sync) for the Android app.
 
 1. **Build for tunnel (website + API):**
@@ -13,11 +47,11 @@ Use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connect
 
 2. **Start the server**, then **run the tunnel**:
    ```bash
-   node server/index.js
+   npm run server
    ```
    In another terminal:
    ```bash
-   cloudflared tunnel run balhinbalay
+   npm run tunnel
    ```
    The **website** at https://balhinbalay.com will now call `https://balhinbalay.com/api`.
 
@@ -157,7 +191,26 @@ Leave both running. Your app is now available at `https://balhinbalay.yourdomain
 
 ---
 
-## 7. (Optional) Run the tunnel as a service
+## 7. (Optional) Run the tunnel (and server) with PM2
+
+From the project root, start both the server and the tunnel under [PM2](https://pm2.keymetrics.io/):
+
+```bash
+pm2 start ecosystem.config.cjs
+```
+
+This starts **balhinbalay-server** (Node) and **balhinbalay-tunnel** (cloudflared). Useful commands:
+
+- `pm2 status` — list both processes
+- `pm2 logs balhinbalay-tunnel` — tunnel logs
+- `pm2 restart all` — restart server and tunnel
+- `pm2 save && pm2 startup` — restore this setup after reboot (run the command PM2 prints for your OS)
+
+Ensure **cloudflared** is installed and on your `PATH` (see [How do I install cloudflared?](#how-do-i-install-cloudflared)).
+
+---
+
+## 8. (Optional) Run the tunnel as a system service
 
 **Windows:** use Task Scheduler or NSSM to run `cloudflared tunnel run balhinbalay` at login or as a service.
 

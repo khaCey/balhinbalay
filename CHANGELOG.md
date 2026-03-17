@@ -1,5 +1,252 @@
 # Changelog
 
+## v.1.0.00.295 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Search entry (toggle + 4 category cards) moved to `/search`. New home page at `/` with hero and "Search properties" CTA. Nav Search and bottom tab 4 go to `/search`; results back goes to `/search`.
+
+### Changes (detailed)
+
+#### Added
+- src/pages/SearchPage.js: Search entry page with ListingTypeToggle and 4 cards (City, Map, Keyword, School); same logic as former HomePage (submitSearch, navigate to /search/{path} or /sale|/rent for map).
+- src/App.js: Route `path="search"` element SearchPage. Import SearchPage.
+- src/App.css: .home-hero, .home-hero-title, .home-hero-text, .home-hero-cta for new home landing.
+
+#### Changed
+- src/pages/HomePage.js: Replaced with new landing (hero title "BalhinBalay", tagline "Find your place in the Philippines", primary button "Search properties" → navigate('/search')).
+- src/components/MainLayout.js: handleSearch → navigate('/search'). isSearchActive when path === '/search' or (sale|rent and not my-properties). SWIPE_ROUTES[3] = '/search'; getSwipeRouteIndex returns 3 for /search, /sale, /rent. Swipe to tab 4 uses SWIPE_ROUTES[nextIdx] (no special case for /sale|/rent).
+- src/App.js: AppContent PageHeader onBack → navigate('/search').
+
+## v.1.0.00.294 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- My properties bar: For Sale / For Rent toggle is centered in the bar.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .my-properties-bar-toggle-wrap justify-content set to center (from flex-start) so the listing type toggle is centered.
+
+## v.1.0.00.293 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- My properties: For Sale / For Rent use the same sliding toggle as home search (ListingTypeToggle) instead of two separate buttons.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: Import ListingTypeToggle; in my-properties bar replace the two toggle buttons with ListingTypeToggle (value=myPropertiesListingType, onChange=setMyPropertiesListingType).
+- src/App.css: .my-properties-bar-toggle-wrap now only lays out the toggle; removed .my-properties-bar-toggle button styles. Added .my-properties-bar-toggle-wrap .listing-type-toggle-wrap { padding: 0 } so the toggle fits in the bar.
+
+## v.1.0.00.292 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Desktop: results area explicitly full width; listing grid gains 4 columns at 1280px and 5 columns at 1536px so content uses horizontal space.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: Added .app-with-sidebar .results-area.full { width: 100%; max-width: none; }. Added @media (min-width: 1280px) and @media (min-width: 1536px) for .listing-grid with 4 and 5 columns; .listing-grid.list-view remains single column at all breakpoints.
+
+## v.1.0.00.291 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Added a dedicated `/my-properties` route. Menu and sidebar link to `/my-properties`; nav highlights My properties when path is `/my-properties`. Old `/sale` or `/rent` with state redirect to `/my-properties`. "Show all properties" navigates to `/sale` or `/rent`.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: Route `my-properties` rendering AppContent. showMyPropertiesOnly derived from pathname === '/my-properties' or (path === '/sale'|'/rent' and location.state?.showMyProperties). listingType on /my-properties uses myPropertiesListingType.
+
+#### Changed
+- src/App.js: Removed showMyPropertiesOnly state; redirect /sale|/rent with state.showMyProperties to /my-properties. "Show all properties" button navigates to /rent or /sale instead of setState.
+- src/components/MainLayout.js: isMyPropertiesView = path === '/my-properties'; My properties link navigates to /my-properties.
+- src/pages/MenuPage.js: My properties button navigates to /my-properties.
+
+## v.1.0.00.290 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Nav (sidebar and bottom bar) now highlights "My properties" when viewing My properties, and "Search" only when viewing search results (not when on My properties).
+
+### Changes (detailed)
+
+#### Changed
+- src/components/MainLayout.js: Added isMyPropertiesView from path and location.state?.showMyProperties. isSearchActive is now true only when path is /sale or /rent and not My properties view. My properties sidebar item uses isMyPropertiesView for active state and aria-current.
+
+## v.1.0.00.289 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Desktop: main content area now uses full width next to the sidebar (no narrow column or empty right margin). Sale/rent and My properties pages fill the available width.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .app-with-sidebar .app-with-bottom-nav and .app-main given width: 100%. .app-with-sidebar .app-main > * given width: 100%, max-width: 100%. Desktop .app-layout-desktop and .app-layout-desktop .results-area given width: 100%, flex: 1, min-width: 0 so the listing/content area fills the main column.
+
+## v.1.0.00.288 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Desktop: all pages in the main content area now fill the full height (full-page layout). Main area uses flex so page roots stretch to 100% height.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.css: .app-main made a flex column with min-height: 0. Added .app-with-sidebar .app-main > * so Outlet page roots get min-height: 100%, flex: 1 1 auto, display: flex; flex-direction: column, ensuring every page fills the desktop main area.
+
+## v.1.0.00.287 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Pull-to-refresh and dark mode are disabled on desktop (≥768px): results area uses PullToRefresh only on mobile; theme is forced to light on desktop and Appearance (Theme) is hidden in Settings.
+
+### Changes (detailed)
+
+#### Changed
+- src/context/ThemeContext.js: Added isDesktop state (window.innerWidth >= 768, resize listener). effectiveDark is true only when !isDesktop and (theme === 'dark' || (theme === 'system' && systemDark)); on desktop effectiveDark is always false. Context value now includes isDesktop.
+- src/pages/SettingsPage.js: Appearance section (Theme row) is rendered only when !isDesktop so theme cannot be changed on desktop.
+- src/App.js: Results area content is wrapped in PullToRefresh only when isMobile; on desktop the same content is rendered without PullToRefresh (IIFE with content variable).
+
+## v.1.0.00.286 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- Desktop/mobile layout: at 768px+ show left sidebar (nav + account links); below 768px keep bottom nav. No user toggle; viewport-driven.
+
+### Changes (detailed)
+
+#### Added
+- src/components/MainLayout.js: isDesktop state (window.innerWidth >= 768) with resize listener; when isDesktop && showNav render sidebar (logo, Home, Saved, Messages, Search, then if user: Add property, My properties, Saved searches, Settings, Log out; else Log in) and app-main wrapping Outlet; ConfirmModal for logout. Bottom nav rendered only when !isDesktop && showNav. Swipe handlers no-op when isDesktop.
+- src/App.css: .app-with-sidebar (flex row, min-height 100vh), .app-sidebar (260px, nav list), .app-main (flex 1, overflow auto), .app-sidebar-brand, .app-sidebar-nav, .app-sidebar-item (and .active, .app-sidebar-item-logout), .app-sidebar-section-label, .app-sidebar-badge.
+
+#### Changed
+- src/components/MainLayout.js: paddingBottom and app-has-bottom-nav applied only when !isDesktop && showNav so desktop content has no bottom nav padding.
+
+## v.1.0.00.285 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- My properties: only rent/sale toggle, show all own listings (no search filters); show status on cards (Pending, Live, Rejected, Unlisted). Empty state for my properties with Add property CTA.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js: filteredListingsForMyProperties now only filters by myPropertiesListingType (sale/rent) and sortBy; removed price, region, city, propertyType, furnishedFilter, minBeds, minBaths, sizeRange, searchQuery. Hide results-filters-wrap (price slider, advanced filters) when showMyPropertiesOnly. Show list when showMyPropertiesOnly even if !hasSearched; hide SearchBar and school selector when showMyPropertiesOnly. Empty state for my properties: "No rental/sale listings" + Add property button.
+- src/components/PropertyCard.js: show status badges Approved (Live), Unlisted in addition to Pending and Rejected.
+- src/components/PropertyListCard.js: same status badges (Live, Unlisted, Pending, Rejected).
+
+#### Added
+- src/App.js: when location.state.showMyProperties and user, set showMyPropertiesOnly and clear state so menu "My properties" opens the view.
+- src/pages/MenuPage.js: My properties button navigates to /sale with state { showMyProperties: true }.
+
+## v.1.0.00.284 — Development
+Date: 2026-03-16
+Type: Dev Change
+
+### Summary
+- My properties view has its own For Sale / For Rent toggle; listing type and price range are independent from the main sale/rent tab.
+
+### Changes (detailed)
+
+#### Added
+- src/App.js: myPropertiesListingType state ('sale' | 'rent'); effectiveListingTypeForMyProperties; sync myPropertiesListingType from listingType when entering My Properties (useEffect). For Sale / For Rent toggle buttons in my-properties bar (my-properties-bar-toggle-wrap, my-properties-bar-toggle).
+- src/App.css: .my-properties-bar-top, .my-properties-bar-toggle-wrap, .my-properties-bar-toggle (and .active) for the My Properties rent/sale toggle.
+
+#### Changed
+- src/App.js: filteredListingsForMyProperties filters by myPropertiesListingType and uses price range for that type; listingsByType uses effectiveListingTypeForMyProperties; PageHeader title shows "My properties" when showMyPropertiesOnly; PriceSlider uses effectiveListingTypeForMyProperties for config and values. My properties bar layout: top row (text + "Show all"), then toggle row (For Sale | For Rent).
+
+## v.1.0.00.283 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- Add server/set-admin.js and npm run admin:set to set a user to admin by email (e.g. npm run admin:set -- khacey).
+
+### Changes (detailed)
+
+#### Added
+- server/set-admin.js: loads .env, updates users SET role = 'admin' WHERE email matches argument (default khacey).
+- package.json: script admin:set (node server/set-admin.js).
+
+## v.1.0.00.282 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- Run Cloudflare tunnel (and server) under PM2 via ecosystem.config.cjs; document in TUNNEL.md.
+
+### Changes (detailed)
+
+#### Added
+- ecosystem.config.cjs: PM2 apps balhinbalay-server (server/index.js) and balhinbalay-tunnel (cloudflared tunnel run balhinbalay); start with `pm2 start ecosystem.config.cjs`.
+- TUNNEL.md: new section 7 "Run the tunnel (and server) with PM2" (pm2 start, status, logs, save/startup).
+
+## v.1.0.00.281 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- Add PLAY-STORE.md: step-by-step plan for submitting the Android app to Google Play (developer account, Play Console, signed AAB, store listing, content rating, release).
+
+### Changes (detailed)
+
+#### Added
+- PLAY-STORE.md: Google Play Developer registration ($25), create app, build signed AAB (Android Studio Generate Signed Bundle), App Signing, store listing (icon, screenshots, descriptions, privacy), content rating and data safety, production release; versionCode/versionName for updates; link from APP-STORE.md.
+
+## v.1.0.00.280 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- Add APP-STORE.md: step-by-step plan for submitting the iOS app to the Apple App Store (developer account, App Store Connect, build/archive, metadata, review).
+
+### Changes (detailed)
+
+#### Added
+- APP-STORE.md: Apple Developer enrollment, App Store Connect app creation (bundle id com.balhinbalay.app), Xcode signing and archive/upload, metadata and screenshots, submit for review; checklist and TestFlight/Android notes.
+
+## v.1.0.00.279 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- `npm run migrate` now applies the base schema (schema.sql) automatically when the database has no tables, so a single command sets up a fresh DB.
+
+### Changes (detailed)
+
+#### Changed
+- server/run-migrations.js: From: migrations only; failed with "listings does not exist" on fresh DB. To: before running migrations, checks for `listings` table; if missing, runs schema.sql first, then runs all migrations.
+
+## v.1.0.00.278 — Development
+Date: 2026-03-15
+Type: Dev Change
+
+### Summary
+- TUNNEL.md: add "Reset / re-setup cloudflared" section with step-by-step for reusing or creating a tunnel and running it.
+
+### Changes (detailed)
+
+#### Added
+- TUNNEL.md: "Reset / re-setup cloudflared" section at top — install, login, reuse (tunnel list) or create tunnel, config.yml, DNS, run server + tunnel.
+
 ## v.1.0.00.277 — Development
 Date: 2026-02-28
 Type: Dev Change

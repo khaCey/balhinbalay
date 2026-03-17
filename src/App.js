@@ -5,6 +5,7 @@ import PropertyCard from './components/PropertyCard';
 import PropertyListCard from './components/PropertyListCard';
 import RecentlyViewedCard from './components/RecentlyViewedCard';
 import SortBar from './components/SortBar';
+import ListingTypeToggle from './components/ListingTypeToggle';
 import PriceSlider from './components/PriceSlider';
 import MapView from './components/MapView';
 import PullToRefresh from './components/PullToRefresh';
@@ -50,6 +51,7 @@ import MessagesPage from './pages/MessagesPage';
 import PropertyPage from './pages/PropertyPage';
 import ChatPage from './pages/ChatPage';
 import HomePage from './pages/HomePage';
+import SearchPage from './pages/SearchPage';
 import SearchCityPage from './pages/SearchCityPage';
 import SearchKeywordPage from './pages/SearchKeywordPage';
 import SearchMapPage from './pages/SearchMapPage';
@@ -68,14 +70,17 @@ function AppContent() {
   const { isSliding } = useSliderDrag();
   const { listings: apiListings, loading: listingsLoading, error: listingsError, refreshListings, searchResults, searchLoading, searchError, fetchSearchListings } = useListings();
   const { recentIds, addView } = useRecentlyViewed();
-  const [showMyPropertiesOnly, setShowMyPropertiesOnly] = useState(false);
+  const [myPropertiesListingType, setMyPropertiesListingType] = useState('sale');
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewFromUrl = searchParams.get('view') || '';
   const { hasSearched, lastSearchState, submitSearch, currentResultsState, setCurrentResultsStateForListing } = useSearch();
   const view = (hasSearched && lastSearchState?.view) ? lastSearchState.view : viewFromUrl;
-  const listingType = location.pathname === '/rent' ? 'rent' : 'sale';
+  const isMyPropertiesPath = location.pathname === '/my-properties';
+  const showMyPropertiesOnly = isMyPropertiesPath || ((location.pathname === '/sale' || location.pathname === '/rent') && location.state?.showMyProperties);
+  const listingType = isMyPropertiesPath ? myPropertiesListingType : (location.pathname === '/rent' ? 'rent' : 'sale');
+  const effectiveListingTypeForMyProperties = showMyPropertiesOnly ? myPropertiesListingType : listingType;
   const [propertyType, setPropertyType] = useState('');
   const [priceRangeIndex, setPriceRangeIndex] = useState(0);
   const [priceMin, setPriceMin] = useState(null);
@@ -200,33 +205,8 @@ function AppContent() {
 
   const filteredListingsForMyProperties = useMemo(() => {
     if (!showMyPropertiesOnly) return [];
-    const effMin = priceMin != null ? priceMin : (currentPriceRange?.min ?? 0);
-    const effMax = priceMax != null ? priceMax : (currentPriceRange?.max === Infinity ? (priceSliderConfig[listingType]?.max ?? 10000000) : (currentPriceRange?.max ?? (priceSliderConfig[listingType]?.max ?? 10000000)));
-    let filtered = listingsToFilter.filter((item) => {
-      if (item.listingType !== listingType) return false;
-      if (selectedRegion && selectedRegion !== 'all') {
-        const citiesInRegion = getCitiesByRegion(selectedRegion);
-        const cityIdsInRegion = citiesInRegion.map((c) => c.id).filter((id) => id !== 'cebu-province');
-        if (!cityIdsInRegion.includes(item.cityId)) return false;
-      }
-      if (selectedCity !== 'cebu-province' && item.cityId !== selectedCity) return false;
-      if (propertyType && item.type !== propertyType) return false;
-      if (furnishedFilter && (item.furnished || '').toLowerCase() !== furnishedFilter.toLowerCase()) return false;
-      if (item.price < effMin) return false;
-      if (effMax !== Infinity && item.price >= effMax) return false;
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const cityName = getCityById(item.cityId)?.displayName || item.city || '';
-        const searchableText = `${item.title} ${item.location} ${cityName} ${item.description}`.toLowerCase();
-        if (!searchableText.includes(query)) return false;
-      }
-      if (minBeds > 0 && item.beds < minBeds) return false;
-      if (minBaths > 0 && item.baths < minBaths) return false;
-      if (sizeRange.min > 0 && item.sizeSqm < sizeRange.min) return false;
-      if (sizeRange.max !== Infinity && item.sizeSqm > sizeRange.max) return false;
-      return true;
-    });
-    filtered = [...filtered].sort((a, b) => {
+    const filtered = listingsToFilter.filter((item) => item.listingType === myPropertiesListingType);
+    return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'price-low': return a.price - b.price;
         case 'price-high': return b.price - a.price;
@@ -236,8 +216,7 @@ function AppContent() {
         default: return new Date(b.datePosted || 0) - new Date(a.datePosted || 0);
       }
     });
-    return filtered;
-  }, [showMyPropertiesOnly, listingsToFilter, listingType, currentPriceRange, priceMin, priceMax, selectedRegion, selectedCity, propertyType, furnishedFilter, minBeds, minBaths, sizeRange, searchQuery, sortBy]);
+  }, [showMyPropertiesOnly, listingsToFilter, myPropertiesListingType, sortBy]);
 
   const baseListForSchool = showMyPropertiesOnly ? filteredListingsForMyProperties : searchResults;
   const schoolFilteredListings = useMemo(() => {
@@ -261,6 +240,16 @@ function AppContent() {
   const visibleListings = listingsForView.slice(0, itemsToShow);
 
   useEffect(() => {
+    if (showMyPropertiesOnly) setMyPropertiesListingType(listingType);
+  }, [showMyPropertiesOnly]); // only when entering My Properties, sync to current tab
+
+  useEffect(() => {
+    if (location.state?.showMyProperties && (location.pathname === '/sale' || location.pathname === '/rent') && user) {
+      navigate('/my-properties', { replace: true });
+    }
+  }, [location.state?.showMyProperties, location.pathname, user, navigate]);
+
+  useEffect(() => {
     setItemsToShow(pageSize);
   }, [pageSize, listingsForView]);
 
@@ -279,8 +268,8 @@ function AppContent() {
   }, [listingsForView.length, pageSize, effectiveViewMode]);
 
   const listingsByType = useMemo(
-    () => listingsToFilter.filter((item) => item.listingType === listingType),
-    [listingType, listingsToFilter]
+    () => listingsToFilter.filter((item) => item.listingType === effectiveListingTypeForMyProperties),
+    [effectiveListingTypeForMyProperties, listingsToFilter]
   );
   const availableRegionIds = useMemo(
     () => getRegionIdsWithListings(listingsByType),
@@ -472,13 +461,15 @@ function AppContent() {
     <>
       <div className="App app-has-bottom-nav">
         <PageHeader
-          title={listingType === 'rent' ? 'For Rent' : 'For Sale'}
-          onBack={() => navigate('/')}
+          title={showMyPropertiesOnly ? 'My properties' : (listingType === 'rent' ? 'For Rent' : 'For Sale')}
+          onBack={() => navigate('/search')}
         />
 
         <div className={!isMobile ? 'app-layout-desktop' : ''}>
           <main className={`results-area ${!isMobile ? 'full' : ''}`}>
-            <PullToRefresh onRefresh={refreshListings} disabled={(showMyPropertiesOnly ? listingsLoading : searchLoading) || isSliding}>
+            {(() => {
+              const content = (
+                <>
             {hasSearched && !showMyPropertiesOnly && !searchLoading && searchError && (
               <div className="listings-error-banner" style={{ padding: '12px 16px', background: '#f8d7da', color: '#721c24', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <span>{searchError}{baseUrl ? ` — API: ${baseUrl}` : ' — API: same origin'}</span>
@@ -497,23 +488,31 @@ function AppContent() {
             )}
             {showMyPropertiesOnly && user && (
               <div className="my-properties-bar">
-                <span className="my-properties-bar-text"><i className="fas fa-house" aria-hidden></i>Showing only your properties</span>
-                <button
-                  type="button"
-                  className="my-properties-bar-back"
-                  onClick={() => setShowMyPropertiesOnly(false)}
-                >
-                  Show all properties
-                </button>
+                <div className="my-properties-bar-top">
+                  <span className="my-properties-bar-text"><i className="fas fa-house" aria-hidden></i>Showing only your properties</span>
+                  <button
+                    type="button"
+                    className="my-properties-bar-back"
+                    onClick={() => navigate(myPropertiesListingType === 'rent' ? '/rent' : '/sale')}
+                  >
+                    Show all properties
+                  </button>
+                </div>
+                <div className="my-properties-bar-toggle-wrap">
+                  <ListingTypeToggle
+                    value={myPropertiesListingType}
+                    onChange={setMyPropertiesListingType}
+                  />
+                </div>
               </div>
             )}
-            {(hasSearched && listingsForView.length > 0) && (
+            {(hasSearched && !showMyPropertiesOnly && listingsForView.length > 0) && (
             <div className="results-filters-wrap">
               <div className="results-price-slider-wrap">
                 <PriceSlider
-                  {...(priceSliderConfig[listingType] || priceSliderConfig.sale)}
-                  valueMin={priceMin ?? (priceRanges[listingType]?.[priceRangeIndex]?.min ?? 0)}
-                  valueMax={priceMax ?? (priceRanges[listingType]?.[priceRangeIndex]?.max === Infinity ? (priceSliderConfig[listingType]?.max ?? 10000000) : (priceRanges[listingType]?.[priceRangeIndex]?.max ?? (priceSliderConfig[listingType]?.max ?? 10000000)))}
+                  {...(priceSliderConfig[effectiveListingTypeForMyProperties] || priceSliderConfig.sale)}
+                  valueMin={priceMin ?? (priceRanges[effectiveListingTypeForMyProperties]?.[priceRangeIndex]?.min ?? 0)}
+                  valueMax={priceMax ?? (priceRanges[effectiveListingTypeForMyProperties]?.[priceRangeIndex]?.max === Infinity ? (priceSliderConfig[effectiveListingTypeForMyProperties]?.max ?? 10000000) : (priceRanges[effectiveListingTypeForMyProperties]?.[priceRangeIndex]?.max ?? (priceSliderConfig[effectiveListingTypeForMyProperties]?.max ?? 10000000)))}
                   onChange={handlePriceChange}
                 />
               </div>
@@ -601,7 +600,7 @@ function AppContent() {
               )}
             </div>
             )}
-            {!hasSearched ? (
+            {(!hasSearched && !showMyPropertiesOnly) ? (
               <div className="search-now-empty">
                 <i className="fas fa-search fa-3x text-muted mb-3" aria-hidden />
                 <h4>Search now</h4>
@@ -612,7 +611,7 @@ function AppContent() {
               </div>
             ) : (
             <>
-            {view === 'search' && (
+            {!showMyPropertiesOnly && view === 'search' && (
               <div className="results-search-bar-wrap">
                 <SearchBar
                   searchQuery={searchQuery}
@@ -621,7 +620,7 @@ function AppContent() {
                 />
               </div>
             )}
-            {view === 'school' && (
+            {!showMyPropertiesOnly && view === 'school' && (
               <div className="school-selector-wrap">
                 <label htmlFor="school-select" className="school-selector-label">Near school or university</label>
                 <select
@@ -715,7 +714,16 @@ function AppContent() {
             )}
             {listingsForView.length === 0 && !(hasSearched && !showMyPropertiesOnly && searchLoading) && (
               <div className="text-center py-5">
-                {view === 'school' && !selectedSchoolId ? (
+                {showMyPropertiesOnly ? (
+                  <>
+                    <i className="fas fa-house fa-3x text-muted mb-3" aria-hidden />
+                    <h4>No {myPropertiesListingType === 'rent' ? 'rental' : 'sale'} listings</h4>
+                    <p className="text-muted">You have no properties listed for {myPropertiesListingType === 'rent' ? 'rent' : 'sale'} yet. Add one to get started.</p>
+                    <button type="button" className="btn btn-primary mt-2" onClick={() => navigate('/add-property')}>
+                      Add property
+                    </button>
+                  </>
+                ) : view === 'school' && !selectedSchoolId ? (
                   <>
                     <i className="fas fa-school fa-3x text-muted mb-3" aria-hidden />
                     <h4>Nearby properties</h4>
@@ -732,7 +740,9 @@ function AppContent() {
             )}
             </>
             )}
-            </PullToRefresh>
+            </>);
+              return isMobile ? <PullToRefresh onRefresh={refreshListings} disabled={(showMyPropertiesOnly ? listingsLoading : searchLoading) || isSliding}>{content}</PullToRefresh> : content;
+            })()}
           </main>
         </div>
       </div>
@@ -764,12 +774,14 @@ export default function App() {
                           <Routes>
                             <Route path="/" element={<SliderDragProvider><MainLayout /></SliderDragProvider>}>
                               <Route index element={<HomePage />} />
+                              <Route path="search" element={<SearchPage />} />
                               <Route path="search/city" element={<SearchCityPage />} />
                               <Route path="search/keyword" element={<SearchKeywordPage />} />
                               <Route path="search/map" element={<SearchMapPage />} />
                               <Route path="search/school" element={<SearchSchoolPage />} />
                               <Route path="sale" element={<AppContent />} />
                               <Route path="rent" element={<AppContent />} />
+                              <Route path="my-properties" element={<AppContent />} />
                               <Route path="saved" element={<SavedPage />} />
                               <Route path="messages" element={<MessagesPage />} />
                               <Route path="property/:id" element={<PropertyPage />} />

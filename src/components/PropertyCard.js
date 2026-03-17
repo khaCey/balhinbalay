@@ -28,7 +28,9 @@ const PropertyCard = ({ property, onViewDetails, index }) => {
             <span className="badge bg-primary">{property.type}</span>
             <span className="badge bg-info">{cityName}</span>
             {property.status === 'pending' && <span className="badge bg-warning text-dark">Pending</span>}
+            {property.status === 'approved' && <span className="badge bg-success">Live</span>}
             {property.status === 'rejected' && <span className="badge bg-danger">Rejected</span>}
+            {property.status === 'unlisted' && <span className="badge bg-secondary">Unlisted</span>}
           </div>
           <h5 className="card-title">{property.title}</h5>
           <p className="property-price mb-2">{formatPrice(property)}</p>

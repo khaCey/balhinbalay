@@ -66,7 +66,7 @@ function MenuPage() {
             <i className="fas fa-plus" aria-hidden />
             <span>Add property</span>
           </button>
-          <button type="button" onClick={() => navigate('/sale')}>
+          <button type="button" onClick={() => navigate('/my-properties')}>
             <i className="fas fa-house" aria-hidden />
             <span>My properties</span>
           </button>

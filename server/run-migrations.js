@@ -33,6 +33,19 @@ const migrations = [
 const pool = new Pool({ connectionString: DATABASE_URL });
 
 async function run() {
+  // If base tables don't exist, apply schema first (fresh DB)
+  const tableCheck = await pool.query(
+    "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listings' LIMIT 1"
+  );
+  if (tableCheck.rows.length === 0) {
+    const schemaPath = path.join(__dirname, '..', 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+      await pool.query(schemaSql);
+      console.log('Applied base schema (schema.sql).');
+    }
+  }
+
   for (const name of migrations) {
     const filePath = path.join(__dirname, 'migrations', name);
     if (!fs.existsSync(filePath)) {

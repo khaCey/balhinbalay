@@ -13,7 +13,7 @@ function SettingsPage() {
   const deleteSectionRef = useRef(null);
   const { user, logout } = useAuth();
   const { pushEnabled, setPushEnabled, triggerRegister } = usePush();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isDesktop } = useTheme();
   const [pushLoading, setPushLoading] = useState(false);
   const [syncingFromServer, setSyncingFromServer] = useState(true);
   const [deletePassword, setDeletePassword] = useState('');
@@ -81,6 +81,7 @@ function SettingsPage() {
     <div className="settings-page">
       <PageHeader title="Settings" onBack={handleBack} />
       <main className="page-content settings-page-content">
+        {!isDesktop && (
         <section className="settings-block" aria-labelledby="settings-appearance-heading">
           <h2 id="settings-appearance-heading" className="settings-block-title">Appearance</h2>
           <div className="settings-card">
@@ -124,6 +125,7 @@ function SettingsPage() {
             </div>
           </div>
         </section>
+        )}
 
         <section className="settings-block" aria-labelledby="settings-notifications-heading">
           <h2 id="settings-notifications-heading" className="settings-block-title">Notifications</h2>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const STORAGE_KEY = 'balhinbalay_theme';
+const DESKTOP_BREAKPOINT = 768;
 
 const ThemeContext = createContext(null);
 
@@ -21,6 +22,10 @@ function readStoredTheme() {
   return 'system';
 }
 
+function getIsDesktop() {
+  return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT;
+}
+
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(readStoredTheme);
   const [systemDark, setSystemDark] = useState(() => {
@@ -28,6 +33,13 @@ export function ThemeProvider({ children }) {
     const m = window.matchMedia('(prefers-color-scheme: dark)');
     return m.matches;
   });
+  const [isDesktop, setIsDesktop] = useState(getIsDesktop);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(getIsDesktop());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const m = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)');
@@ -46,7 +58,7 @@ export function ThemeProvider({ children }) {
     } catch (_) {}
   }, []);
 
-  const effectiveDark = theme === 'dark' || (theme === 'system' && systemDark);
+  const effectiveDark = !isDesktop && (theme === 'dark' || (theme === 'system' && systemDark));
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', effectiveDark ? 'dark' : 'light');
@@ -54,7 +66,7 @@ export function ThemeProvider({ children }) {
     if (meta) meta.setAttribute('content', effectiveDark ? '#1d1d1f' : '#0d7377');
   }, [effectiveDark]);
 
-  const value = { theme, setTheme, effectiveDark };
+  const value = { theme, setTheme, effectiveDark, isDesktop };
 
   return (
     <ThemeContext.Provider value={value}>
