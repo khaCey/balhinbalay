@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { formatPrice } from '../utils/helpers';
 import { getCityById } from '../data/cities';
 import { api } from '../api/client';
@@ -6,8 +6,8 @@ import FavoritesButton from './FavoritesButton';
 import PropertyMapPreview from './PropertyMapPreview';
 
 /**
- * Shared content for property detail (used by PropertyModal and PropertyPage).
- * Receives property and callbacks: onClose, onOpenChat, onLoginForChat, onEdit, onDelete.
+ * Property listing detail — full-page route or overlay (PropertyModal).
+ * Uses `pd-*` classes only (no Bootstrap modal-header/body) to avoid global `.modal` conflicts.
  */
 export default function PropertyDetailContent({
   property,
@@ -22,30 +22,46 @@ export default function PropertyDetailContent({
   onBack
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [showReportModal, setShowReportModal] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportError, setReportError] = useState('');
+  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
+  const touchStartX = useRef(null);
+
   const cityName = property ? (getCityById(property.cityId)?.displayName || property.city || property.cityId || '') : '';
   const locationLine = property ? [property.location, cityName].filter(Boolean).join(', ') || '—' : '—';
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [property?.id]);
+
+  useEffect(() => {
+    if (!toolbarMenuOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setToolbarMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toolbarMenuOpen]);
 
   if (!property) return null;
 
   const isRent = property.listingType === 'rent';
-  const hasAnyMoveInFee = isRent && (
-    (property.keyMoney > 0) || (property.securityDeposit > 0) || (property.advancePay > 0) ||
-    (property.brokerFee > 0) || (property.associationFee > 0) || (property.reservationFee > 0) ||
-    property.utilitiesIncluded === true || property.utilitiesIncluded === false || property.extraFees
-  );
-  const moveInTotal = isRent ? [
-    property.keyMoney || 0,
-    property.securityDeposit || 0,
-    property.advancePay || 0,
-    property.brokerFee || 0,
-    property.associationFee || 0,
-    property.reservationFee || 0
-  ].reduce((a, b) => a + b, 0) : 0;
+  const moveInTotal = isRent
+    ? [
+        property.keyMoney || 0,
+        property.securityDeposit || 0,
+        property.advancePay || 0,
+        property.brokerFee || 0,
+        property.associationFee || 0,
+        property.reservationFee || 0
+      ].reduce((a, b) => a + b, 0)
+    : 0;
+
+  const images = Array.isArray(property.images) ? property.images : [];
+  const hasManyImages = images.length > 1;
 
   const handleReportSubmit = async (e) => {
     e.preventDefault();
@@ -54,7 +70,11 @@ export default function PropertyDetailContent({
     try {
       await api.post(`/api/listings/${property.id}/report`, { reason: reportReason.trim() || undefined });
       setReportSubmitted(true);
-      setTimeout(() => { setShowReportModal(false); setReportReason(''); setReportSubmitted(false); }, 1500);
+      setTimeout(() => {
+        setShowReport(false);
+        setReportReason('');
+        setReportSubmitted(false);
+      }, 1500);
     } catch (err) {
       setReportError(err?.data?.error || err?.message || 'Failed to submit report.');
     } finally {
@@ -70,269 +90,370 @@ export default function PropertyDetailContent({
     onOpenChat?.(property);
   };
 
-  const handlePrevious = () => {
-    setActiveIndex((prev) => (prev === 0 ? property.images.length - 1 : prev - 1));
+  const goPrev = () => {
+    if (!images.length) return;
+    setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   };
 
-  const handleNext = () => {
-    setActiveIndex((prev) => (prev === property.images.length - 1 ? 0 : prev + 1));
+  const goNext = () => {
+    if (!images.length) return;
+    setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
   };
 
   const isOwner = user && property.ownerId === user.id;
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: property.title,
-        text: property.description,
-        url: window.location.href
-      }).catch((err) => console.log('Error sharing', err));
+      navigator
+        .share({
+          title: property.title,
+          text: property.description,
+          url: window.location.href
+        })
+        .catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      window.alert('Link copied to clipboard!');
     }
   };
 
+  const onGalleryTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const onGalleryTouchEnd = (e) => {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (dx > 56) goPrev();
+    else if (dx < -56) goNext();
+  };
+
   return (
-    <>
-      <div className="modal-header">
-        {showBackButton && onBack && (
-          <button
-            type="button"
-            className="property-detail-back-btn"
-            onClick={onBack}
-            aria-label="Back"
-          >
-            <i className="fas fa-arrow-left" aria-hidden />
-          </button>
-        )}
-        <h5 className="modal-title d-flex align-items-center gap-2 flex-wrap">
-          {property.title}
-          {isOwner && property.status === 'pending' && <span className="badge bg-warning text-dark">Pending</span>}
-          {isOwner && property.status === 'rejected' && <span className="badge bg-danger">Rejected</span>}
-        </h5>
-        <div className="property-modal-header-actions">
-          <FavoritesButton propertyId={property.id} className="property-modal-header-icon" />
-          {isOwner && (
-            <>
-              <button
-                type="button"
-                className="property-modal-header-btn property-modal-header-btn-edit"
-                onClick={() => onEdit?.(property)}
-                aria-label="Edit listing"
-              >
-                <i className="fas fa-pen me-1" aria-hidden />
-                Edit
-              </button>
-              <button
-                type="button"
-                className="property-modal-header-btn property-modal-header-btn-delete"
-                onClick={() => onDelete?.(property)}
-                aria-label="Unlist listing"
-              >
-                <i className="fas fa-eye-slash me-1" aria-hidden />
-                Unlist
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            className="property-modal-header-icon"
-            onClick={handleShare}
-            aria-label="Share property"
-          >
-            <i className="fas fa-share-alt" />
-          </button>
-          {!isOwner && (
-            <button
-              type="button"
-              className="property-modal-header-icon property-modal-header-btn-report"
-              onClick={() => {
-                if (!user) {
-                  onLoginForChat?.();
-                  return;
-                }
-                setShowReportModal(true);
-                setReportError('');
-                setReportReason('');
-              }}
-              aria-label="Report listing"
-              title="Report this listing"
-            >
-              <i className="fas fa-flag" />
+    <div className="pd-shell">
+      <header className="pd-toolbar">
+        <div className="pd-toolbar-start">
+          {showBackButton && onBack && (
+            <button type="button" className="pd-toolbar-circle" onClick={onBack} aria-label="Back">
+              <i className="fas fa-arrow-left" aria-hidden />
             </button>
           )}
           {showCloseButton && (
-            <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
+            <button
+              type="button"
+              className="pd-toolbar-circle"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose?.();
+              }}
+              aria-label="Close"
+            >
               <i className="fas fa-times" aria-hidden />
             </button>
           )}
         </div>
-      </div>
-      <div className="modal-body">
-        {property.images && property.images.length > 0 && (
-          <div className="property-modal-carousel mb-3" id="detailsModalCarousel">
-            <div className="carousel-inner">
-              {property.images.map((img, i) => (
-                <div
-                  key={i}
-                  className={`carousel-item ${i === activeIndex ? 'active' : ''}`}
-                >
-                  <img
-                    src={img}
-                    className="d-block w-100"
-                    style={{ maxHeight: '400px', objectFit: 'cover' }}
-                    alt=""
-                  />
+
+        <div className="pd-toolbar-actions">
+          <FavoritesButton propertyId={property.id} className="pd-toolbar-icon" />
+          <button type="button" className="pd-toolbar-icon" onClick={handleShare} aria-label="Share listing">
+            <i className="fas fa-share-alt" aria-hidden />
+          </button>
+
+          <div className={`pd-menu ${toolbarMenuOpen ? 'pd-menu--open' : ''}`}>
+            <button
+              type="button"
+              className="pd-toolbar-icon"
+              aria-expanded={toolbarMenuOpen}
+              aria-haspopup="true"
+              aria-label="More actions"
+              onClick={() => setToolbarMenuOpen((v) => !v)}
+            >
+              <i className="fas fa-ellipsis-h" aria-hidden />
+            </button>
+            {toolbarMenuOpen && (
+              <button type="button" className="pd-menu-dismiss" aria-label="Dismiss menu" onClick={() => setToolbarMenuOpen(false)} />
+            )}
+            {toolbarMenuOpen && (
+              <ul className="pd-menu-list" role="menu">
+                {isOwner && (
+                  <>
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="pd-menu-item"
+                        onClick={() => {
+                          setToolbarMenuOpen(false);
+                          onEdit?.(property);
+                        }}
+                      >
+                        <i className="fas fa-pen" aria-hidden /> Edit listing
+                      </button>
+                    </li>
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="pd-menu-item pd-menu-item--danger"
+                        onClick={() => {
+                          setToolbarMenuOpen(false);
+                          onDelete?.(property);
+                        }}
+                      >
+                        <i className="fas fa-eye-slash" aria-hidden /> Unlist
+                      </button>
+                    </li>
+                  </>
+                )}
+                {!isOwner && (
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="pd-menu-item"
+                      onClick={() => {
+                        setToolbarMenuOpen(false);
+                        if (!user) {
+                          onLoginForChat?.();
+                          return;
+                        }
+                        setShowReport(true);
+                        setReportError('');
+                        setReportReason('');
+                      }}
+                    >
+                      <i className="fas fa-flag" aria-hidden /> Report listing
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="pd-scroll">
+        {images.length > 0 && (
+          <div
+            className="pd-hero"
+            onTouchStart={onGalleryTouchStart}
+            onTouchEnd={onGalleryTouchEnd}
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Listing photos"
+          >
+            <div className="pd-gallery">
+              {images.map((img, i) => (
+                <div key={i} className={`pd-gallery-slide ${i === activeIndex ? 'pd-gallery-slide--active' : ''}`}>
+                  <img src={img} alt="" className="pd-gallery-img" />
                 </div>
               ))}
             </div>
-            {property.images.length > 1 && (
+            {hasManyImages && (
               <>
-                <div className="carousel-indicators-bar">
-                  {property.images.map((_, i) => (
+                <button type="button" className="pd-gallery-nav pd-gallery-nav--prev" onClick={goPrev} aria-label="Previous photo">
+                  <span className="pd-gallery-nav-inner" aria-hidden />
+                </button>
+                <button type="button" className="pd-gallery-nav pd-gallery-nav--next" onClick={goNext} aria-label="Next photo">
+                  <span className="pd-gallery-nav-inner" aria-hidden />
+                </button>
+                <div className="pd-gallery-dots" role="tablist" aria-label="Photo index">
+                  {images.map((_, i) => (
                     <button
                       key={i}
                       type="button"
-                      className={i === activeIndex ? 'active' : ''}
-                      aria-label={`Slide ${i + 1}`}
+                      role="tab"
+                      aria-selected={i === activeIndex}
+                      className={`pd-gallery-dot ${i === activeIndex ? 'pd-gallery-dot--active' : ''}`}
+                      aria-label={`Photo ${i + 1} of ${images.length}`}
                       onClick={() => setActiveIndex(i)}
                     />
                   ))}
                 </div>
-                <button className="carousel-control-prev" type="button" onClick={handlePrevious}>
-                  <span className="carousel-control-prev-icon" aria-hidden />
-                  <span className="visually-hidden">Previous</span>
-                </button>
-                <button className="carousel-control-next" type="button" onClick={handleNext}>
-                  <span className="carousel-control-next-icon" aria-hidden />
-                  <span className="visually-hidden">Next</span>
-                </button>
               </>
             )}
           </div>
         )}
-        <div className="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <p className="property-price mb-2">{formatPrice(property)}</p>
-            {isRent && (
-              <div className="property-move-in-fees mb-2">
-                <h6 className="small mb-2">Move-in fees</h6>
-                <ul className="list-unstyled text-muted small mb-1">
-                  <li>Key money: ₱{(Number(property.keyMoney) || 0).toLocaleString()}</li>
-                  <li>Security deposit: ₱{(Number(property.securityDeposit) || 0).toLocaleString()}</li>
-                  <li>Advance pay: ₱{(Number(property.advancePay) || 0).toLocaleString()}</li>
-                  <li>Broker fee: ₱{(Number(property.brokerFee) || 0).toLocaleString()}</li>
-                  <li>Association fee: ₱{(Number(property.associationFee) || 0).toLocaleString()}</li>
-                  <li>Reservation fee: ₱{(Number(property.reservationFee) || 0).toLocaleString()}</li>
-                  <li>Utilities: {property.utilitiesIncluded === true ? 'included' : 'separate'}</li>
-                  <li>Other: {property.extraFees || '0'}</li>
-                </ul>
-                <p className="mb-0 fw-semibold small">Total move-in: ₱{moveInTotal.toLocaleString()}</p>
-              </div>
-            )}
-            <p className="text-muted mb-2">
-              <i className="fas fa-map-marker-alt me-2" />
+
+        <div className="pd-inner">
+          <div className="pd-title-row">
+            <h1 className="pd-title">{property.title}</h1>
+            <div className="pd-badges">
+              {isOwner && property.status === 'pending' && (
+                <span className="pd-badge pd-badge--warn">Pending</span>
+              )}
+              {isOwner && property.status === 'rejected' && (
+                <span className="pd-badge pd-badge--bad">Rejected</span>
+              )}
+            </div>
+          </div>
+
+          <section className="pd-card" aria-label="Price and location">
+            <div className="pd-card-row">
+              <p className="pd-price">{formatPrice(property)}</p>
+              {(property.sold || property.currentlyRented) && (
+                <span className="pd-status-pill">{property.sold ? 'Sold' : 'Rented'}</span>
+              )}
+            </div>
+            <p className="pd-location">
+              <i className="fas fa-map-marker-alt" aria-hidden />
               {locationLine}
             </p>
-          </div>
-          {(property.sold || property.currentlyRented) && (
-            <span className="badge bg-secondary">
-              {property.sold ? 'Sold' : 'Currently rented'}
+            {isRent && (
+              <div className="pd-fees">
+                <h2 className="pd-fees-title">Move-in fees</h2>
+                <ul className="pd-fees-rows">
+                  <li><span>Key money</span><span>₱{(Number(property.keyMoney) || 0).toLocaleString()}</span></li>
+                  <li><span>Security deposit</span><span>₱{(Number(property.securityDeposit) || 0).toLocaleString()}</span></li>
+                  <li><span>Advance pay</span><span>₱{(Number(property.advancePay) || 0).toLocaleString()}</span></li>
+                  <li><span>Broker fee</span><span>₱{(Number(property.brokerFee) || 0).toLocaleString()}</span></li>
+                  <li><span>Association fee</span><span>₱{(Number(property.associationFee) || 0).toLocaleString()}</span></li>
+                  <li><span>Reservation fee</span><span>₱{(Number(property.reservationFee) || 0).toLocaleString()}</span></li>
+                  <li><span>Utilities</span><span>{property.utilitiesIncluded === true ? 'Included' : 'Separate'}</span></li>
+                  <li><span>Other</span><span>{property.extraFees || '—'}</span></li>
+                </ul>
+                <p className="pd-fees-total">
+                  Total move-in <strong>₱{moveInTotal.toLocaleString()}</strong>
+                </p>
+              </div>
+            )}
+          </section>
+
+          <div className="pd-chips" aria-label="Property details">
+            {property.beds > 0 && (
+              <span className="pd-chip">
+                <i className="fas fa-bed" aria-hidden />
+                {property.beds} bed{property.beds !== 1 ? 's' : ''}
+              </span>
+            )}
+            {property.baths > 0 && (
+              <span className="pd-chip">
+                <i className="fas fa-bath" aria-hidden />
+                {property.baths} bath{property.baths !== 1 ? 's' : ''}
+              </span>
+            )}
+            <span className="pd-chip">
+              <i className="fas fa-ruler-combined" aria-hidden />
+              {property.size}
             </span>
+            <span className="pd-chip">
+              <i className="fas fa-tag" aria-hidden />
+              {property.type}
+            </span>
+            {property.furnished && (
+              <span className="pd-chip">
+                <i className="fas fa-couch" aria-hidden />
+                {property.furnished}
+              </span>
+            )}
+          </div>
+
+          {property.listingType === 'rent' && property.currentlyRented && property.availableFrom && (
+            <p className="pd-availability">
+              <strong>Next availability</strong> {property.availableFrom}
+            </p>
           )}
+
+          <section className="pd-block" aria-labelledby="pd-desc">
+            <h2 id="pd-desc" className="pd-block-title">
+              About this place
+            </h2>
+            <p className="pd-desc">{property.description || 'No description available.'}</p>
+          </section>
+
+          {property.coordinates && (
+            <section className="pd-block" aria-labelledby="pd-map">
+              <h2 id="pd-map" className="pd-block-title">
+                Location
+              </h2>
+              <div className="pd-map-frame">
+                <PropertyMapPreview coordinates={property.coordinates} title={property.title} />
+              </div>
+            </section>
+          )}
+
+          {property.contactInfo && (
+            <section className="pd-block pd-contact" aria-labelledby="pd-contact">
+              <h2 id="pd-contact" className="pd-block-title">
+                Contact
+              </h2>
+              <div className="pd-contact-lines">
+                {property.contactInfo.agentName && (
+                  <p className="pd-contact-line">
+                    <i className="fas fa-user" aria-hidden />
+                    <span>{property.contactInfo.agentName}</span>
+                  </p>
+                )}
+                {property.contactInfo.phone && (
+                  <p className="pd-contact-line">
+                    <i className="fas fa-phone" aria-hidden />
+                    <a href={`tel:${property.contactInfo.phone}`}>{property.contactInfo.phone}</a>
+                  </p>
+                )}
+                {property.contactInfo.email && (
+                  <p className="pd-contact-line">
+                    <i className="fas fa-envelope" aria-hidden />
+                    <a href={`mailto:${property.contactInfo.email}`}>{property.contactInfo.email}</a>
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Space so fixed CTA + bottom nav do not cover last content */}
+          <div className="pd-scroll-pad" aria-hidden />
         </div>
-        <div className="property-features mb-3">
-          {property.beds > 0 && <span><i className="fas fa-bed feature-icon me-1" />{property.beds} Beds</span>}
-          {property.baths > 0 && <span><i className="fas fa-bath feature-icon me-1" />{property.baths} Baths</span>}
-          <span><i className="fas fa-ruler-combined feature-icon me-1" />{property.size}</span>
-          <span><i className="fas fa-tag feature-icon me-1" />{property.type}</span>
-          {property.furnished && <span><i className="fas fa-couch feature-icon me-1" />{property.furnished}</span>}
-        </div>
-        {property.listingType === 'rent' && property.currentlyRented && property.availableFrom && (
-          <p className="text-muted mb-3"><strong>Next availability:</strong> {property.availableFrom}</p>
-        )}
-        <div className="mb-3">
-          <h6>Description</h6>
-          <p>{property.description || 'No description available.'}</p>
-        </div>
-        {property.contactInfo && (
-          <div className="contact-section p-3 mb-3">
-            <h6 className="mb-3">Contact Information</h6>
-            <div className="contact-details mb-3">
-              {property.contactInfo.agentName && (
-                <p className="mb-2">
-                  <i className="fas fa-user me-2" /><strong>Agent:</strong> {property.contactInfo.agentName}
-                </p>
-              )}
-              {property.contactInfo.phone && (
-                <p className="mb-2">
-                  <i className="fas fa-phone me-2" /><strong>Phone:</strong>{' '}
-                  <a href={`tel:${property.contactInfo.phone}`} className="ms-2">{property.contactInfo.phone}</a>
-                </p>
-              )}
-              {property.contactInfo.email && (
-                <p className="mb-2">
-                  <i className="fas fa-envelope me-2" /><strong>Email:</strong>{' '}
-                  <a href={`mailto:${property.contactInfo.email}`} className="ms-2">{property.contactInfo.email}</a>
-                </p>
-              )}
-            </div>
-            <button className="btn btn-primary btn-chat w-100" onClick={handleChat}>
-              <i className="fas fa-comments me-2" aria-hidden />
-              Chat with Owner/Agent
-            </button>
-          </div>
-        )}
-        {property.coordinates && (
-          <div className="map-preview mb-3">
-            <h6 className="mb-2">Location</h6>
-            <PropertyMapPreview coordinates={property.coordinates} title={property.title} />
-          </div>
-        )}
       </div>
 
-      {showReportModal && (
-        <div className="modal report-listing-modal fade show" style={{ display: 'block' }} tabIndex={-1}>
-          <div className="modal-backdrop fade show" onClick={() => !reportLoading && setShowReportModal(false)} aria-hidden />
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Report this listing</h5>
-                <button type="button" className="btn-close" onClick={() => !reportLoading && setShowReportModal(false)} aria-label="Close" />
-              </div>
-              {reportSubmitted ? (
-                <div className="modal-body">
-                  <p className="text-success mb-0">Report submitted. Thank you.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleReportSubmit}>
-                  <div className="modal-body">
-                    <p className="text-muted small mb-2">Help us understand the issue (optional).</p>
-                    <textarea
-                      className="form-control mb-2"
-                      rows={3}
-                      placeholder="e.g. Inappropriate content, misleading information..."
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      maxLength={2000}
-                    />
-                    {reportError && <p className="text-danger small mb-2">{reportError}</p>}
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-outline-secondary" onClick={() => setShowReportModal(false)} disabled={reportLoading}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-danger" disabled={reportLoading}>
-                      {reportLoading ? 'Submitting...' : 'Submit report'}
-                    </button>
-                  </div>
-                </form>
-              )}
+      {property.contactInfo && (
+        <div className="pd-cta-bar">
+          <button type="button" className="pd-cta-primary" onClick={handleChat}>
+            <i className="fas fa-comments" aria-hidden />
+            Chat with owner / agent
+          </button>
+        </div>
+      )}
+
+      {showReport && (
+        <div className="pd-report-root" role="dialog" aria-modal="true" aria-labelledby="pd-report-title">
+          <button type="button" className="pd-report-backdrop" aria-label="Close" onClick={() => !reportLoading && setShowReport(false)} />
+          <div className="pd-report-panel">
+            <div className="pd-report-head">
+              <h2 id="pd-report-title" className="pd-report-title">
+                Report this listing
+              </h2>
+              <button type="button" className="pd-report-close" onClick={() => !reportLoading && setShowReport(false)} aria-label="Close">
+                <i className="fas fa-times" aria-hidden />
+              </button>
             </div>
+            {reportSubmitted ? (
+              <p className="pd-report-success">Report submitted. Thank you.</p>
+            ) : (
+              <form className="pd-report-form" onSubmit={handleReportSubmit}>
+                <p className="pd-report-hint">Help us understand the issue (optional).</p>
+                <textarea
+                  className="pd-report-textarea"
+                  rows={4}
+                  placeholder="e.g. Inappropriate content, misleading information…"
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  maxLength={2000}
+                />
+                {reportError && <p className="pd-report-error">{reportError}</p>}
+                <div className="pd-report-actions">
+                  <button type="button" className="pd-report-btn pd-report-btn--ghost" onClick={() => setShowReport(false)} disabled={reportLoading}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="pd-report-btn pd-report-btn--danger" disabled={reportLoading}>
+                    {reportLoading ? 'Submitting…' : 'Submit report'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

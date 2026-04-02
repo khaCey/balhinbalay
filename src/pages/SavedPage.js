@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useListings } from '../context/ListingsContext';
+import { usePropertyModal } from '../context/PropertyModalContext';
 import { formatPrice } from '../utils/helpers';
 import { getCityById } from '../data/cities';
 import FavoritesButton from '../components/FavoritesButton';
@@ -9,8 +10,10 @@ import PageHeader from '../components/PageHeader';
 
 export default function SavedPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { favorites } = useFavorites();
   const { listings } = useListings();
+  const { openProperty } = usePropertyModal();
   const allListings = useMemo(
     () => (Array.isArray(listings) ? listings : []),
     [listings]
@@ -22,7 +25,7 @@ export default function SavedPage() {
 
   const handleBack = () => navigate(-1);
   const handleSelectProperty = (property) => {
-    navigate(`/property/${property.id}`);
+    openProperty(property, { from: `${location.pathname}${location.search || ''}` });
   };
 
   return (

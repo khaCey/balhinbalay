@@ -19,8 +19,7 @@ const PropertyModal = ({
 
   return (
     <div
-      className={`modal fade ${visible ? 'show' : ''} ${asPage ? 'property-modal-as-page' : ''}`}
-      style={{ display: visible ? 'block' : 'none' }}
+      className={`modal fade property-detail-overlay-modal ${visible ? 'show' : ''} ${asPage ? 'property-modal-as-page' : ''}`}
       tabIndex="-1"
       aria-hidden={!visible}
     >

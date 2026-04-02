@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import SearchBar from './components/SearchBar';
 import PropertyCard from './components/PropertyCard';
@@ -8,7 +8,6 @@ import SortBar from './components/SortBar';
 import ListingTypeToggle from './components/ListingTypeToggle';
 import PriceSlider from './components/PriceSlider';
 import MapView from './components/MapView';
-import PullToRefresh from './components/PullToRefresh';
 import { LoginModalProvider } from './context/LoginModalContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { FavoritesProvider } from './context/FavoritesContext';
@@ -20,10 +19,8 @@ import { UserListingsProvider } from './context/UserListingsContext';
 import { ChatProvider } from './context/ChatContext';
 import { ChatModalProvider } from './context/ChatModalContext';
 import { SearchProvider, useSearch } from './context/SearchContext';
-import { useSliderDrag } from './context/SliderDragContext';
-import { PropertyModalProvider } from './context/PropertyModalContext';
+import { PropertyModalProvider, usePropertyModal } from './context/PropertyModalContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { SliderDragProvider } from './context/SliderDragContext';
 import MainLayout from './components/MainLayout';
 import PageHeader from './components/PageHeader';
 import BackButtonHandler from './components/BackButtonHandler';
@@ -41,22 +38,23 @@ import {
 } from './data/cities';
 import { schools, getSchoolById } from './data/schools';
 import { haversineKm } from './utils/distance';
-import AdminPage from './pages/AdminPage';
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import AddPropertyPage from './pages/AddPropertyPage';
-import ConfirmEmailPage from './pages/ConfirmEmailPage';
-import SavedPage from './pages/SavedPage';
-import MessagesPage from './pages/MessagesPage';
-import PropertyPage from './pages/PropertyPage';
-import ChatPage from './pages/ChatPage';
-import HomePage from './pages/HomePage';
-import SearchPage from './pages/SearchPage';
-import SearchCityPage from './pages/SearchCityPage';
-import SearchKeywordPage from './pages/SearchKeywordPage';
-import SearchMapPage from './pages/SearchMapPage';
-import SearchSchoolPage from './pages/SearchSchoolPage';
-import MenuPage from './pages/MenuPage';
+import { clampPriceRange } from './utils/priceSliderRange';
+import AdminPage from './pages/AdminPage/index';
+import ProfilePage from './pages/ProfilePage/index';
+import SettingsPage from './pages/SettingsPage/index';
+import AddPropertyPage from './pages/AddPropertyPage/index';
+import ConfirmEmailPage from './pages/ConfirmEmailPage/index';
+import SavedPage from './pages/SavedPage/index';
+import MessagesPage from './pages/MessagesPage/index';
+import PropertyPage from './pages/PropertyPage/index';
+import ChatPage from './pages/ChatPage/index';
+import HomePage from './pages/HomePage/index';
+import SearchPage from './pages/SearchPage/index';
+import SearchCityPage from './pages/SearchCityPage/index';
+import SearchKeywordPage from './pages/SearchKeywordPage/index';
+import SearchMapPage from './pages/SearchMapPage/index';
+import SearchSchoolPage from './pages/SearchSchoolPage/index';
+import MenuPage from './pages/MenuPage/index';
 import './App.css';
 
 function AdminRoute() {
@@ -67,9 +65,9 @@ function AdminRoute() {
 
 function AppContent() {
   const { user } = useAuth();
-  const { isSliding } = useSliderDrag();
   const { listings: apiListings, loading: listingsLoading, error: listingsError, refreshListings, searchResults, searchLoading, searchError, fetchSearchListings } = useListings();
   const { recentIds, addView } = useRecentlyViewed();
+  const { openProperty } = usePropertyModal();
   const [myPropertiesListingType, setMyPropertiesListingType] = useState('sale');
   const location = useLocation();
   const navigate = useNavigate();
@@ -105,6 +103,7 @@ function AppContent() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const prevWidthRef = useRef(typeof window !== 'undefined' ? window.innerWidth : 768);
   const hasRestoredFiltersRef = useRef(false);
+  const resultsAreaRef = useRef(null);
 
   const SCHOOL_RADIUS_KM = 10;
 
@@ -251,20 +250,24 @@ function AppContent() {
 
   useEffect(() => {
     setItemsToShow(pageSize);
-  }, [pageSize, listingsForView]);
+  }, [pageSize, listingsForView.length]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleScroll = () => {
       if (effectiveViewMode === 'map') return;
-      const scrollPosition = window.innerHeight + window.scrollY;
-      const threshold = document.documentElement.scrollHeight - 300;
+      const container = resultsAreaRef.current;
+      if (!container) return;
+      const scrollPosition = container.scrollTop + container.clientHeight;
+      const threshold = container.scrollHeight - 300;
       if (scrollPosition >= threshold) {
         setItemsToShow((prev) => Math.min(prev + pageSize, listingsForView.length));
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const container = resultsAreaRef.current;
+    if (!container) return undefined;
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [listingsForView.length, pageSize, effectiveViewMode]);
 
   const listingsByType = useMemo(
@@ -342,17 +345,19 @@ function AppContent() {
     const property = visibleListings[index];
     if (!property) return;
     addView(property.id);
-    navigate(`/property/${property.id}`);
+    openProperty(property, { from: `${location.pathname}${location.search || ''}` });
   };
 
   const handleOpenProperty = (property) => {
     addView(property.id);
-    navigate(`/property/${property.id}`);
+    openProperty(property, { from: `${location.pathname}${location.search || ''}` });
   };
 
   const handlePriceChange = (min, max) => {
-    setPriceMin(min);
-    setPriceMax(max);
+    const cfg = priceSliderConfig[effectiveListingTypeForMyProperties] || priceSliderConfig.sale;
+    const { minVal, maxVal } = clampPriceRange(min, max, cfg.min, cfg.max, cfg.step);
+    setPriceMin(minVal);
+    setPriceMax(maxVal);
   };
 
   const currentFilterState = useMemo(
@@ -394,13 +399,6 @@ function AppContent() {
 
 
   const selectedCityData = getCityById(selectedCity);
-
-  useEffect(() => {
-    const openProperty = location.state?.openProperty;
-    if (openProperty?.id) {
-      navigate(`/property/${openProperty.id}`, { replace: true });
-    }
-  }, [location.state?.openProperty, navigate]);
 
   /* Restore filters: prefer currentResultsState for this listingType (in-page tweaks), else lastSearchState. Do not list currentResultsState in deps to avoid a loop with the persist effect. */
   useEffect(() => {
@@ -466,7 +464,7 @@ function AppContent() {
         />
 
         <div className={!isMobile ? 'app-layout-desktop' : ''}>
-          <main className={`results-area ${!isMobile ? 'full' : ''}`}>
+          <main ref={resultsAreaRef} className={`results-area ${!isMobile ? 'full' : ''}`}>
             {(() => {
               const content = (
                 <>
@@ -506,7 +504,7 @@ function AppContent() {
                 </div>
               </div>
             )}
-            {(hasSearched && !showMyPropertiesOnly && listingsForView.length > 0) && (
+            {(hasSearched && !showMyPropertiesOnly) && (
             <div className="results-filters-wrap">
               <div className="results-price-slider-wrap">
                 <PriceSlider
@@ -672,7 +670,7 @@ function AppContent() {
                   const property = listingsForView[index];
                   if (property) {
                     addView(property.id);
-                    navigate(`/property/${property.id}`);
+                    openProperty(property, { from: `${location.pathname}${location.search || ''}` });
                   }
                 }}
               />
@@ -741,7 +739,7 @@ function AppContent() {
             </>
             )}
             </>);
-              return isMobile ? <PullToRefresh onRefresh={refreshListings} disabled={(showMyPropertiesOnly ? listingsLoading : searchLoading) || isSliding}>{content}</PullToRefresh> : content;
+              return content;
             })()}
           </main>
         </div>
@@ -772,7 +770,7 @@ export default function App() {
                           <SearchProvider>
                           <PropertyModalProvider>
                           <Routes>
-                            <Route path="/" element={<SliderDragProvider><MainLayout /></SliderDragProvider>}>
+                            <Route path="/" element={<MainLayout />}>
                               <Route index element={<HomePage />} />
                               <Route path="search" element={<SearchPage />} />
                               <Route path="search/city" element={<SearchCityPage />} />

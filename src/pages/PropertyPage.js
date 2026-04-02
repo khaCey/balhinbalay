@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useListings } from '../context/ListingsContext';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -13,6 +13,7 @@ import PageHeader from '../components/PageHeader';
 export default function PropertyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { listings } = useListings();
   const { user } = useAuth();
   const { createOrGetThread } = useChat();
@@ -21,12 +22,40 @@ export default function PropertyPage() {
   const { addView } = useRecentlyViewed();
   const [listingToDelete, setListingToDelete] = useState(null);
 
+  const getCloseTarget = () => {
+    const raw = typeof location.state?.from === 'string' ? location.state.from.trim() : '';
+    const fallback = property?.listingType === 'rent' ? '/rent' : '/sale';
+
+    // Never close into another property route or loop back to the same screen.
+    if (!raw || !raw.startsWith('/') || raw === location.pathname || raw.startsWith('/property/')) {
+      return fallback;
+    }
+
+    return raw;
+  };
+
   const property = (Array.isArray(listings) ? listings : []).find((l) => l.id === id);
+  const isActivePropertyRoute = location.pathname === `/property/${id}`;
   useEffect(() => {
     if (property?.id) addView(property.id);
   }, [property?.id, addView]);
 
-  const handleBack = () => navigate(-1);
+  if (!isActivePropertyRoute) return null;
+
+  const handleBack = () => {
+    const target = getCloseTarget();
+    const currentPath = `${location.pathname}${location.search || ''}`;
+
+    /* Prefer SPA navigation so search state survives. Fallback only if the route stays stuck. */
+    navigate(target, { replace: true, state: {} });
+
+    window.setTimeout(() => {
+      const nextPath = `${window.location.pathname}${window.location.search || ''}`;
+      if (nextPath === currentPath) {
+        window.location.assign(target);
+      }
+    }, 60);
+  };
 
   const handleOpenChat = async (p) => {
     const threadId = await createOrGetThread(p.id);
@@ -43,10 +72,11 @@ export default function PropertyPage() {
 
   const handleConfirmUnlist = async () => {
     if (!listingToDelete) return;
+    const listing = listingToDelete;
     try {
-      await unlistListing(listingToDelete.id);
+      await unlistListing(listing.id);
       setListingToDelete(null);
-      navigate(-1);
+      navigate(listing.listingType === 'rent' ? '/rent' : '/sale', { replace: true, state: {} });
     } catch (err) {
       console.error(err);
       window.alert(err?.message || 'Failed to unlist.');
@@ -58,7 +88,7 @@ export default function PropertyPage() {
   if (!property) {
     return (
       <div className="page-with-header">
-        <PageHeader title="Property" onBack={() => navigate(-1)} />
+        <PageHeader title="Property" onBack={handleBack} />
         <main className="page-content">
           <p className="text-muted">Listing not found.</p>
         </main>
@@ -78,8 +108,8 @@ export default function PropertyPage() {
             onLoginForChat={openLogin}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            showCloseButton={false}
-            showBackButton
+            showCloseButton
+            showBackButton={false}
             onBack={handleBack}
           />
         </main>

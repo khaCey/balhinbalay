@@ -1,5 +1,484 @@
 # Changelog
 
+## v.1.0.00.315 — Development
+Date: 2026-04-02
+Type: Dev Change
+
+### Summary
+- Reused the login-modal provider pattern for property details so in-app listing opens are controlled by one global `PropertyModal` instance instead of relying on the `/property/:id` route to mount and tear down the details view.
+
+### Changes (detailed)
+
+#### Added
+- src/context/PropertyModalContext.js
+ - `openProperty(propertyOrId, options)`, `closeProperty()`
+ - Added: Provider-owned selected property state, globally rendered `PropertyModal`, chat/edit/delete wiring, unlist confirm modal, and auto-close when the underlying page route changes.
+
+#### Changed
+- src/App.js
+ - `handleViewDetails(index)`, `handleOpenProperty(property)`, `MapView onPropertyClick`
+ - From: `navigate('/property/:id', { state: { from } })` for in-app listing opens.
+ - To: `openProperty(property, { from })` so search/list/map opens reuse the global modal lifecycle instead of route teardown.
+- src/pages/SavedPage.js
+ - `handleSelectProperty(property)`
+ - From: `navigate('/property/:id', { state: { from } })`.
+ - To: `openProperty(property, { from })` using the shared property modal provider.
+
+## v.1.0.00.314 — Development
+Date: 2026-04-02
+Type: Dev Change
+
+### Summary
+- Hardened all main navigation exits from property details so desktop route changes cannot leave the app visually stuck on the property screen; added a route guard so `PropertyPage` renders only while the current pathname still matches that property.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/MainLayout.js
+ - `navigateWithFallback(target, options)`, `handleLogoHome()`, `handleSearch()`, `handleOpenSavedSearches()`, logout redirect, sidebar/bottom-nav route handlers
+ - From: Main navigation always used SPA `navigate(...)` directly.
+ - To: When the current page is `/property/:id`, main navigation first uses SPA `navigate(...)` and then falls back to `window.location.assign(target)` only if the browser location remains stuck on the same property route.
+
+#### Fixed
+- src/pages/PropertyPage.js
+ - `isActivePropertyRoute`, `handleBack()`
+ - From: `PropertyPage` relied on route unmount alone and close fallback only covered the X button path.
+ - To: `PropertyPage` now returns `null` unless the live pathname still matches `/property/:id`, and the same guarded navigation logic remains in the close handler for the X button path.
+
+## v.1.0.00.313 — Development
+Date: 2026-04-02
+Type: Dev Change
+
+### Summary
+- Hardened property details close behavior so desktop close cannot loop back into another `/property/:id` route and falls back to a browser navigation only when SPA routing stays stuck; removed the viewport-fixed details CTA bar so the property UI cannot visually persist across other pages.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js
+ - `getCloseTarget()`, `handleBack()`
+ - From: Accept any `location.state.from` path except the exact current pathname, then `navigate(target, { replace: true })` only.
+ - To: Reject empty / invalid / `/property/*` return paths, keep SPA `navigate(...)` first, then use `window.location.assign(target)` only if the browser is still on the same property route after the SPA navigation attempt.
+
+#### Fixed
+- src/App.css
+ - `.pd-cta-bar`, `.pd-scroll-pad`
+ - From: Chat CTA used `position: fixed` with extra bottom spacer, which could visually linger over other pages if the property screen failed to unmount cleanly.
+ - To: Chat CTA now stays in normal document flow inside the property details layout, and the extra fixed-bar spacer is reduced to a small content gap.
+
+## v.1.0.00.312 — Development
+Date: 2026-04-02
+Type: Dev Change
+
+### Summary
+- Rebuilt property listing details UI with dedicated `pd-*` markup (toolbar, gallery, sections, overflow menu, bottom chat bar, report sheet) and matching CSS; removed Bootstrap `modal-header` / `modal-body` / carousel structure from this screen to avoid global modal conflicts and simplify layout.
+
+### Changes (detailed)
+
+#### Added
+- src/components/PropertyDetailContent.js
+ - `PropertyDetailContent(...)`
+ - Added: `pd-shell` layout, sticky `pd-toolbar` with close/back, favorites + share + overflow menu (edit/unlist or report), custom `pd-gallery` with swipe + dots + arrows, `pd-card` / `pd-chips` / `pd-block` / `pd-contact`, fixed `pd-cta-bar` for chat, `pd-report-*` sheet (no global `.modal` on report root).
+
+#### Changed
+- src/App.css
+ - Property detail section (former `.property-detail-*` + overlay flex rules).
+ - From: Large block targeting `.property-detail-root`, `.property-detail-header.modal-header`, `.property-detail-body.modal-body`, carousel classes, `.property-report-modal-root`.
+ - To: `.pd-*` rules for the same behaviors; overlay uses `.pd-shell` / `.pd-scroll`; report uses `.pd-report-root`; CTA bar positions above bottom nav on `/property/:id` route.
+
+#### Removed
+- src/App.css
+ - `.property-detail-root`, `.property-detail-header`, `.property-detail-body`, `.property-detail-gallery`, `.property-detail-summary`, `.property-detail-spec-chip`, `.property-detail-section`, `.property-detail-contact-card`, `.property-detail-chat-btn`, `.property-detail-back-btn`, `.property-report-modal-root.report-listing-modal` (superseded by `pd-*`).
+
+## v.1.0.00.311 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Restored SPA navigation when closing property details so search results and in-memory filter state are not lost (full `window.location.replace` remounted the app).
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js
+ - `handleBack()`
+ - From: `window.location.replace(target)` (full reload).
+ - To: `navigate(target, { replace: true, state: {} })` so React state and context survive returning to `/sale` or `/rent`.
+
+## v.1.0.00.310 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Made property details close reliably: raise sticky header stacking so the close control receives taps, stop propagation on close; exit details via `window.location.replace` so navigation works in WebView/Capacitor when SPA updates appear stuck.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js
+ - `handleBack()`
+ - From: `navigate(target, { replace: true, state: {} })` only.
+ - To: `window.location.replace(target)` for full document navigation.
+
+#### Fixed
+- src/App.css
+ - `.property-detail-page-content .modal-header` z-index from 10 to 100 and `isolation: isolate`; `.property-modal-header-actions` `z-index: 101` and `flex-shrink: 0` so header controls are not covered by scrolling content.
+- src/components/PropertyDetailContent.js
+ - Close button `onClick`
+ - From: `onClick={onClose}`.
+ - To: `preventDefault` + `stopPropagation` + `onClose?.()`.
+
+## v.1.0.00.309 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Replaced the property details route header back arrow with an explicit close button (X) so dismissing details uses one deterministic close action.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js
+ - `PropertyDetailContent` props in route render.
+ - From: `showBackButton` enabled and `showCloseButton={false}`.
+ - To: `showCloseButton` enabled and `showBackButton={false}`; close uses `handleBack()` target routing logic.
+
+## v.1.0.00.308 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Fixed property details “modal” not dismissing after back by remounting the route outlet on navigation, using explicit navigate targets (no `navigate(-1)`), clearing route state, and scoping the report overlay away from the global `.modal` full-screen rule.
+
+### Changes (detailed)
+
+#### Added
+- src/App.css
+ - `.property-report-modal-root.report-listing-modal` positioning stack for the report dialog.
+
+#### Changed
+- src/components/MainLayout.js
+ - `Outlet`
+ - From: `<Outlet />`.
+ - To: `<Outlet key={pathname + search} />` so leaving `/property/:id` always remounts the previous page (avoids stale UI).
+
+#### Fixed
+- src/pages/PropertyPage.js
+ - `handleBack()`
+ - From: Mixed `navigate(explicitFrom)`, `navigate(-1)`, and fallback.
+ - To: Always `navigate` to `location.state.from` when valid, else `/sale` or `/rent`, with `replace: true` and `state: {}`.
+- src/pages/PropertyPage.js
+ - `handleConfirmUnlist()`
+ - From: `navigate(-1)` after unlist (and briefly cleared listing before navigate).
+ - To: Navigate explicitly to `/sale` or `/rent` from the captured listing; clear state consistently.
+
+#### Changed
+- src/components/PropertyDetailContent.js
+ - Report overlay root `className`.
+ - From: `modal report-listing-modal`.
+ - To: `property-report-modal-root report-listing-modal` (avoids global `.modal { position: fixed; inset: 0 }` on the same subtree as listing details).
+
+## v.1.0.00.307 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Fixed property details not closing after back/close by removing obsolete auto-open redirect logic that could reopen `/property/:id` right after navigation.
+
+### Changes (detailed)
+
+#### Removed
+- src/App.js
+ - `useEffect()` that watched `location.state?.openProperty` and redirected to `/property/${openProperty.id}`.
+ - Removed: Legacy modal-open bridge from an older `/sale` state flow; it could conflict with current route-based details and make close/back appear stuck.
+
+## v.1.0.00.306 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Fixed details close/back behavior by carrying an explicit return route when opening a property and prioritizing that route in the property page back action.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js
+ - `handleViewDetails(index)`, `handleOpenProperty(property)`, `MapView` `onPropertyClick(index)`
+ - From: Navigated to `/property/:id` without origin state.
+ - To: Navigates with `state.from` set to current path+query so details page knows exactly where to return.
+- src/pages/SavedPage.js
+ - `handleSelectProperty(property)`
+ - From: Navigated to `/property/:id` without origin state.
+ - To: Navigates with `state.from` from the saved page route.
+- src/pages/PropertyPage.js
+ - `handleBack()`
+ - From: Browser-history fallback only (`navigate(-1)` then static fallback).
+ - To: Closes by returning to `location.state.from` first, then `navigate(-1)`, then listing-type route (`/rent` or `/sale`) as last fallback.
+
+## v.1.0.00.305 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Fixed property details back navigation by adding a fallback route when browser history cannot go back.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/PropertyPage.js
+ - `handleBack()`
+ - From: Always `navigate(-1)`, which can no-op on direct entry/open without prior in-app history.
+ - To: Uses `navigate(-1)` when history exists, otherwise routes to `/search` with `replace: true`.
+- src/pages/PropertyPage.js
+ - Not-found `PageHeader` back handler.
+ - From: Inline `navigate(-1)`.
+ - To: Reuses resilient `handleBack()` fallback logic.
+
+## v.1.0.00.304 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Redesigned property listing detail UI (shared modal/page content): hero gallery, summary card, spec chips, clearer sections, contact CTA card; overlay uses a bottom sheet on mobile and a centered card on desktop.
+
+### Changes (detailed)
+
+#### Added
+- src/App.css
+ - Added: `.property-detail-root`, `.property-detail-header`, `.property-detail-body`, `.property-detail-gallery`, `.property-detail-summary`, `.property-detail-spec-chip`, `.property-detail-section`, `.property-detail-contact-card`, `.property-detail-chat-btn`, overlay sheet/desktop rules for `.property-detail-overlay-modal`, `.report-listing-modal` z-index, `.property-detail-page-content > .property-detail-root` flex chain.
+
+#### Changed
+- src/components/PropertyDetailContent.js
+ - `PropertyDetailContent(props)`
+ - From: Flat `modal-header` / `modal-body` with basic price row, `property-features`, `contact-section`, and inline image `maxHeight`.
+ - To: Wrapped in `.property-detail-root`; gallery in `.property-detail-gallery` with `.property-detail-gallery-img`; summary card with fees table layout; spec chips; “About this place” and contact/map sections with updated semantics and primary chat button styling class.
+- src/components/PropertyModal.js
+ - `PropertyModal`
+ - From: Inline `style={{ display: visible ? 'block' : 'none' }}` on root.
+ - To: Root class `property-detail-overlay-modal` only; visibility from `.show` and CSS `display: flex` for overlay layout (no inline display override).
+
+#### Removed
+- src/components/PropertyDetailContent.js
+ - `hasAnyMoveInFee` (unused computed flag).
+ - Removed: Dead variable only.
+
+## v.1.0.00.303 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Increased clearance above the fixed bottom navigation so the last listing row is not hidden behind the bar; spacing uses a shared rem-based token so it scales with font size.
+
+### Changes (detailed)
+
+#### Added
+- src/App.css
+ - `:root` custom property `--bb-bottom-nav-base` (5.5rem).
+ - Added: Single source for bottom-nav vertical reserve.
+
+#### Changed
+- src/App.css
+ - `.app-with-bottom-nav.app-has-bottom-nav`, `.app-has-bottom-nav .results-area`, `.home-page`, `.search-filter-page`, `.property-page .page-content.property-detail-page-content`, `.floating-messages-pill` bottom offset.
+ - From: Fixed `72px` (+ safe area) for bottom nav clearance.
+ - To: `calc(var(--bb-bottom-nav-base) + env(safe-area-inset-bottom, 0px))` (and pill uses base + 12px + safe area) so reserved space matches taller navs and accessibility text scaling.
+- src/components/MainLayout.js
+ - Default export layout wrapper `div.app-with-bottom-nav`.
+ - From: Inline `paddingBottom` from `NAV_PADDING_BOTTOM` constant.
+ - To: Padding applied via `.app-with-bottom-nav.app-has-bottom-nav` in CSS only.
+
+#### Removed
+- src/components/MainLayout.constants.js
+ - `NAV_PADDING_BOTTOM` string constant.
+ - Removed: Duplicated magic value; layout uses CSS variable instead.
+
+## v.1.0.00.302 — Development
+Date: 2026-04-01
+Type: Dev Change
+
+### Summary
+- Removed horizontal swipe-to-change-tab on mobile and removed pull-to-refresh on the listings area; navigation and refresh are via the bottom nav and explicit actions only.
+
+### Changes (detailed)
+
+#### Removed
+- src/components/MainLayout.js
+ - `handleSwipeStart`, `handleSwipeEnd`, `onTouchStart`/`onTouchEnd` on `.app-with-bottom-nav`, `navBlockedAfterSwipe`, `navBlockTimeoutRef`, `app-bottom-nav-blocked` class.
+ - Removed: Swipe left/right no longer changes routes; bottom nav is not briefly blocked after a swipe.
+- src/components/MainLayout.constants.js
+ - `SWIPE_ROUTES`, `SWIPE_THRESHOLD_PX`, `NAV_BLOCK_AFTER_SWIPE_MS`, `getSwipeRouteIndex(pathname)`.
+ - Removed: Swipe navigation configuration only.
+- src/App.js
+ - `PullToRefresh` wrapper around mobile results content; `SliderDragProvider` around `MainLayout`; `useSliderDrag` / `isSliding`.
+ - Removed: Pull-down-to-refresh UI and context used only to coordinate refresh/swipe with the price slider.
+- src/components/PullToRefresh.js
+ - `PullToRefresh` component.
+ - Removed: Unused after pull-to-refresh removal.
+- src/context/SliderDragContext.js
+ - `SliderDragProvider`, `useSliderDrag`.
+ - Removed: No remaining consumers after pull-to-refresh and swipe removal.
+- src/components/PriceSlider.js
+ - `useSliderDrag`, `sliderPointerHandlers`, `setSliding` calls on thumb drag and range inputs.
+ - Removed: Drag state was only used to disable pull-to-refresh and swipe navigation while sliding.
+- src/App.css
+ - `.results-area > .pull-to-refresh-wrap`, `.pull-to-refresh-*`, `.app-bottom-nav-blocked`.
+ - Removed: Styles for removed components/behaviour.
+
+#### Changed
+- src/App.js
+ - `AppContent` render path.
+ - From: On mobile, listings were wrapped in `PullToRefresh`.
+ - To: Always returns the same `content` tree without pull-to-refresh.
+
+## v.1.0.00.301 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Standardized route entry points under `src/pages/*/index.js` and extracted `MainLayout` constants/helpers so page architecture is more predictable without changing routes or UI behavior.
+
+### Changes (detailed)
+
+#### Added
+- src/components/MainLayout.constants.js
+ - Added: `NAV_PADDING_BOTTOM`, `DESKTOP_BREAKPOINT`, `SWIPE_ROUTES`, `SWIPE_THRESHOLD_PX`, `NAV_BLOCK_AFTER_SWIPE_MS`, `getSwipeRouteIndex(pathname)`, `getIsDesktop()`.
+- src/pages/AdminPage/index.js
+ - Added: route entry component for `AdminPage`.
+- src/pages/AdminPage/AdminPageView.js
+ - Added: composition/view wrapper delegating to legacy page implementation.
+- src/pages/ProfilePage/index.js
+ - Added: route entry file.
+- src/pages/SettingsPage/index.js
+ - Added: route entry file.
+- src/pages/AddPropertyPage/index.js
+ - Added: route entry file.
+- src/pages/ConfirmEmailPage/index.js
+ - Added: route entry file.
+- src/pages/SavedPage/index.js
+ - Added: route entry file.
+- src/pages/MessagesPage/index.js
+ - Added: route entry file.
+- src/pages/PropertyPage/index.js
+ - Added: route entry file.
+- src/pages/ChatPage/index.js
+ - Added: route entry file.
+- src/pages/HomePage/index.js
+ - Added: route entry file.
+- src/pages/SearchPage/index.js
+ - Added: route entry file.
+- src/pages/SearchCityPage/index.js
+ - Added: route entry file.
+- src/pages/SearchKeywordPage/index.js
+ - Added: route entry file.
+- src/pages/SearchMapPage/index.js
+ - Added: route entry file.
+- src/pages/SearchSchoolPage/index.js
+ - Added: route entry file.
+- src/pages/MenuPage/index.js
+ - Added: route entry file.
+
+#### Changed
+- src/components/MainLayout.js
+ - From: constants and helper functions co-located with layout component implementation.
+ - To: imports constants/helpers from `MainLayout.constants.js`; component remains layout-focused.
+- src/App.js
+ - From: page imports resolved directly to legacy `src/pages/*.js` files.
+ - To: page imports resolve to standardized route entry files in `src/pages/*/index.js`; routes and behavior unchanged.
+
+## v.1.0.00.300 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Fixed results list not scrolling on mobile: Outlet wrapper always uses `app-main` flex column; `.App` fills height; `.results-area` can shrink and scroll. Infinite-scroll listener uses `useLayoutEffect` so it attaches after the scroll container exists.
+
+### Changes (detailed)
+
+#### Fixed
+- src/components/MainLayout.js
+  - Outlet wrapper `className`: From conditional `showSidebar ? 'app-main' : ''` (mobile had no flex chain). To: always `app-main`.
+- src/App.css
+  - `.App`: Added `flex: 1` so the route view fills `app-main` and passes bounded height to `.results-area`.
+  - `.app-main`: `overflow` set to `hidden` so scrolling stays in `.results-area` (matches html/body overflow hidden).
+  - Added `.app-layout-wrap.app-with-sidebar .app-main { overflow: auto; }` so desktop sidebar pages that need main-level scroll still work.
+- src/App.js
+  - Infinite-scroll `useEffect` for `resultsAreaRef` scroll listener: From `useEffect`. To `useLayoutEffect` so the listener attaches reliably after layout.
+
+## v.1.0.00.299 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Restored infinite-scroll loading on results by binding scroll detection to the actual scroll container (`results-area`) instead of `window`.
+
+### Changes (detailed)
+
+#### Fixed
+- src/App.js
+ - AppContent infinite-scroll `useEffect` and results `<main>`
+ - From: listened to `window` scroll (`window.scrollY`, `document.documentElement.scrollHeight`) while results scroll is contained inside `.results-area` (`overflow-y: auto`), so load-more never triggered.
+ - To: attach listener to `resultsAreaRef` (`scrollTop`, `clientHeight`, `scrollHeight`) and set `ref` on the results `<main>` container.
+
+## v.1.0.00.298 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Price range slider enforces a minimum gap between min and max handles; avoids zero-width range, divide-by-zero in layout, and tick loop edge cases when both values match.
+
+### Changes (detailed)
+
+#### Added
+- src/utils/priceSliderRange.js
+  - `clampPriceRange(valueMin, valueMax, min, max, step)` — ensures min/max stay at least one gap apart (≥ step, ~5% of span).
+  - `getPriceMinGap(min, max, step)` — shared gap for drag/input handlers.
+
+#### Changed
+- src/components/PriceSlider.js
+  - `PriceSlider` — uses shared clamp; safe `percent()` when `max <= min`; tick `stepMark` never 0; drag/input handlers use `minGap`; effect syncs parent when stored min/max are equal or too close.
+- src/App.js
+  - `handlePriceChange(min, max)` — normalizes via `clampPriceRange` with `priceSliderConfig` bounds before `setPriceMin` / `setPriceMax`.
+
+#### Fixed
+- src/components/PriceSlider.js
+  - From: overlapping handles could yield 0% range width, `NaN` positions, or broken tick iteration when span/step produced `stepMark === 0`.
+  - To: enforced minimum separation and defensive math throughout.
+
+## v.1.0.00.297 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Restored results incremental scrolling behavior and ensured new searches reset to the submitted filter defaults instead of reusing stale in-page filters.
+
+### Changes (detailed)
+
+#### Changed
+- src/App.js
+ - AppContent `useEffect` that resets `itemsToShow`
+ - From: dependency included entire `listingsForView` array, causing repeated reset churn.
+ - To: dependency uses `listingsForView.length`, so visible count resets only when result size changes and infinite scroll can progress.
+
+#### Fixed
+- src/context/SearchContext.js
+ - `submitSearch(state)`
+ - From: only set `lastSearchState`; persisted per-tab in-page filter state could override newly submitted search defaults on results pages.
+ - To: also update `currentResultsState` for the submitted `listingType` with normalized search payload, so each new search starts from fresh submitted filters.
+
+## v.1.0.00.296 — Development
+Date: 2026-03-31
+Type: Dev Change
+
+### Summary
+- Search filter panel (price slider and advanced filters) stays visible when a filter returns zero listings so users can adjust filters without the UI disappearing.
+
+### Changes (detailed)
+
+#### Fixed
+- src/App.js
+  - AppContent render condition for `results-filters-wrap`
+  - From: Wrapped in `hasSearched && !showMyPropertiesOnly && listingsForView.length > 0`, so the whole filter block unmounted when Apply returned zero results.
+  - To: `hasSearched && !showMyPropertiesOnly` only, so filters remain on screen when there are no matches.
+
 ## v.1.0.00.295 — Development
 Date: 2026-03-16
 Type: Dev Change

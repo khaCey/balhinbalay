@@ -1,31 +1,12 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useChat } from '../context/ChatContext';
 import { useLoginModal } from '../context/LoginModalContext';
 import { useSearch } from '../context/SearchContext';
-import { useSliderDrag } from '../context/SliderDragContext';
 import ConfirmModal from './ConfirmModal';
-
-const NAV_PADDING_BOTTOM = 'calc(72px + env(safe-area-inset-bottom))';
-const DESKTOP_BREAKPOINT = 768;
-
-const SWIPE_ROUTES = ['/', '/saved', '/messages', '/search'];
-const SWIPE_THRESHOLD_PX = 50;
-const NAV_BLOCK_AFTER_SWIPE_MS = 350;
-
-function getSwipeRouteIndex(pathname) {
-  if (pathname === '/') return 0;
-  if (pathname === '/saved') return 1;
-  if (pathname === '/messages') return 2;
-  if (pathname === '/search' || pathname === '/sale' || pathname === '/rent') return 3;
-  return -1;
-}
-
-function getIsDesktop() {
-  return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT;
-}
+import { getIsDesktop } from './MainLayout.constants';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -35,13 +16,10 @@ export default function MainLayout() {
   const { favorites } = useFavorites();
   const { unreadChatCount } = useChat();
   const { hasSearched, lastSearchState } = useSearch();
-  const { isSliding } = useSliderDrag();
 
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [navBlockedAfterSwipe, setNavBlockedAfterSwipe] = useState(false);
-  const navBlockTimeoutRef = useRef(null);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(getIsDesktop());
@@ -64,27 +42,36 @@ export default function MainLayout() {
   const isMenuActive = path === '/menu';
   const isSettingsActive = path === '/settings';
   const isAddPropertyActive = path === '/add-property' || path.startsWith('/add-property/');
+  const isPropertyRoute = path.startsWith('/property/');
 
-  useEffect(() => {
-    return () => {
-      if (navBlockTimeoutRef.current) clearTimeout(navBlockTimeoutRef.current);
-    };
-  }, []);
+  const navigateWithFallback = (target, options = {}) => {
+    const currentPath = `${location.pathname}${location.search || ''}`;
+    navigate(target, options);
+
+    if (!isPropertyRoute) return;
+
+    window.setTimeout(() => {
+      const nextPath = `${window.location.pathname}${window.location.search || ''}`;
+      if (nextPath === currentPath) {
+        window.location.assign(target);
+      }
+    }, 60);
+  };
 
   const handleLogoHome = () => {
-    navigate('/');
+    navigateWithFallback('/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearch = () => {
-    navigate('/search');
+    navigateWithFallback('/search');
   };
 
   const handleOpenSavedSearches = () => {
     if (hasSearched && lastSearchState?.listingType === 'rent') {
-      navigate('/rent');
+      navigateWithFallback('/rent');
     } else {
-      navigate('/sale');
+      navigateWithFallback('/sale');
     }
   };
 
@@ -94,51 +81,9 @@ export default function MainLayout() {
     setTimeout(() => {
       logout();
       setLoggingOut(false);
-      navigate('/', { replace: true });
+      navigateWithFallback('/', { replace: true });
     }, 400);
   };
-
-  const touchStartRef = useRef({ x: 0, y: 0 });
-  const handleSwipeStart = useCallback((e) => {
-    if (isDesktop) return;
-    const t = e.touches?.[0];
-    if (t) {
-      touchStartRef.current = { x: t.clientX, y: t.clientY };
-    }
-  }, [isDesktop]);
-  const handleSwipeEnd = useCallback(
-    (e) => {
-      if (isDesktop || isSliding) return;
-      const t = e.changedTouches?.[0];
-      if (!t || !showNav) return;
-      const idx = getSwipeRouteIndex(path);
-      if (idx < 0) return;
-      const deltaX = t.clientX - touchStartRef.current.x;
-      const deltaY = t.clientY - touchStartRef.current.y;
-      if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-      if (deltaX < 0 && idx < SWIPE_ROUTES.length - 1) {
-        const nextIdx = idx + 1;
-        navigate(SWIPE_ROUTES[nextIdx]);
-        document.activeElement?.blur?.();
-        if (navBlockTimeoutRef.current) clearTimeout(navBlockTimeoutRef.current);
-        setNavBlockedAfterSwipe(true);
-        navBlockTimeoutRef.current = setTimeout(() => {
-          navBlockTimeoutRef.current = null;
-          setNavBlockedAfterSwipe(false);
-        }, NAV_BLOCK_AFTER_SWIPE_MS);
-      } else if (deltaX > 0 && idx > 0) {
-        navigate(SWIPE_ROUTES[idx - 1]);
-        document.activeElement?.blur?.();
-        if (navBlockTimeoutRef.current) clearTimeout(navBlockTimeoutRef.current);
-        setNavBlockedAfterSwipe(true);
-        navBlockTimeoutRef.current = setTimeout(() => {
-          navBlockTimeoutRef.current = null;
-          setNavBlockedAfterSwipe(false);
-        }, NAV_BLOCK_AFTER_SWIPE_MS);
-      }
-    },
-    [isDesktop, path, showNav, navigate, isSliding]
-  );
 
   const showSidebar = isDesktop && showNav;
 
@@ -162,7 +107,7 @@ export default function MainLayout() {
             <button
               type="button"
               className={`app-sidebar-item ${isSavedActive ? 'active' : ''}`}
-              onClick={() => navigate('/saved')}
+              onClick={() => navigateWithFallback('/saved')}
               aria-current={isSavedActive ? 'page' : undefined}
             >
               <i className="fas fa-heart" aria-hidden />
@@ -172,7 +117,7 @@ export default function MainLayout() {
             <button
               type="button"
               className={`app-sidebar-item ${isMessagesActive ? 'active' : ''}`}
-              onClick={() => (user ? navigate('/messages') : openLogin())}
+              onClick={() => (user ? navigateWithFallback('/messages') : openLogin())}
               aria-current={isMessagesActive ? 'page' : undefined}
             >
               <span className="app-sidebar-icon-wrap">
@@ -198,7 +143,7 @@ export default function MainLayout() {
                 <button
                   type="button"
                   className={`app-sidebar-item ${isAddPropertyActive ? 'active' : ''}`}
-                  onClick={() => navigate('/add-property')}
+                  onClick={() => navigateWithFallback('/add-property')}
                   aria-current={isAddPropertyActive ? 'page' : undefined}
                 >
                   <i className="fas fa-plus" aria-hidden />
@@ -207,7 +152,7 @@ export default function MainLayout() {
                 <button
                   type="button"
                   className={`app-sidebar-item ${isMyPropertiesView ? 'active' : ''}`}
-                  onClick={() => navigate('/my-properties')}
+                  onClick={() => navigateWithFallback('/my-properties')}
                   aria-current={isMyPropertiesView ? 'page' : undefined}
                 >
                   <i className="fas fa-house" aria-hidden />
@@ -224,7 +169,7 @@ export default function MainLayout() {
                 <button
                   type="button"
                   className={`app-sidebar-item ${isSettingsActive ? 'active' : ''}`}
-                  onClick={() => navigate('/settings')}
+                  onClick={() => navigateWithFallback('/settings')}
                   aria-current={isSettingsActive ? 'page' : undefined}
                 >
                   <i className="fas fa-gear" aria-hidden />
@@ -261,22 +206,15 @@ export default function MainLayout() {
         </aside>
       )}
 
-      <div
-        className={`app-with-bottom-nav ${!isDesktop && showNav ? 'app-has-bottom-nav' : ''}`}
-        style={{ paddingBottom: !isDesktop && showNav ? NAV_PADDING_BOTTOM : 0 }}
-        onTouchStart={handleSwipeStart}
-        onTouchEnd={handleSwipeEnd}
-      >
-        <div className={showSidebar ? 'app-main' : ''}>
-          <Outlet />
+      <div className={`app-with-bottom-nav ${!isDesktop && showNav ? 'app-has-bottom-nav' : ''}`}>
+        {/* Always app-main so flex:1 + min-height:0 chain works on mobile (scroll lives in .results-area) */}
+        <div className="app-main">
+          <Outlet key={`${location.pathname}${location.search || ''}`} />
         </div>
       </div>
 
       {!isDesktop && showNav && (
-        <nav
-          className={`app-bottom-nav ${navBlockedAfterSwipe ? 'app-bottom-nav-blocked' : ''}`}
-          aria-label="Main navigation"
-        >
+        <nav className="app-bottom-nav" aria-label="Main navigation">
           <button
             type="button"
             className={`app-bottom-nav-item ${isHomeActive ? 'active' : ''}`}
@@ -290,7 +228,7 @@ export default function MainLayout() {
           <button
             type="button"
             className={`app-bottom-nav-item ${favorites.length > 0 ? 'has-favorites' : ''} ${isSavedActive ? 'active' : ''}`}
-            onClick={() => navigate('/saved')}
+            onClick={() => navigateWithFallback('/saved')}
             aria-label="Saved properties"
             aria-current={isSavedActive ? 'page' : undefined}
           >
@@ -300,7 +238,7 @@ export default function MainLayout() {
           <button
             type="button"
             className={`app-bottom-nav-item ${user && messagesPillData.count > 0 ? 'has-favorites' : ''} ${isMessagesActive ? 'active' : ''}`}
-            onClick={() => (user ? navigate('/messages') : openLogin())}
+            onClick={() => (user ? navigateWithFallback('/messages') : openLogin())}
             aria-label={user ? `Messages${messagesPillData.count > 0 ? `, ${messagesPillData.count} unread` : ''}` : 'Log in to view messages'}
             aria-current={isMessagesActive ? 'page' : undefined}
           >
@@ -338,7 +276,7 @@ export default function MainLayout() {
             <button
               type="button"
               className={`app-bottom-nav-item ${isMenuActive ? 'active' : ''}`}
-              onClick={() => navigate('/menu')}
+              onClick={() => navigateWithFallback('/menu')}
               aria-label="Account menu"
               aria-current={isMenuActive ? 'page' : undefined}
             >
