@@ -27,7 +27,8 @@ const migrations = [
   'add-user-avatar.sql',
   'add-account-status-pending.sql',
   'add-password-reset-code.sql',
-  'add-move-in-fees-and-reports.sql'
+  'add-move-in-fees-and-reports.sql',
+  'switch-listing-id-to-hex8.sql'
 ];
 
 const pool = new Pool({ connectionString: DATABASE_URL });

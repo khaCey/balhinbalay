@@ -73,17 +73,31 @@ const PropertyMapPreview = ({ coordinates, title }) => {
 
   return (
     <div
-      ref={mapRef}
-      className="property-map-preview"
+      className="bb-map-disabled-shell"
       style={{
         height: '220px',
         width: '100%',
         borderRadius: '8px',
         overflow: 'hidden',
-        border: '2px solid #e0e0e0'
+        border: '2px solid #e0e0e0',
+        touchAction: 'pan-y'
       }}
-      aria-label="Property location map"
-    />
+    >
+      <div
+        ref={mapRef}
+        className="property-map-preview"
+        style={{
+          height: '100%',
+          width: '100%',
+          pointerEvents: 'none',
+          touchAction: 'pan-y'
+        }}
+        aria-label="Property location map"
+      />
+      <div className="bb-map-disabled-overlay bb-map-disabled-overlay--passive" aria-label="Map currently disabled">
+        CURRENTLY DISABLED
+      </div>
+    </div>
   );
 };
 

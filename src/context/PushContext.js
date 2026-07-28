@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
 
 const PREF_KEY = 'balhinbalay_push_enabled';
 const TOKEN_KEY = 'balhinbalay_push_token';
@@ -17,10 +16,8 @@ export function PushProvider({ children }) {
   const [trigger, setTrigger] = useState(0);
 
   const loadPreference = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return;
     try {
-      const { Preferences } = await import('@capacitor/preferences');
-      const { value } = await Preferences.get({ key: PREF_KEY });
+      const value = localStorage.getItem(PREF_KEY);
       setPushEnabledState(value !== 'false');
     } catch {
       setPushEnabledState(true);
@@ -33,28 +30,22 @@ export function PushProvider({ children }) {
 
   const setPushEnabled = useCallback(async (enabled) => {
     setPushEnabledState(enabled);
-    if (!Capacitor.isNativePlatform()) return;
     try {
-      const { Preferences } = await import('@capacitor/preferences');
-      await Preferences.set({ key: PREF_KEY, value: enabled ? 'true' : 'false' });
+      localStorage.setItem(PREF_KEY, enabled ? 'true' : 'false');
     } catch (_) {}
   }, []);
 
   const saveToken = useCallback(async (token) => {
     setPushToken(token);
-    if (!Capacitor.isNativePlatform()) return;
     try {
-      const { Preferences } = await import('@capacitor/preferences');
-      await Preferences.set({ key: TOKEN_KEY, value: token || '' });
+      localStorage.setItem(TOKEN_KEY, token || '');
     } catch (_) {}
   }, []);
 
   const getStoredToken = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return null;
     try {
-      const { Preferences } = await import('@capacitor/preferences');
-      const { value } = await Preferences.get({ key: TOKEN_KEY });
-      return value || null;
+      const value = localStorage.getItem(TOKEN_KEY);
+      return value || '';
     } catch {
       return null;
     }
@@ -62,10 +53,8 @@ export function PushProvider({ children }) {
 
   const clearStoredToken = useCallback(async () => {
     setPushToken(null);
-    if (!Capacitor.isNativePlatform()) return;
     try {
-      const { Preferences } = await import('@capacitor/preferences');
-      await Preferences.remove({ key: TOKEN_KEY });
+      localStorage.removeItem(TOKEN_KEY);
     } catch (_) {}
   }, []);
 

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePush } from '../context/PushContext';
-import { useTheme } from '../context/ThemeContext';
-import { Capacitor } from '@capacitor/core';
 import { api } from '../api/client';
 import PageHeader from '../components/PageHeader';
 
@@ -13,13 +11,12 @@ function SettingsPage() {
   const deleteSectionRef = useRef(null);
   const { user, logout } = useAuth();
   const { pushEnabled, setPushEnabled, triggerRegister } = usePush();
-  const { theme, setTheme, isDesktop } = useTheme();
   const [pushLoading, setPushLoading] = useState(false);
   const [syncingFromServer, setSyncingFromServer] = useState(true);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const isNative = Capacitor.isNativePlatform();
+  const isNative = false;
 
   useEffect(() => {
     if (location.hash === '#delete-account' && deleteSectionRef.current && user) {
@@ -66,10 +63,10 @@ function SettingsPage() {
 
   if (!user) {
     return (
-      <div className="settings-page">
+      <div className="settings-page page-with-header minimal-page">
         <PageHeader title="Settings" onBack={() => navigate('/sale')} />
         <main className="page-content settings-page-content">
-          <div className="settings-card" style={{ padding: '1.5rem 1.25rem' }}>
+          <div className="settings-card settings-card-gate">
             <p className="text-muted mb-0">Log in to change settings.</p>
           </div>
         </main>
@@ -78,55 +75,9 @@ function SettingsPage() {
   }
 
   return (
-    <div className="settings-page">
+    <div className="settings-page page-with-header minimal-page">
       <PageHeader title="Settings" onBack={handleBack} />
       <main className="page-content settings-page-content">
-        {!isDesktop && (
-        <section className="settings-block" aria-labelledby="settings-appearance-heading">
-          <h2 id="settings-appearance-heading" className="settings-block-title">Appearance</h2>
-          <div className="settings-card">
-            <div className="settings-row">
-              <span className="settings-row-label">
-                <i className="fas fa-palette settings-row-icon" aria-hidden />
-                Theme
-              </span>
-            </div>
-            <div className="settings-theme-options" role="group" aria-label="Theme">
-              <button
-                type="button"
-                className={`settings-theme-btn ${theme === 'system' ? 'settings-theme-btn--active' : ''}`}
-                onClick={() => setTheme('system')}
-                aria-pressed={theme === 'system'}
-                title="Use device setting"
-              >
-                <i className="fas fa-circle-half-stroke" aria-hidden />
-                <span>System</span>
-              </button>
-              <button
-                type="button"
-                className={`settings-theme-btn ${theme === 'light' ? 'settings-theme-btn--active' : ''}`}
-                onClick={() => setTheme('light')}
-                aria-pressed={theme === 'light'}
-                title="Light mode"
-              >
-                <i className="fas fa-sun" aria-hidden />
-                <span>Light</span>
-              </button>
-              <button
-                type="button"
-                className={`settings-theme-btn ${theme === 'dark' ? 'settings-theme-btn--active' : ''}`}
-                onClick={() => setTheme('dark')}
-                aria-pressed={theme === 'dark'}
-                title="Dark mode"
-              >
-                <i className="fas fa-moon" aria-hidden />
-                <span>Dark</span>
-              </button>
-            </div>
-          </div>
-        </section>
-        )}
-
         <section className="settings-block" aria-labelledby="settings-notifications-heading">
           <h2 id="settings-notifications-heading" className="settings-block-title">Notifications</h2>
           <div className="settings-card">

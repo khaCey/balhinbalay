@@ -71,7 +71,7 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="messages-page page-with-header">
+    <div className="messages-page page-with-header minimal-page">
       <PageHeader
         title={
           <>

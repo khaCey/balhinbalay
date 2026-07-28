@@ -1,19 +1,13 @@
 import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useListings } from '../context/ListingsContext';
-import { usePropertyModal } from '../context/PropertyModalContext';
-import { formatPrice } from '../utils/helpers';
-import { getCityById } from '../data/cities';
-import FavoritesButton from '../components/FavoritesButton';
-import PageHeader from '../components/PageHeader';
+import MinimalPropertyCard from '../components/minimal/MinimalPropertyCard';
 
 export default function SavedPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { favorites } = useFavorites();
   const { listings } = useListings();
-  const { openProperty } = usePropertyModal();
   const allListings = useMemo(
     () => (Array.isArray(listings) ? listings : []),
     [listings]
@@ -23,15 +17,21 @@ export default function SavedPage() {
     [allListings, favorites]
   );
 
-  const handleBack = () => navigate(-1);
   const handleSelectProperty = (property) => {
-    openProperty(property, { from: `${location.pathname}${location.search || ''}` });
+    navigate(`/property/${property.id}`, { state: { from: '/saved' } });
   };
 
   return (
-    <div className="saved-page page-with-header">
-      <PageHeader title="Saved properties" onBack={handleBack} />
+    <div className="saved-page minimal-page">
       <main className="page-content">
+        <div className="prototype-home-topbar">
+          <div className="minimal-wordmark">BalhinBalay</div>
+          <button type="button" className="link-button">Edit</button>
+        </div>
+        <div className="saved-header">
+          <h2>Saved properties</h2>
+          <p>{favoriteListings.length > 0 ? `${favoriteListings.length} home${favoriteListings.length > 1 ? 's' : ''} saved for later.` : 'No saved properties yet.'}</p>
+        </div>
         {favoriteListings.length === 0 ? (
           <div className="saved-page-empty">
             <i className="fas fa-heart fa-3x text-muted mb-3" aria-hidden />
@@ -39,37 +39,15 @@ export default function SavedPage() {
             <p className="text-muted small mb-0">Tap the heart on a listing to save it here.</p>
           </div>
         ) : (
-          <ul className="saved-page-list">
+          <div className="saved-page-list">
             {favoriteListings.map((property, index) => (
-              <li key={property.id || index} className="saved-page-item">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="saved-page-card"
-                  onClick={() => handleSelectProperty(property)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectProperty(property);
-                    }
-                  }}
-                >
-                  <div className="saved-page-card-img-wrap">
-                    <img src={property.images?.[0]} alt={property.title} />
-                  </div>
-                  <div className="saved-page-card-fav" onClick={(e) => e.stopPropagation()}>
-                    <FavoritesButton propertyId={property.id} />
-                  </div>
-                  <div className="saved-page-card-body">
-                    <span className="badge bg-primary me-2">{property.type}</span>
-                    <span className="badge bg-info me-2">{getCityById(property.cityId)?.displayName || property.city || property.cityId || '—'}</span>
-                    <h5 className="saved-page-card-title">{property.title}</h5>
-                    <p className="saved-page-card-price mb-0">{formatPrice(property)}</p>
-                  </div>
-                </div>
-              </li>
+              <MinimalPropertyCard
+                key={property.id || index}
+                property={property}
+                onOpen={() => handleSelectProperty(property)}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </main>
     </div>

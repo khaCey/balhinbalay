@@ -139,12 +139,29 @@ const AdminListingDetailModal = ({
               {images.length > 1 && (
                 <div className="carousel-indicators-bar">
                   {images.map((_, i) => (
-                    <button
+                    <span
                       key={i}
-                      type="button"
-                      className={i === activeIndex ? 'active' : ''}
+                      className={`carousel-indicator-dot ${i === activeIndex ? 'active' : ''}`}
+                      role="button"
+                      tabIndex={0}
                       aria-label={`Slide ${i + 1}`}
                       onClick={() => setActiveIndex(i)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setActiveIndex(i);
+                        }
+                      }}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        minWidth: 8,
+                        minHeight: 8,
+                        maxWidth: 8,
+                        maxHeight: 8,
+                        padding: 0,
+                        borderRadius: '50%'
+                      }}
                     />
                   ))}
                 </div>
@@ -171,7 +188,7 @@ const AdminListingDetailModal = ({
               )}
             </div>
 
-            <p className="property-price mb-2">{formatPrice(listing)}</p>
+            <p className={`property-price mb-2${listing.listingType === 'rent' ? ' price-rent' : ''}`}>{formatPrice(listing)}</p>
             <p className="text-muted mb-2">
               <i className="fas fa-map-marker-alt me-2" />
               {listing.location || '—'}

@@ -111,18 +111,29 @@ const MapPicker = ({ center, markerPosition, onPick, height = 280 }) => {
 
   return (
     <div
-      ref={mapRef}
-      className="map-picker"
+      className="bb-map-disabled-shell"
       style={{
         height: `${height}px`,
         width: '100%',
         borderRadius: '8px',
         overflow: 'hidden',
-        border: '2px solid #e0e0e0',
-        cursor: 'crosshair'
+        border: '2px solid #e0e0e0'
       }}
-      aria-label="Click to set property location on map"
-    />
+    >
+      <div
+        ref={mapRef}
+        className="map-picker"
+        style={{
+          height: '100%',
+          width: '100%',
+          cursor: 'crosshair'
+        }}
+        aria-label="Click to set property location on map"
+      />
+      <div className="bb-map-disabled-overlay" aria-label="Map currently disabled">
+        CURRENTLY DISABLED
+      </div>
+    </div>
   );
 };
 

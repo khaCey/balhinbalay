@@ -1,0 +1,231 @@
+.map-search-page {
+  position: relative;
+  min-height: 100dvh;
+  height: 100dvh;
+  background: var(--bb-surface);
+  isolation: isolate;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.map-search-floating {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 1200;
+  display: grid;
+  gap: 0.45rem;
+  touch-action: manipulation;
+}
+
+.map-search-page .map-search-header {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: var(--bb-text);
+}
+
+.map-search {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 20px rgba(27, 45, 74, 0.1);
+}
+
+.map-search .search-bar {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  border: 0;
+}
+
+.map-search-searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.map-search-searchbar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #1f3658;
+  background: transparent;
+  font-size: 0.96rem;
+  font-weight: 500;
+}
+
+.map-search-search-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.1em;
+  color: var(--bb-text-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.map-search-bar-label {
+  font-size: 12px;
+  color: #2e4467;
+}
+
+.map-search .icon-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--bb-border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--bb-text);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.map-search-filter-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #9fc0ef;
+  border-radius: 14px;
+  background: #f6fbff;
+  color: #22365a;
+  font-size: 17px;
+}
+
+.map-search-header-subtitle {
+  margin: 0;
+  font-size: 11px;
+  color: var(--bb-text-muted);
+}
+
+.map-search-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.map-search-header-action-buttons {
+  display: flex;
+  gap: 7px;
+}
+
+.map-pill-btn {
+  border: 1px solid var(--bb-border);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--bb-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.map-filter-chips .minimal-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  border-color: #9fc0ef;
+  color: #2a2a28;
+  background: #fff;
+  border-radius: 12px;
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+.map-filter-chips .minimal-chip.is-active {
+  background: #2f6df2;
+  border-color: #2f6df2;
+  color: #fff;
+}
+
+.map-filter-chips.minimal-filter-chips {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  overflow: visible;
+  padding: 0;
+}
+
+.map-search-page .map-view-container {
+  border-radius: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.map-search-page .map-view {
+  height: 100dvh !important;
+  min-height: 100dvh;
+  border-radius: 0 !important;
+}
+
+.map-search-page .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  border: 1px solid #d9d9d3;
+  box-shadow: none;
+}
+
+.map-search-page .leaflet-popup-tip {
+  background: #fff;
+}
+
+.map-search-page .leaflet-top.leaflet-left {
+  top: calc(env(safe-area-inset-top, 0px) + 11rem);
+}
+
+.map-price-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  min-height: 1.65rem;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--bb-primary);
+  border: 1px solid var(--bb-primary);
+  box-shadow: 0 7px 18px rgba(36, 107, 255, 0.26);
+}
+
+.map-price-marker-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.map-price-marker.is-selected {
+  background: var(--bb-primary-soft);
+  border-color: var(--bb-primary-soft);
+  color: #fff;
+}
+
+.map-search-empty {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 1140;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  border: 1px solid #d9d9d3;
+  padding: 0.75rem;
+  font-size: 0.82rem;
+  touch-action: manipulation;
+}

@@ -9,7 +9,7 @@ export default function ChatPage() {
   const { threadId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getThreads, getMessagesByThreadId, sendMessage, loadMessagesForThreadId } = useChat();
+  const { getThreads, getMessagesByThreadId, sendMessageByThreadId, loadMessagesForThreadId } = useChat();
   const { listings } = useListings();
   const [input, setInput] = useState('');
   const messagesListRef = useRef(null);
@@ -18,6 +18,8 @@ export default function ChatPage() {
   const baselineInnerHeightRef = useRef(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
 
   const threads = getThreads();
   const threadList = Array.isArray(threads) ? threads : [];
@@ -107,12 +109,19 @@ export default function ChatPage() {
     };
   }, [activeInset, isComposerFocused]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || !property || !user) return;
-    sendMessage(property.id, text, user);
-    setInput('');
+    if (!text || !threadId || !property || !user || isSending) return;
+    setSendError('');
+    setIsSending(true);
+    const result = await sendMessageByThreadId(threadId, text, user);
+    if (result?.ok) {
+      setInput('');
+    } else {
+      setSendError(result?.error || 'Unable to send message. Please try again.');
+    }
+    setIsSending(false);
     // Keep keyboard open after sending by restoring focus.
     requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -141,7 +150,7 @@ export default function ChatPage() {
 
   if (!user) {
     return (
-      <div className="page-with-header">
+      <div className="page-with-header minimal-page">
         <PageHeader title="Chat" onBack={handleBack} />
         <main className="page-content">
           <p className="text-muted">Please log in to view messages.</p>
@@ -152,7 +161,7 @@ export default function ChatPage() {
 
   if (!thread || !property) {
     return (
-      <div className="page-with-header">
+      <div className="page-with-header minimal-page">
         <PageHeader title="Chat" onBack={handleBack} />
         <main className="page-content">
           <p className="text-muted">Conversation not found.</p>
@@ -162,7 +171,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="chat-page page-with-header">
+    <div className="chat-page page-with-header minimal-page">
       <PageHeader
         title={property.title}
         onBack={handleBack}
@@ -227,6 +236,7 @@ export default function ChatPage() {
             }}
             onBlur={() => setIsComposerFocused(false)}
             aria-label="Message"
+            disabled={isSending}
           />
           <button
             type="submit"
@@ -234,9 +244,15 @@ export default function ChatPage() {
             aria-label="Send"
             onMouseDown={(e) => e.preventDefault()}
             onTouchStart={(e) => e.preventDefault()}
+            disabled={isSending || !input.trim()}
           >
             <i className="fas fa-paper-plane" aria-hidden />
           </button>
+          {sendError && (
+            <p className="chat-panel-submit-error" role="alert">
+              {sendError}
+            </p>
+          )}
         </form>
       </main>
     </div>

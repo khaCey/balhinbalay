@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /menu
+Disallow: /messages
+Disallow: /chat/
+Disallow: /profile
+Disallow: /settings
+Disallow: /add-property
+Disallow: /my-properties
+Disallow: /confirm-email
+
+Sitemap: /sitemap.xml

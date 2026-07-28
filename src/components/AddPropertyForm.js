@@ -15,6 +15,7 @@ import ConfirmModal from './ConfirmModal';
 const PROPERTY_TYPES = ['House', 'Apartment', 'Condo', 'Land', 'Boarding House', 'Room'];
 const MAX_IMAGE_DIM = 1200;
 const JPEG_QUALITY = 0.8;
+const MAX_IMAGE_PAYLOAD_BYTES = 12 * 1024 * 1024;
 
 function resizeImageToDataUrl(file) {
   return new Promise((resolve) => {
@@ -106,6 +107,15 @@ async function geocodeAddress(locationPart, cityName, cityCoords) {
     console.warn('Geocoding failed:', e);
   }
   return null;
+}
+
+function estimateDataUrlBytes(dataUrl) {
+  const value = String(dataUrl || '');
+  const commaIndex = value.indexOf(',');
+  if (commaIndex < 0) return 0;
+  const base64 = value.slice(commaIndex + 1);
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
 }
 
 const REGIONS_OPTIONS = philippineRegions.filter((r) => r.id !== 'all');
@@ -251,12 +261,39 @@ function AddPropertyForm({ initialListing, onSuccess }) {
     e.preventDefault();
     setSubmitError('');
     setSubmitting(true);
+    const titleTrimmed = title.trim();
+    const parsedPrice = parseInt(price, 10);
+    const hasValidPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
+    if (!titleTrimmed) {
+      setSubmitError('Title is required.');
+      setSubmitting(false);
+      return;
+    }
+    if (!hasValidPrice) {
+      setSubmitError('Price must be greater than 0.');
+      setSubmitting(false);
+      return;
+    }
+
     const city = getCityById(validCityId);
     const cityName = city ? city.displayName : 'Cebu City';
     const locationTrimmed = location.trim();
     const latNum = parseFloat(manualLat);
     const lngNum = parseFloat(manualLng);
     const hasValidManual = !Number.isNaN(latNum) && !Number.isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
+    if (!locationTrimmed && !hasValidManual) {
+      setSubmitError('Add a location/barangay or pin the exact spot on the map.');
+      setSubmitting(false);
+      return;
+    }
+
+    const totalUploadPayload = uploadedImages.reduce((sum, imageDataUrl) => sum + estimateDataUrlBytes(imageDataUrl), 0);
+    if (totalUploadPayload > MAX_IMAGE_PAYLOAD_BYTES) {
+      setSubmitError('Selected images are too large. Remove some images or use smaller files before submitting.');
+      setSubmitting(false);
+      return;
+    }
+
     let coords;
     if (hasValidManual) {
       coords = { lat: latNum, lng: lngNum };
@@ -276,10 +313,10 @@ function AddPropertyForm({ initialListing, onSuccess }) {
     const allImages = [...urlImages, ...uploadedImages].filter(Boolean);
     const listing = {
       ownerId: user?.id,
-      title: title.trim() || 'Untitled listing',
+      title: titleTrimmed,
       listingType,
       type: propertyType,
-      price: parseInt(price, 10) || 0,
+      price: parsedPrice,
       cityId: validCityId || 'cebu-city',
       city: cityName,
       location: locationTrimmed || '',
@@ -392,7 +429,7 @@ function AddPropertyForm({ initialListing, onSuccess }) {
                 placeholder={listingType === 'rent' ? 'e.g. 15000' : 'e.g. 5000000'}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                min="0"
+                min="1"
                 required
               />
               {listingType === 'rent' && <small className="text-muted">per month</small>}
@@ -508,15 +545,24 @@ function AddPropertyForm({ initialListing, onSuccess }) {
             <h6 className="add-property-section-title">Property details</h6>
             <div className="row g-2 mb-3">
               <div className="col-4">
-                <label className="form-label">Beds</label>
+                <label className="form-label">
+                  <i className="fas fa-bed me-1" aria-hidden />
+                  Bedrooms
+                </label>
                 <input type="number" className="form-control" min="0" value={beds} onChange={(e) => setBeds(e.target.value)} />
               </div>
               <div className="col-4">
-                <label className="form-label">Baths</label>
+                <label className="form-label">
+                  <i className="fas fa-bath me-1" aria-hidden />
+                  Bathrooms
+                </label>
                 <input type="number" className="form-control" min="0" value={baths} onChange={(e) => setBaths(e.target.value)} />
               </div>
               <div className="col-4">
-                <label className="form-label">Size (sqm)</label>
+                <label className="form-label">
+                  <i className="fas fa-ruler-combined me-1" aria-hidden />
+                  Size (sqm)
+                </label>
                 <input type="number" className="form-control" min="0" value={sizeSqm} onChange={(e) => setSizeSqm(e.target.value)} />
               </div>
             </div>

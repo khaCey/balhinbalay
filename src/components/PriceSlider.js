@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
-import { useSliderDrag } from '../context/SliderDragContext';
+import { clampPriceRange, getPriceMinGap } from '../utils/priceSliderRange';
 
-const MIN_GAP_PERCENT = 0.05;
 /** Size of the invisible hit area over each thumb (px); only these areas start a drag */
 const THUMB_HIT_SIZE = 28;
 
@@ -12,13 +11,6 @@ function formatPrice(value, max) {
   return `₱${value.toLocaleString('en-PH')}`;
 }
 
-const sliderPointerHandlers = (setSliding) => ({
-  onPointerDown: () => setSliding(true),
-  onPointerUp: () => setSliding(false),
-  onPointerLeave: () => setSliding(false),
-  onPointerCancel: () => setSliding(false)
-});
-
 export default function PriceSlider({
   min = 0,
   max = 10000000,
@@ -28,20 +20,23 @@ export default function PriceSlider({
   onChange,
   tickStep
 }) {
-  const { setSliding } = useSliderDrag();
-  const pointerHandlers = useMemo(
-    () => sliderPointerHandlers(setSliding),
-    [setSliding]
-  );
   const railRef = useRef(null);
   const rangeRef = useRef(null);
   const overlayRef = useRef(null);
   const activeInputRef = useRef(null);
-  const minVal = Math.max(min, Math.min(valueMin ?? min, (valueMax ?? max) - step));
-  const maxVal = Math.min(max, Math.max(valueMax ?? max, (valueMin ?? min) + step));
+  const minGap = useMemo(() => getPriceMinGap(min, max, step), [min, max, step]);
+
+  const { minVal, maxVal } = useMemo(
+    () => clampPriceRange(valueMin, valueMax, min, max, step),
+    [valueMin, valueMax, min, max, step]
+  );
 
   const percent = useCallback(
-    (val) => ((val - min) / (max - min)) * 100,
+    (val) => {
+      const denom = max - min;
+      if (denom <= 0) return 0;
+      return ((val - min) / denom) * 100;
+    },
     [min, max]
   );
 
@@ -57,18 +52,32 @@ export default function PriceSlider({
     updateRange();
   }, [updateRange]);
 
+  /** If parent has equal or too-close min/max, push corrected pair up */
+  useEffect(() => {
+    if (valueMin == null || valueMax == null) return;
+    const next = clampPriceRange(valueMin, valueMax, min, max, step);
+    if (valueMin !== next.minVal || valueMax !== next.maxVal) {
+      onChange(next.minVal, next.maxVal);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onChange may be unstable; only sync when value props change
+  }, [valueMin, valueMax, min, max, step]);
+
   const handleMinChange = (e) => {
     let val = parseInt(e.target.value, 10);
-    if (val >= maxVal - (max - min) * MIN_GAP_PERCENT) val = maxVal - Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step;
-    val = Math.max(min, Math.min(val, max - step));
-    onChange(val, maxVal);
+    if (Number.isNaN(val)) return;
+    const safeStep = step > 0 ? step : 1;
+    val = Math.max(min, Math.min(val, maxVal - minGap));
+    const next = clampPriceRange(val, maxVal, min, max, safeStep);
+    onChange(next.minVal, next.maxVal);
   };
 
   const handleMaxChange = (e) => {
     let val = parseInt(e.target.value, 10);
-    if (val <= minVal + (max - min) * MIN_GAP_PERCENT) val = minVal + Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step;
-    val = Math.min(max, Math.max(val, min + step));
-    onChange(minVal, val);
+    if (Number.isNaN(val)) return;
+    const safeStep = step > 0 ? step : 1;
+    val = Math.min(max, Math.max(val, minVal + minGap));
+    const next = clampPriceRange(minVal, val, min, max, safeStep);
+    onChange(next.minVal, next.maxVal);
   };
 
   const valueFromX = useCallback(
@@ -77,9 +86,11 @@ export default function PriceSlider({
       if (!el) return minVal;
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0) return minVal;
+      const safeStep = step > 0 ? step : 1;
+      const span = max - min;
       const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const raw = min + pct * (max - min);
-      const stepped = Math.round(raw / step) * step;
+      const raw = min + pct * span;
+      const stepped = Math.round(raw / safeStep) * safeStep;
       return Math.max(min, Math.min(max, stepped));
     },
     [min, max, step, minVal]
@@ -89,25 +100,27 @@ export default function PriceSlider({
     (which, clientX) => {
       activeInputRef.current = which;
       const val = valueFromX(clientX);
+      const safeStep = step > 0 ? step : 1;
       if (which === 'min') {
-        const newMin = Math.min(val, maxVal - Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step);
-        onChange(Math.max(min, newMin), maxVal);
+        const newMin = Math.min(val, maxVal - minGap);
+        const next = clampPriceRange(Math.max(min, newMin), maxVal, min, max, safeStep);
+        onChange(next.minVal, next.maxVal);
       } else {
-        const newMax = Math.max(val, minVal + Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step);
-        onChange(minVal, Math.min(max, newMax));
+        const newMax = Math.max(val, minVal + minGap);
+        const next = clampPriceRange(minVal, Math.min(max, newMax), min, max, safeStep);
+        onChange(next.minVal, next.maxVal);
       }
     },
-    [valueFromX, onChange, minVal, maxVal, min, max, step]
+    [valueFromX, onChange, minVal, maxVal, min, max, step, minGap]
   );
 
   const handleThumbPointerDown = useCallback(
     (e, which) => {
       e.stopPropagation();
-      setSliding(true);
       startDrag(which, e.clientX);
       e.currentTarget.setPointerCapture?.(e.pointerId);
     },
-    [startDrag, setSliding]
+    [startDrag]
   );
 
   const handleThumbPointerMove = useCallback(
@@ -115,31 +128,39 @@ export default function PriceSlider({
       const which = activeInputRef.current;
       if (!which) return;
       const val = valueFromX(e.clientX);
+      const safeStep = step > 0 ? step : 1;
       if (which === 'min') {
-        const newMin = Math.min(val, maxVal - Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step);
-        onChange(Math.max(min, newMin), maxVal);
+        const newMin = Math.min(val, maxVal - minGap);
+        const next = clampPriceRange(Math.max(min, newMin), maxVal, min, max, safeStep);
+        onChange(next.minVal, next.maxVal);
       } else {
-        const newMax = Math.max(val, minVal + Math.ceil((max - min) * MIN_GAP_PERCENT / step) * step);
-        onChange(minVal, Math.min(max, newMax));
+        const newMax = Math.max(val, minVal + minGap);
+        const next = clampPriceRange(minVal, Math.min(max, newMax), min, max, safeStep);
+        onChange(next.minVal, next.maxVal);
       }
     },
-    [valueFromX, onChange, minVal, maxVal, min, max, step]
+    [valueFromX, onChange, minVal, maxVal, min, max, step, minGap]
   );
 
   const handleThumbPointerUpOrCancel = useCallback((e) => {
     if (activeInputRef.current) {
       e.currentTarget.releasePointerCapture?.(e.pointerId);
       activeInputRef.current = null;
-      setSliding(false);
     }
-  }, [setSliding]);
+  }, []);
 
   const ticks = [];
-  const stepMark = tickStep ?? Math.ceil((max - min) / 4 / step) * step;
+  const stepMark = (() => {
+    const span = max - min;
+    const safeStep = step > 0 ? step : 1;
+    if (span <= 0) return safeStep;
+    const raw = tickStep ?? Math.ceil(span / 4 / safeStep) * safeStep;
+    return Math.max(safeStep, raw || safeStep);
+  })();
   for (let v = min; v <= max; v += stepMark) {
     ticks.push(v);
   }
-  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  if (ticks.length === 0 || ticks[ticks.length - 1] !== max) ticks.push(max);
 
   const minPct = percent(minVal);
   const maxPct = percent(maxVal);
@@ -207,7 +228,6 @@ export default function PriceSlider({
         onChange={handleMinChange}
         className="price-slider-input price-slider-input-min"
         aria-label="Minimum price"
-        {...pointerHandlers}
       />
       <input
         type="range"
@@ -218,7 +238,6 @@ export default function PriceSlider({
         onChange={handleMaxChange}
         className="price-slider-input price-slider-input-max"
         aria-label="Maximum price"
-        {...pointerHandlers}
       />
     </div>
   );

@@ -13,6 +13,11 @@ export const useChat = () => {
 };
 
 const TOAST_DURATION_MS = 4000;
+const DEFAULT_CHAT_ERROR = 'Unable to send message. Please try again.';
+
+function getChatErrorMessage(err, fallback = DEFAULT_CHAT_ERROR) {
+  return err?.userMessage || err?.message || fallback;
+}
 
 export const ChatProvider = ({ children }) => {
   const { user } = useAuth();
@@ -40,8 +45,8 @@ export const ChatProvider = ({ children }) => {
         unreadCount: t.unreadCount != null ? t.unreadCount : 0,
         lastMessage: t.lastMessage || null
       })));
-    } catch {
-      setThreads([]);
+    } catch (err) {
+      console.error(err);
     }
   }, [user]);
 
@@ -125,7 +130,7 @@ export const ChatProvider = ({ children }) => {
             };
             read();
           })
-          .catch(() => {
+          .catch((err) => {
             if (!aborted) reconnectTimeout = setTimeout(() => connect(RECONNECT_DELAY), RECONNECT_DELAY);
           });
       };
@@ -147,8 +152,8 @@ export const ChatProvider = ({ children }) => {
       try {
         const data = await api.get('/api/chat/threads/' + threadId + '/messages');
         setMessagesCache((prev) => ({ ...prev, [threadId]: Array.isArray(data) ? data : [] }));
-      } catch {
-        setMessagesCache((prev) => ({ ...prev, [threadId]: [] }));
+      } catch (err) {
+        console.error(err);
       }
     },
     []
@@ -248,9 +253,27 @@ export const ChatProvider = ({ children }) => {
     [threads, markThreadRead]
   );
 
+  const sendMessageByThreadId = useCallback(
+    async (threadId, text, senderUser) => {
+      const normalizedText = String(text || '').trim();
+      if (!threadId || !normalizedText || !senderUser) {
+        return { ok: false, error: 'Message cannot be empty.' };
+      }
+      try {
+        await api.post('/api/chat/threads/' + threadId + '/messages', { text: normalizedText });
+        await Promise.all([fetchMessagesForThread(threadId), fetchThreads()]);
+        return { ok: true };
+      } catch (err) {
+        console.error(err);
+        return { ok: false, error: getChatErrorMessage(err) };
+      }
+    },
+    [fetchMessagesForThread, fetchThreads]
+  );
+
   const sendMessage = useCallback(
     async (listingId, text, senderUser) => {
-      if (!text?.trim() || !senderUser) return;
+      if (!text?.trim() || !senderUser) return { ok: false, error: 'Message cannot be empty.' };
       try {
         const matching = threads.filter((t) => t.listingId === listingId);
         const asInquirer = matching.find((t) => t.userId === senderUser.id);
@@ -266,18 +289,17 @@ export const ChatProvider = ({ children }) => {
             updatedAt: created.updatedAt
           };
           setThreads((prev) => {
-            if (prev.some((t) => t.listingId === listingId)) return prev;
+            if (prev.some((t) => t.id === thread.id)) return prev;
             return [thread, ...prev];
           });
         }
-        await api.post('/api/chat/threads/' + thread.id + '/messages', { text: text.trim() });
-        await fetchMessagesForThread(thread.id);
-        await fetchThreads();
+        return sendMessageByThreadId(thread.id, text, senderUser);
       } catch (err) {
         console.error(err);
+        return { ok: false, error: getChatErrorMessage(err) };
       }
     },
-    [threads, fetchMessagesForThread, fetchThreads]
+    [threads, sendMessageByThreadId]
   );
 
   const createOrGetThread = useCallback(
@@ -310,6 +332,7 @@ export const ChatProvider = ({ children }) => {
     markThreadRead,
     markThreadReadByListingId,
     sendMessage,
+    sendMessageByThreadId,
     loadMessagesForListing,
     createOrGetThread,
     refreshThreads: fetchThreads,

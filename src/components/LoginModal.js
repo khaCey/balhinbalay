@@ -71,7 +71,7 @@ const LoginModal = ({ show, onClose }) => {
         setShowResend(result.code === 'EMAIL_NOT_VERIFIED');
       }
     } catch (err) {
-      setError(err?.message || 'Something went wrong.');
+      setError(err?.userMessage || err?.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }

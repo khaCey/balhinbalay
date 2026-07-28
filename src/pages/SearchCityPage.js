@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useListings } from '../context/ListingsContext';
 import { useSearch } from '../context/SearchContext';
 import PageHeader from '../components/PageHeader';
+import Seo from '../components/Seo';
+import { DEFAULT_OG_IMAGE_PATH, toAbsoluteUrl } from '../seo/siteSeo';
 import {
   philippineRegions,
   getCitiesByRegion,
@@ -68,9 +70,39 @@ export default function SearchCityPage() {
     });
     navigate(`/${listingType}`);
   };
+  const seoTitle = `Search ${listingType === 'rent' ? 'Rent' : 'Sale'} Listings by City`;
+  const seoDescription = `Choose a region, province, and city to find ${listingType === 'rent' ? 'rental' : 'for-sale'} properties in the Philippines.`;
+  const searchCityJsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: seoTitle,
+      description: seoDescription,
+      url: toAbsoluteUrl('/search/city')
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: toAbsoluteUrl('/') },
+        { '@type': 'ListItem', position: 2, name: 'Search', item: toAbsoluteUrl('/search') },
+        { '@type': 'ListItem', position: 3, name: 'Search by City', item: toAbsoluteUrl('/search/city') }
+      ]
+    }
+  ];
 
   return (
-    <div className="search-filter-page">
+    <div className="search-filter-page minimal-page">
+      <Seo
+        title={seoTitle}
+        description={seoDescription}
+        canonicalPath="/search/city"
+        ogTitle={seoTitle}
+        ogDescription={`Filter ${listingType === 'rent' ? 'rent' : 'sale'} listings by region and city.`}
+        ogImage={DEFAULT_OG_IMAGE_PATH}
+        jsonLd={searchCityJsonLd}
+        jsonLdId="seo-search-city-json-ld"
+      />
       <PageHeader title="Search by City" onBack={handleBack} />
       <main className="search-filter-page-main">
         <p className="search-filter-page-subtitle">Choose a city or area</p>

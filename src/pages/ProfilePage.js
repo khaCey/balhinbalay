@@ -206,7 +206,7 @@ function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="profile-page">
+      <div className="profile-page page-with-header minimal-page">
         <PageHeader title="Account" onBack={() => navigate('/sale')} />
         <main className="page-content">
           <div className="page-section page-section-gate">
@@ -222,7 +222,7 @@ function ProfilePage() {
 
   return (
     <>
-      <div className="profile-page">
+      <div className="profile-page page-with-header minimal-page">
         <PageHeader title="Account" onBack={handleBack} />
         <main className="page-content">
           <section className="page-section profile-page-section">

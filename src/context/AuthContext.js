@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api, setToken, clearToken, getToken, setOn401 } from '../api/client';
-import { Capacitor } from '@capacitor/core';
-import { Preferences } from '@capacitor/preferences';
 
 const STORAGE_KEY = 'balhinbalay_auth';
-const LAUNCHED_KEY = 'balhinbalay_has_launched';
 const MIN_PASSWORD_LENGTH = 8;
 
 const AuthContext = createContext();
@@ -40,32 +37,17 @@ const saveAuth = async (user, token) => {
     } catch (e) {
       // ignore
     }
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await Preferences.set({ key: STORAGE_KEY, value: payload });
-      } catch (e) {
-        // ignore
-      }
-    }
   } else {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       // ignore
     }
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await Preferences.remove({ key: STORAGE_KEY });
-      } catch (e) {
-        // ignore
-      }
-    }
   }
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    if (Capacitor.isNativePlatform()) return null;
     const { user: storedUser, token } = loadStoredAuth();
     if (storedUser && token) {
       setToken(token);
@@ -79,43 +61,26 @@ export const AuthProvider = ({ children }) => {
     return () => setOn401(null);
   }, []);
 
-  // On native: first launch after install (or restore) → clear any restored auth so no account appears logged in
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { value: launched } = await Preferences.get({ key: LAUNCHED_KEY });
-        if (cancelled) return;
-        if (launched !== '1') {
-          try {
-            localStorage.removeItem(STORAGE_KEY);
-            await Preferences.remove({ key: STORAGE_KEY });
-            await Preferences.set({ key: LAUNCHED_KEY, value: '1' });
-          } catch (_) {}
-          if (!cancelled) {
-            clearToken();
-            setUser(null);
+    const bootSession = async () => {
+      if (process.env.REACT_APP_DEBUG_AUTH === '1') {
+        try {
+          const data = await api.post('/api/auth/debug-login', {});
+          if (data && data.ok && data.token && data.user) {
+            const userObj = {
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.name || data.user.email,
+              role: data.user.role || 'admin'
+            };
+            setToken(data.token);
+            setUser(userObj);
+            return;
           }
-          return;
+        } catch {
+          // Fall through to stored-session validation when debug login is unavailable.
         }
-        const { value } = await Preferences.get({ key: STORAGE_KEY });
-        if (cancelled || !value) return;
-        const data = JSON.parse(value);
-        if (data && data.token && data.user) {
-          setToken(data.token);
-          setUser(data.user);
-          refreshUser().catch(() => {});
-        }
-      } catch {
-        // ignore
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    const validateStoredSession = async () => {
       if (!getToken()) return;
       try {
         await api.get('/api/auth/me');
@@ -123,7 +88,7 @@ export const AuthProvider = ({ children }) => {
         // 401 already triggers on401Callback → setUser(null); other errors (e.g. network) do not log out
       }
     };
-    validateStoredSession();
+    bootSession();
   }, []);
 
   useEffect(() => {
@@ -190,7 +155,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userObj);
       return { ok: true, user: userObj };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Registration failed.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Registration failed.' };
     }
   };
 
@@ -202,7 +167,7 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post('/api/auth/resend-confirmation', { email });
       return { ok: data && data.ok, message: (data && data.message) || 'Check your email for the confirmation link.' };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Failed to resend confirmation email.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Failed to resend confirmation email.' };
     }
   };
 
@@ -214,7 +179,7 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post('/api/auth/request-password-reset', { email });
       return { ok: data && data.ok, message: (data && data.message) || 'Check your email for the reset code.' };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Failed to send reset code.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Failed to send reset code.' };
     }
   };
 
@@ -229,7 +194,7 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post('/api/auth/reset-password', { email, code, newPassword });
       return { ok: data && data.ok, message: (data && data.message) || 'Password updated. You can log in now.' };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Reset failed.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Reset failed.' };
     }
   };
 
@@ -258,7 +223,7 @@ export const AuthProvider = ({ children }) => {
       }
       return { ok: false, message: 'Update failed.' };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Update failed.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Update failed.' };
     }
   };
 
@@ -277,7 +242,7 @@ export const AuthProvider = ({ children }) => {
       });
       return { ok: true };
     } catch (err) {
-      return { ok: false, message: (err.data && err.data.message) || err.message || 'Could not change password.' };
+      return { ok: false, message: (err.data && err.data.message) || err.userMessage || err.message || 'Could not change password.' };
     }
   };
 

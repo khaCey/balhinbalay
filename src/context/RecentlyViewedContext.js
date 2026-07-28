@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../api/client';
 
@@ -24,6 +24,14 @@ const loadStored = () => {
   } catch {
     return [];
   }
+};
+
+const promoteRecentId = (prev, propertyId) => {
+  const normalizedId = String(propertyId || '').trim();
+  if (!normalizedId) return prev;
+  if (prev[0] === normalizedId) return prev;
+  const next = [normalizedId, ...prev.filter((id) => id !== normalizedId)];
+  return next.slice(0, MAX_RECENT);
 };
 
 export const RecentlyViewedProvider = ({ children }) => {
@@ -53,30 +61,24 @@ export const RecentlyViewedProvider = ({ children }) => {
     }
   }, [user, recentIds]);
 
-  const addView = async (propertyId) => {
+  const addView = useCallback(async (propertyId) => {
     if (!propertyId) return;
     if (!user) {
-      setRecentIds((prev) => {
-        const next = [propertyId, ...prev.filter((id) => id !== propertyId)];
-        return next.slice(0, MAX_RECENT);
-      });
+      setRecentIds((prev) => promoteRecentId(prev, propertyId));
       return;
     }
     try {
       await api.post('/api/recently-viewed', { listingId: propertyId });
-      setRecentIds((prev) => {
-        const next = [propertyId, ...prev.filter((id) => id !== propertyId)];
-        return next.slice(0, MAX_RECENT);
-      });
+      setRecentIds((prev) => promoteRecentId(prev, propertyId));
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [user]);
 
-  const value = {
+  const value = useMemo(() => ({
     recentIds,
     addView
-  };
+  }), [recentIds, addView]);
 
   return (
     <RecentlyViewedContext.Provider value={value}>

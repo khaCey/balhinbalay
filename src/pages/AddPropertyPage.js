@@ -26,7 +26,7 @@ function AddPropertyPage() {
 
   if (!user) {
     return (
-      <div className="add-property-page">
+      <div className="add-property-page page-with-header minimal-page">
         <PageHeader title={isEdit ? 'Edit property' : 'Add property'} onBack={() => navigate('/sale')} />
         <main className="page-content">
           <div className="page-section page-section-gate">
@@ -41,7 +41,7 @@ function AddPropertyPage() {
   }
 
   return (
-    <div className="add-property-page">
+    <div className="add-property-page page-with-header minimal-page">
       <PageHeader title={isEdit ? 'Edit property' : 'Add property'} onBack={handleBack} />
       <main className="page-content">
         <div className="page-section add-property-page-form">

@@ -4,6 +4,7 @@ import { getCityById } from '../data/cities';
 import { api } from '../api/client';
 import FavoritesButton from './FavoritesButton';
 import PropertyMapPreview from './PropertyMapPreview';
+import { trackEvent } from '../utils/analytics';
 
 /**
  * Property listing detail — full-page route or overlay (PropertyModal).
@@ -19,7 +20,8 @@ export default function PropertyDetailContent({
   onDelete,
   showCloseButton = true,
   showBackButton = false,
-  onBack
+  onBack,
+  isPropertyPageLayout = false
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showReport, setShowReport] = useState(false);
@@ -28,13 +30,16 @@ export default function PropertyDetailContent({
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportError, setReportError] = useState('');
   const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
+  const [showHintStrip, setShowHintStrip] = useState(true);
   const touchStartX = useRef(null);
 
   const cityName = property ? (getCityById(property.cityId)?.displayName || property.city || property.cityId || '') : '';
   const locationLine = property ? [property.location, cityName].filter(Boolean).join(', ') || '—' : '—';
+  const isMinimalRouteLayout = isPropertyPageLayout || (showBackButton && !showCloseButton);
 
   useEffect(() => {
     setActiveIndex(0);
+    setShowHintStrip(true);
   }, [property?.id]);
 
   useEffect(() => {
@@ -62,6 +67,14 @@ export default function PropertyDetailContent({
 
   const images = Array.isArray(property.images) ? property.images : [];
   const hasManyImages = images.length > 1;
+  const keyMoneyAmount = Number(property.keyMoney) || 0;
+  const securityDepositAmount = Number(property.securityDeposit) || 0;
+  const hasDepositData = keyMoneyAmount > 0 || securityDepositAmount > 0;
+  const keyDepositLabel = isRent
+    ? hasDepositData
+      ? `₱${securityDepositAmount.toLocaleString()} / ₱${keyMoneyAmount.toLocaleString()}`
+      : 'Not specified'
+    : 'Not applicable';
 
   const handleReportSubmit = async (e) => {
     e.preventDefault();
@@ -83,6 +96,12 @@ export default function PropertyDetailContent({
   };
 
   const handleChat = () => {
+    trackEvent('contact_agent', {
+      property_id: property.id,
+      listing_type: property.listingType,
+      contact_method: 'chat',
+      authenticated: !!user
+    });
     if (!user) {
       onLoginForChat?.();
       return;
@@ -101,18 +120,67 @@ export default function PropertyDetailContent({
   };
 
   const isOwner = user && property.ownerId === user.id;
+  const bedsCount = Number(property.beds) || 0;
+  const bathsCount = Number(property.baths) || 0;
+  const sizeLabel = property.size || (property.sizeSqm ? `${property.sizeSqm} sqm` : '');
+  const chipItems = [
+    bedsCount > 0
+      ? {
+          key: 'beds',
+          icon: 'fas fa-bed',
+          label: `${bedsCount} bed${bedsCount !== 1 ? 's' : ''}`
+        }
+      : null,
+    bathsCount > 0
+      ? {
+          key: 'baths',
+          icon: 'fas fa-bath',
+          label: `${bathsCount} bath${bathsCount !== 1 ? 's' : ''}`
+        }
+      : null,
+    sizeLabel
+      ? {
+          key: 'size',
+          icon: 'fas fa-ruler-combined',
+          label: sizeLabel
+        }
+      : null,
+    property.type
+      ? {
+          key: 'type',
+          icon: 'fas fa-tag',
+          label: property.type
+        }
+      : null,
+    property.furnished
+      ? {
+          key: 'furnished',
+          icon: 'fas fa-couch',
+          label: property.furnished
+        }
+      : null
+  ].filter(Boolean);
+  const visibleChipItems = isMinimalRouteLayout
+    ? chipItems.filter((item) => item.key === 'beds' || item.key === 'size' || item.key === 'type').slice(0, 3)
+    : chipItems;
 
   const handleShare = () => {
+    const canonicalPropertyUrl = `${window.location.origin}/property/${property.id}`;
+    trackEvent('share_property', {
+      property_id: property.id,
+      listing_type: property.listingType,
+      share_method: navigator.share ? 'native' : 'clipboard'
+    });
     if (navigator.share) {
       navigator
         .share({
           title: property.title,
           text: property.description,
-          url: window.location.href
+          url: canonicalPropertyUrl
         })
         .catch(() => {});
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(canonicalPropertyUrl);
       window.alert('Link copied to clipboard!');
     }
   };
@@ -153,6 +221,7 @@ export default function PropertyDetailContent({
             </button>
           )}
         </div>
+        <h2 className="pd-toolbar-title">Property details</h2>
 
         <div className="pd-toolbar-actions">
           <FavoritesButton propertyId={property.id} className="pd-toolbar-icon" />
@@ -233,6 +302,18 @@ export default function PropertyDetailContent({
         </div>
       </header>
 
+      {showHintStrip && (
+        <div className="pd-hint-strip" role="note" aria-label="Favorites tip">
+          <button type="button" className="pd-hint-dismiss" aria-label="Dismiss tip" onClick={() => setShowHintStrip(false)}>
+            <i className="fas fa-times" aria-hidden />
+          </button>
+          <p className="pd-hint-text">Add this listing to favorites so you can find it again quickly.</p>
+          <div className="pd-hint-favorite-wrap">
+            <FavoritesButton propertyId={property.id} className="pd-hint-favorite" />
+          </div>
+        </div>
+      )}
+
       <div className="pd-scroll">
         {images.length > 0 && (
           <div
@@ -249,6 +330,32 @@ export default function PropertyDetailContent({
                   <img src={img} alt="" className="pd-gallery-img" />
                 </div>
               ))}
+            </div>
+            <div className="minimal-property-detail-overlay">
+              <div className="overlay-left">
+                {showBackButton && onBack && (
+                  <button type="button" className="overlay-btn" onClick={onBack} aria-label="Back">
+                    <i className="fas fa-arrow-left" aria-hidden />
+                  </button>
+                )}
+                {showCloseButton && (
+                  <button
+                    type="button"
+                    className="overlay-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onClose?.();
+                    }}
+                    aria-label="Close"
+                  >
+                    <i className="fas fa-times" aria-hidden />
+                  </button>
+                )}
+              </div>
+              <div className="overlay-right">
+                <FavoritesButton propertyId={property.id} className="overlay-btn" />
+              </div>
             </div>
             {hasManyImages && (
               <>
@@ -275,26 +382,77 @@ export default function PropertyDetailContent({
             )}
           </div>
         )}
+        <div className="minimal-property-title-band">
+          <h1>{property.title || 'Property details'}</h1>
+          <p className="title-location">{locationLine}</p>
+          <p className={`title-price ${isRent ? 'price-rent' : ''}`}>{formatPrice(property)}</p>
+        </div>
 
         <div className="pd-inner">
-          <div className="pd-title-row">
-            <h1 className="pd-title">{property.title}</h1>
-            <div className="pd-badges">
-              {isOwner && property.status === 'pending' && (
-                <span className="pd-badge pd-badge--warn">Pending</span>
+          {!isMinimalRouteLayout && (
+            <>
+              <div className="pd-title-row">
+                <h1 className="pd-title">{property.title}</h1>
+                <div className="pd-badges">
+                  {isOwner && property.status === 'pending' && (
+                    <span className="pd-badge pd-badge--warn">Pending</span>
+                  )}
+                  {isOwner && property.status === 'rejected' && (
+                    <span className="pd-badge pd-badge--bad">Rejected</span>
+                  )}
+                </div>
+              </div>
+
+              {property.contactInfo && (
+                <section className="pd-action-stack" aria-label="Inquiry actions">
+                  <button type="button" className="pd-action-primary" onClick={handleChat}>
+                    <span className="pd-action-main">
+                      <i className="fas fa-envelope" aria-hidden />
+                      Ask latest availability
+                    </span>
+                  </button>
+                  <div className="pd-action-row">
+                    <button type="button" className="pd-action-secondary" onClick={handleChat}>
+                      <span className="pd-action-secondary-text">Schedule viewing</span>
+                    </button>
+                    <button type="button" className="pd-action-secondary" onClick={handleChat}>
+                      <span className="pd-action-secondary-text">Ask move-in timing</span>
+                    </button>
+                  </div>
+                </section>
               )}
-              {isOwner && property.status === 'rejected' && (
-                <span className="pd-badge pd-badge--bad">Rejected</span>
-              )}
-            </div>
-          </div>
+
+              <section className="pd-price-summary" aria-label="Price summary">
+                <div className="pd-price-summary-top">
+                  <div>
+                    <p className={`pd-price${isRent ? ' price-rent' : ''}`}>{formatPrice(property)}</p>
+                    {(property.sold || property.currentlyRented) && (
+                      <span className="pd-status-pill">{property.sold ? 'Sold' : 'Rented'}</span>
+                    )}
+                  </div>
+                  {property.contactInfo && (
+                    <button type="button" className="pd-inline-cta" onClick={handleChat}>
+                      Check initial fees
+                    </button>
+                  )}
+                </div>
+                <div className="pd-price-summary-grid">
+                  <div className="pd-mini-stat">
+                    <span className="pd-mini-label">Deposit / key</span>
+                    <strong className="pd-mini-value">{keyDepositLabel}</strong>
+                  </div>
+                  <div className="pd-mini-stat">
+                    <span className="pd-mini-label">Layout</span>
+                    <strong className="pd-mini-value">{property.type || '—'}</strong>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
 
           <section className="pd-card" aria-label="Price and location">
             <div className="pd-card-row">
-              <p className="pd-price">{formatPrice(property)}</p>
-              {(property.sold || property.currentlyRented) && (
-                <span className="pd-status-pill">{property.sold ? 'Sold' : 'Rented'}</span>
-              )}
+              <h2 className="pd-block-title">Location and fees</h2>
             </div>
             <p className="pd-location">
               <i className="fas fa-map-marker-alt" aria-hidden />
@@ -321,32 +479,12 @@ export default function PropertyDetailContent({
           </section>
 
           <div className="pd-chips" aria-label="Property details">
-            {property.beds > 0 && (
-              <span className="pd-chip">
-                <i className="fas fa-bed" aria-hidden />
-                {property.beds} bed{property.beds !== 1 ? 's' : ''}
+            {visibleChipItems.map((item) => (
+              <span key={item.key} className="pd-chip">
+                <i className={item.icon} aria-hidden />
+                {item.label}
               </span>
-            )}
-            {property.baths > 0 && (
-              <span className="pd-chip">
-                <i className="fas fa-bath" aria-hidden />
-                {property.baths} bath{property.baths !== 1 ? 's' : ''}
-              </span>
-            )}
-            <span className="pd-chip">
-              <i className="fas fa-ruler-combined" aria-hidden />
-              {property.size}
-            </span>
-            <span className="pd-chip">
-              <i className="fas fa-tag" aria-hidden />
-              {property.type}
-            </span>
-            {property.furnished && (
-              <span className="pd-chip">
-                <i className="fas fa-couch" aria-hidden />
-                {property.furnished}
-              </span>
-            )}
+            ))}
           </div>
 
           {property.listingType === 'rent' && property.currentlyRented && property.availableFrom && (
@@ -388,32 +526,55 @@ export default function PropertyDetailContent({
                 {property.contactInfo.phone && (
                   <p className="pd-contact-line">
                     <i className="fas fa-phone" aria-hidden />
-                    <a href={`tel:${property.contactInfo.phone}`}>{property.contactInfo.phone}</a>
+                    <a
+                      href={`tel:${property.contactInfo.phone}`}
+                      onClick={() =>
+                        trackEvent('contact_agent', {
+                          property_id: property.id,
+                          listing_type: property.listingType,
+                          contact_method: 'phone'
+                        })
+                      }
+                    >
+                      {property.contactInfo.phone}
+                    </a>
                   </p>
                 )}
                 {property.contactInfo.email && (
                   <p className="pd-contact-line">
                     <i className="fas fa-envelope" aria-hidden />
-                    <a href={`mailto:${property.contactInfo.email}`}>{property.contactInfo.email}</a>
+                    <a
+                      href={`mailto:${property.contactInfo.email}`}
+                      onClick={() =>
+                        trackEvent('contact_agent', {
+                          property_id: property.id,
+                          listing_type: property.listingType,
+                          contact_method: 'email'
+                        })
+                      }
+                    >
+                      {property.contactInfo.email}
+                    </a>
                   </p>
                 )}
               </div>
             </section>
           )}
 
-          {/* Space so fixed CTA + bottom nav do not cover last content */}
+          {property.contactInfo && (
+            <div className="pd-cta-bar">
+              <FavoritesButton propertyId={property.id} className="pd-cta-favorite-btn" />
+              <button type="button" className="pd-cta-primary" onClick={handleChat}>
+                <i className="fas fa-comments" aria-hidden />
+                Request a viewing
+              </button>
+            </div>
+          )}
+
+          {/* Space so bottom nav does not cover last content */}
           <div className="pd-scroll-pad" aria-hidden />
         </div>
       </div>
-
-      {property.contactInfo && (
-        <div className="pd-cta-bar">
-          <button type="button" className="pd-cta-primary" onClick={handleChat}>
-            <i className="fas fa-comments" aria-hidden />
-            Chat with owner / agent
-          </button>
-        </div>
-      )}
 
       {showReport && (
         <div className="pd-report-root" role="dialog" aria-modal="true" aria-labelledby="pd-report-title">

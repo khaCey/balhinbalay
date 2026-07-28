@@ -3,7 +3,6 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { baseUrl } from '../api/client';
-import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 
 function MenuPage() {
@@ -36,11 +35,22 @@ function MenuPage() {
   };
 
   return (
-    <div className="menu-page page-with-header">
-      <PageHeader title="Menu" onBack={() => navigate(-1)} />
+    <div className="menu-page minimal-page">
       <div className="menu-page-body profile-drawer-body">
-        <div className="profile-drawer-chip">
-          <div className="profile-drawer-avatar">
+        <div className="prototype-home-topbar">
+          <div className="minimal-wordmark">BalhinBalay</div>
+          <button type="button" className="prototype-icon-button prototype-icon-button-clear" onClick={() => navigate('/settings')} aria-label="Settings">
+            <i className="fas fa-cog" aria-hidden />
+          </button>
+        </div>
+
+        <div className="saved-header">
+          <h2>My account</h2>
+          <p>Manage your searches, enquiries and preferences.</p>
+        </div>
+
+        <div className="account-card">
+          <div className="avatar">
             {user.avatar_url ? (
               <img
                 src={
@@ -51,56 +61,50 @@ function MenuPage() {
                 alt=""
               />
             ) : (
-              <i className="fas fa-user" aria-hidden />
+              (user.name || user.email || 'U').charAt(0).toUpperCase()
             )}
           </div>
           <div>
-            <span className="profile-drawer-name">{user.name || user.email || 'User'}</span>
-            <span className="profile-drawer-role">{user.role === 'agent' ? 'Agent' : 'Account'}</span>
+            <h3>{user.name || user.email || 'User'}</h3>
+            <p>{user.email || 'Account'}</p>
           </div>
         </div>
 
-        <div className="profile-drawer-section-label">Main</div>
-        <div className="profile-drawer-nav">
+        <div className="account-menu">
           <button type="button" onClick={() => navigate('/add-property')}>
-            <i className="fas fa-plus" aria-hidden />
             <span>Add property</span>
+            <span>›</span>
           </button>
           <button type="button" onClick={() => navigate('/my-properties')}>
-            <i className="fas fa-house" aria-hidden />
             <span>My properties</span>
+            <span>›</span>
           </button>
           <button type="button" onClick={() => navigate('/saved')}>
-            <i className="fas fa-heart" aria-hidden />
             <span>Saved properties</span>
+            <span>›</span>
           </button>
           <button type="button" onClick={handleOpenSavedSearches}>
-            <i className="fas fa-bookmark" aria-hidden />
             <span>Saved searches</span>
+            <span>›</span>
           </button>
-        </div>
-
-        <div className="profile-drawer-section-label profile-drawer-account">Account</div>
-        <div className="profile-drawer-nav">
           <button type="button" onClick={() => navigate('/settings')}>
-            <i className="fas fa-gear" aria-hidden />
             <span>Settings</span>
+            <span>›</span>
           </button>
           <button
             type="button"
-            className="profile-drawer-item-danger"
             onClick={() => setShowLogoutConfirm(true)}
             disabled={loggingOut}
           >
             {loggingOut ? (
               <>
-                <i className="fas fa-spinner fa-spin" aria-hidden />
                 <span>Logging out...</span>
+                <span>›</span>
               </>
             ) : (
               <>
-                <i className="fas fa-sign-out-alt" aria-hidden />
                 <span>Log out</span>
+                <span>›</span>
               </>
             )}
           </button>

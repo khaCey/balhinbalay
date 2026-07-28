@@ -22,7 +22,7 @@ CREATE INDEX idx_users_account_status ON users (account_status);
 
 -- ========== LISTINGS (properties) ==========
 CREATE TABLE listings (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  CHAR(8) PRIMARY KEY DEFAULT lower(substr(md5(random()::text || clock_timestamp()::text), 1, 8)),
   owner_id            UUID REFERENCES users(id) ON DELETE SET NULL,
   title               VARCHAR(500) NOT NULL,
   listing_type        VARCHAR(20) NOT NULL CHECK (listing_type IN ('sale', 'rent')),
@@ -42,7 +42,8 @@ CREATE TABLE listings (
   date_posted         DATE NOT NULL DEFAULT CURRENT_DATE,
   status              VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'unlisted')),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT listings_id_hex8_check CHECK (id ~ '^[0-9a-f]{8}$')
 );
 
 CREATE INDEX idx_listings_owner ON listings (owner_id);
@@ -55,7 +56,7 @@ CREATE INDEX idx_listings_date_posted ON listings (date_posted DESC);
 CREATE TABLE favorites (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  listing_id CHAR(8) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, listing_id)
 );
@@ -89,7 +90,7 @@ CREATE INDEX idx_saved_searches_user ON saved_searches (user_id);
 CREATE TABLE recently_viewed (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  listing_id CHAR(8) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   viewed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -98,7 +99,7 @@ CREATE INDEX idx_recently_viewed_user_time ON recently_viewed (user_id, viewed_a
 -- ========== CHAT THREADS (one per user–listing pair) ==========
 CREATE TABLE chat_threads (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  listing_id CHAR(8) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

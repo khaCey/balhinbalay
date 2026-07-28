@@ -17,10 +17,10 @@ const ConfirmModal = ({
   const handleDismiss = onCancel || onConfirm;
 
   return (
-    <div className="modal auth-modal fade show" style={{ display: 'block' }} tabIndex="-1">
+    <div className="modal auth-modal confirm-modal fade show" style={{ display: 'block' }} tabIndex="-1">
       <div className="modal-backdrop fade show" onClick={handleDismiss} aria-hidden />
       <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content login-modal-content">
+        <div className="modal-content login-modal-content confirm-modal-content">
           <div className="modal-header">
             <h5 className="modal-title">{title}</h5>
             <button type="button" className="modal-close-btn" onClick={handleDismiss} aria-label="Close">

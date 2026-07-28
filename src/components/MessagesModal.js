@@ -126,9 +126,6 @@ const MessagesModal = ({ show, onClose, allListings, onOpenThread, initialThread
             )}
           </h2>
           <div className="messages-panel-header-actions">
-            <button type="button" className="messages-panel-icon-btn" aria-label="Minimize">
-              <i className="fas fa-minus" aria-hidden></i>
-            </button>
             <button type="button" className="messages-panel-icon-btn" onClick={onClose} aria-label="Close">
               <i className="fas fa-times" aria-hidden></i>
             </button>

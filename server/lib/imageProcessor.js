@@ -8,6 +8,7 @@ const { randomUUID } = require('crypto');
 
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
 const WEBP_QUALITY = 85;
+const JPG_QUALITY = 85;
 const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB per image
 
 function ensureUploadsDir() {
@@ -24,15 +25,20 @@ function isDataUrl(str) {
 }
 
 /**
- * Convert data URL to WebP buffer using sharp.
+ * Convert data URL into share-ready image buffers using sharp.
  */
-async function dataUrlToWebPBuffer(dataUrl) {
+async function dataUrlToImageBuffers(dataUrl) {
   const sharp = require('sharp');
   const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64, 'base64');
-  return sharp(buffer)
+  const pipeline = sharp(buffer);
+  const webpBuffer = await pipeline
     .webp({ quality: WEBP_QUALITY })
     .toBuffer();
+  const jpgBuffer = await sharp(buffer)
+    .jpeg({ quality: JPG_QUALITY, mozjpeg: true })
+    .toBuffer();
+  return { webpBuffer, jpgBuffer };
 }
 
 /**
@@ -67,11 +73,15 @@ async function processImages(images) {
     }
 
     try {
-      const webpBuffer = await dataUrlToWebPBuffer(img);
-      const filename = `${randomUUID()}.webp`;
-      const filepath = path.join(UPLOADS_DIR, filename);
-      fs.writeFileSync(filepath, webpBuffer);
-      result.push(`/uploads/${filename}`);
+      const { webpBuffer, jpgBuffer } = await dataUrlToImageBuffers(img);
+      const baseName = randomUUID();
+      const webpFilename = `${baseName}.webp`;
+      const jpgFilename = `${baseName}.jpg`;
+      const webpFilepath = path.join(UPLOADS_DIR, webpFilename);
+      const jpgFilepath = path.join(UPLOADS_DIR, jpgFilename);
+      fs.writeFileSync(webpFilepath, webpBuffer);
+      fs.writeFileSync(jpgFilepath, jpgBuffer);
+      result.push(`/uploads/${webpFilename}`);
     } catch (err) {
       console.warn('Image conversion failed for item', i, err?.message || err);
       // Fallback: keep original if conversion fails (optional - or skip)
@@ -105,10 +115,17 @@ async function processMulterFiles(files) {
       const webpBuffer = await sharp(file.buffer)
         .webp({ quality: WEBP_QUALITY })
         .toBuffer();
-      const filename = `${randomUUID()}.webp`;
-      const filepath = path.join(UPLOADS_DIR, filename);
-      fs.writeFileSync(filepath, webpBuffer);
-      result.push(`/uploads/${filename}`);
+      const jpgBuffer = await sharp(file.buffer)
+        .jpeg({ quality: JPG_QUALITY, mozjpeg: true })
+        .toBuffer();
+      const baseName = randomUUID();
+      const webpFilename = `${baseName}.webp`;
+      const jpgFilename = `${baseName}.jpg`;
+      const webpFilepath = path.join(UPLOADS_DIR, webpFilename);
+      const jpgFilepath = path.join(UPLOADS_DIR, jpgFilename);
+      fs.writeFileSync(webpFilepath, webpBuffer);
+      fs.writeFileSync(jpgFilepath, jpgBuffer);
+      result.push(`/uploads/${webpFilename}`);
     } catch (err) {
       console.warn('Image conversion failed for item', i, err?.message || err);
     }

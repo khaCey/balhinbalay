@@ -7,6 +7,11 @@ import { useLoginModal } from '../context/LoginModalContext';
 import { useSearch } from '../context/SearchContext';
 import ConfirmModal from './ConfirmModal';
 import { getIsDesktop } from './MainLayout.constants';
+import Seo from './Seo';
+import { getCityById } from '../data/cities';
+import { DEFAULT_OG_IMAGE_PATH, toAbsoluteUrl } from '../seo/siteSeo';
+import ConsentBanner from './ConsentBanner';
+import { initAnalytics, getStoredConsent, setAnalyticsConsent } from '../utils/analytics';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -20,11 +25,18 @@ export default function MainLayout() {
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showConsentBanner, setShowConsentBanner] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(getIsDesktop());
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    initAnalytics();
+    const storedConsent = getStoredConsent();
+    setShowConsentBanner(storedConsent == null);
   }, []);
 
   const messagesPillData = useMemo(
@@ -33,16 +45,72 @@ export default function MainLayout() {
   );
 
   const path = location.pathname;
-  const showNav = !path.startsWith('/chat/');
+  const hideMobileBottomNav =
+    path.startsWith('/chat/') ||
+    path === '/add-property' ||
+    path.startsWith('/add-property/') ||
+    path === '/admin';
+  const showBottomNav = !isDesktop && !hideMobileBottomNav;
   const isMyPropertiesView = path === '/my-properties';
   const isHomeActive = path === '/';
   const isSavedActive = path === '/saved';
-  const isMessagesActive = path === '/messages';
-  const isSearchActive = path === '/search' || ((path === '/sale' || path === '/rent') && !isMyPropertiesView);
-  const isMenuActive = path === '/menu';
+  const isMessagesActive = path === '/messages' || path.startsWith('/chat/');
+  const isSearchActive =
+    path === '/search' ||
+    path === '/search/city' ||
+    path === '/search/keyword' ||
+    path === '/search/school' ||
+    path === '/sale' ||
+    path === '/rent';
+  const isMapActive = path === '/search/map' || path === '/map';
   const isSettingsActive = path === '/settings';
   const isAddPropertyActive = path === '/add-property' || path.startsWith('/add-property/');
   const isPropertyRoute = path.startsWith('/property/');
+  const isRentOrSaleRoute = path === '/rent' || path === '/sale';
+  const isPrivateNoIndexPath =
+    path === '/my-properties' ||
+    path === '/saved' ||
+    path === '/messages' ||
+    path.startsWith('/chat/') ||
+    path === '/menu' ||
+    path === '/profile' ||
+    path === '/settings' ||
+    path === '/add-property' ||
+    path.startsWith('/add-property/') ||
+    path === '/admin' ||
+    path === '/confirm-email';
+
+  const activeListingType = path === '/rent' ? 'rent' : 'sale';
+  const searchStateForListing =
+    hasSearched && lastSearchState?.listingType === activeListingType ? lastSearchState : null;
+  const activeCity = searchStateForListing?.selectedCity
+    ? getCityById(searchStateForListing.selectedCity)
+    : null;
+  const activeCityName =
+    activeCity && activeCity.id !== 'cebu-province' ? activeCity.displayName : '';
+  const rentOrSaleLabel = activeListingType === 'rent' ? 'Rent' : 'Sale';
+  const rentOrSaleTitle = `${rentOrSaleLabel} Properties${activeCityName ? ` in ${activeCityName}` : ' in the Philippines'}`;
+  const rentOrSaleDescription = activeCityName
+    ? `Browse ${activeListingType === 'rent' ? 'rental' : 'for-sale'} property listings in ${activeCityName}, Philippines.`
+    : `Browse ${activeListingType === 'rent' ? 'rental' : 'for-sale'} property listings across the Philippines.`;
+  const rentOrSaleBreadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: toAbsoluteUrl('/')
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: activeListingType === 'rent' ? 'For Rent' : 'For Sale',
+        item: toAbsoluteUrl(activeListingType === 'rent' ? '/rent' : '/sale')
+      }
+    ]
+  };
 
   const navigateWithFallback = (target, options = {}) => {
     const currentPath = `${location.pathname}${location.search || ''}`;
@@ -64,7 +132,8 @@ export default function MainLayout() {
   };
 
   const handleSearch = () => {
-    navigateWithFallback('/search');
+    const targetListingType = lastSearchState?.listingType === 'rent' ? 'rent' : 'sale';
+    navigateWithFallback(`/search?listingType=${targetListingType}`);
   };
 
   const handleOpenSavedSearches = () => {
@@ -85,10 +154,38 @@ export default function MainLayout() {
     }, 400);
   };
 
-  const showSidebar = isDesktop && showNav;
+  const showSidebar = isDesktop && !path.startsWith('/chat/');
+  const handleAcceptAnalytics = () => {
+    setAnalyticsConsent(true);
+    setShowConsentBanner(false);
+  };
+  const handleRejectAnalytics = () => {
+    setAnalyticsConsent(false);
+    setShowConsentBanner(false);
+  };
 
   return (
     <div className={`app-layout-wrap ${showSidebar ? 'app-with-sidebar' : ''}`}>
+      {isRentOrSaleRoute && (
+        <Seo
+          title={rentOrSaleTitle}
+          description={rentOrSaleDescription}
+          canonicalPath={activeListingType === 'rent' ? '/rent' : '/sale'}
+          ogTitle={rentOrSaleTitle}
+          ogDescription={rentOrSaleDescription}
+          ogImage={DEFAULT_OG_IMAGE_PATH}
+          jsonLd={rentOrSaleBreadcrumbSchema}
+          jsonLdId="seo-rent-sale-json-ld"
+        />
+      )}
+      {!isRentOrSaleRoute && isPrivateNoIndexPath && (
+        <Seo
+          title="Account Page"
+          description="This page is intended for logged-in users."
+          canonicalPath={path}
+          noindex
+        />
+      )}
       {showSidebar && (
         <aside className="app-sidebar" aria-label="Main navigation">
           <div className="app-sidebar-brand" onClick={handleLogoHome} onKeyDown={(e) => e.key === 'Enter' && handleLogoHome()} role="button" tabIndex={0} aria-label="Home">
@@ -206,15 +303,15 @@ export default function MainLayout() {
         </aside>
       )}
 
-      <div className={`app-with-bottom-nav ${!isDesktop && showNav ? 'app-has-bottom-nav' : ''}`}>
+      <div className={`app-with-bottom-nav ${showBottomNav ? 'app-has-bottom-nav' : ''}`}>
         {/* Always app-main so flex:1 + min-height:0 chain works on mobile (scroll lives in .results-area) */}
         <div className="app-main">
           <Outlet key={`${location.pathname}${location.search || ''}`} />
         </div>
       </div>
 
-      {!isDesktop && showNav && (
-        <nav className="app-bottom-nav" aria-label="Main navigation">
+      {showBottomNav && (
+        <nav className="app-bottom-nav minimal-bottom-nav" aria-label="Main navigation">
           <button
             type="button"
             className={`app-bottom-nav-item ${isHomeActive ? 'active' : ''}`}
@@ -227,9 +324,32 @@ export default function MainLayout() {
           </button>
           <button
             type="button"
+            className={`app-bottom-nav-item ${isSearchActive ? 'active' : ''}`}
+            onClick={handleSearch}
+            aria-label="Search"
+            aria-current={isSearchActive ? 'page' : undefined}
+          >
+            <i className="fas fa-search" aria-hidden />
+            <span className="app-bottom-nav-label">Search</span>
+          </button>
+          <button
+            type="button"
+            className={`app-bottom-nav-item ${isMapActive ? 'active' : ''}`}
+            onClick={() => {
+              const listingType = lastSearchState?.listingType === 'rent' ? 'rent' : 'sale';
+              navigateWithFallback(`/search/map?listingType=${listingType}`);
+            }}
+            aria-label="Map"
+            aria-current={isMapActive ? 'page' : undefined}
+          >
+            <i className="fas fa-map-marker-alt" aria-hidden />
+            <span className="app-bottom-nav-label">Map</span>
+          </button>
+          <button
+            type="button"
             className={`app-bottom-nav-item ${favorites.length > 0 ? 'has-favorites' : ''} ${isSavedActive ? 'active' : ''}`}
-            onClick={() => navigateWithFallback('/saved')}
-            aria-label="Saved properties"
+            onClick={() => (user ? navigateWithFallback('/saved') : openLogin())}
+            aria-label="Saved"
             aria-current={isSavedActive ? 'page' : undefined}
           >
             <i className="fas fa-heart" aria-hidden />
@@ -237,9 +357,9 @@ export default function MainLayout() {
           </button>
           <button
             type="button"
-            className={`app-bottom-nav-item ${user && messagesPillData.count > 0 ? 'has-favorites' : ''} ${isMessagesActive ? 'active' : ''}`}
+            className={`app-bottom-nav-item ${isMessagesActive ? 'active' : ''}`}
             onClick={() => (user ? navigateWithFallback('/messages') : openLogin())}
-            aria-label={user ? `Messages${messagesPillData.count > 0 ? `, ${messagesPillData.count} unread` : ''}` : 'Log in to view messages'}
+            aria-label="Messages"
             aria-current={isMessagesActive ? 'page' : undefined}
           >
             <span className="app-bottom-nav-messages-icon-wrap">
@@ -252,49 +372,23 @@ export default function MainLayout() {
             </span>
             <span className="app-bottom-nav-label">Messages</span>
           </button>
-          <button
-            type="button"
-            className={`app-bottom-nav-item ${isSearchActive ? 'active' : ''}`}
-            onClick={handleSearch}
-            aria-label="Search and filters"
-            aria-current={isSearchActive ? 'page' : undefined}
-          >
-            <i className="fas fa-search" aria-hidden />
-            <span className="app-bottom-nav-label">Search</span>
-          </button>
-          {!user ? (
-            <button
-              type="button"
-              className="app-bottom-nav-item"
-              onClick={() => openLogin()}
-              aria-label="Log in"
-            >
-              <i className="fas fa-sign-in-alt" aria-hidden />
-              <span className="app-bottom-nav-label">Log in</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={`app-bottom-nav-item ${isMenuActive ? 'active' : ''}`}
-              onClick={() => navigateWithFallback('/menu')}
-              aria-label="Account menu"
-              aria-current={isMenuActive ? 'page' : undefined}
-            >
-              <i className="fas fa-bars" aria-hidden />
-              <span className="app-bottom-nav-label">Menu</span>
-            </button>
-          )}
         </nav>
       )}
 
       <ConfirmModal
-        open={showLogoutConfirm}
+        show={showLogoutConfirm}
         title="Log out"
         message="Are you sure you want to log out?"
         confirmLabel="Log out"
         variant="danger"
         onConfirm={handleLogoutConfirm}
         onCancel={() => setShowLogoutConfirm(false)}
+      />
+      <ConsentBanner
+        open={showConsentBanner}
+        hasBottomNav={showBottomNav}
+        onAccept={handleAcceptAnalytics}
+        onReject={handleRejectAnalytics}
       />
     </div>
   );

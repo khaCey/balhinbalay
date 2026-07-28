@@ -21,12 +21,14 @@ const PropertyModal = ({
     <div
       className={`modal fade property-detail-overlay-modal ${visible ? 'show' : ''} ${asPage ? 'property-modal-as-page' : ''}`}
       tabIndex="-1"
+      role="dialog"
+      aria-modal="true"
       aria-hidden={!visible}
     >
       {!asPage && show && (
         <div className="modal-backdrop fade show" onClick={onHide} aria-hidden />
       )}
-      <div className="modal-dialog modal-lg modal-dialog-scrollable">
+      <div className="modal-dialog modal-lg">
         <div className="modal-content">
           <PropertyDetailContent
             property={property}

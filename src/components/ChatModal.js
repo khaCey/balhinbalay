@@ -3,8 +3,10 @@ import { useChat } from '../context/ChatContext';
 
 const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const messagesEndRef = useRef(null);
-  const { getMessages, getMessagesByThreadId, sendMessage, loadMessagesForListing, loadMessagesForThreadId } = useChat();
+  const { getMessages, getMessagesByThreadId, sendMessage, sendMessageByThreadId, loadMessagesForListing, loadMessagesForThreadId } = useChat();
   /* Mobile: resize panel to visual viewport so header stays fixed when keyboard opens */
   const [viewportSize, setViewportSize] = useState(null);
 
@@ -73,12 +75,21 @@ const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
 
   if (!show || !property || !user) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text) return;
-    sendMessage(property.id, text, user);
-    setInput('');
+    if (!text || isSending) return;
+    setSendError('');
+    setIsSending(true);
+    const result = threadId
+      ? await sendMessageByThreadId(threadId, text, user)
+      : await sendMessage(property.id, text, user);
+    if (result?.ok) {
+      setInput('');
+    } else {
+      setSendError(result?.error || 'Unable to send message. Please try again.');
+    }
+    setIsSending(false);
   };
 
   const formatTime = (ts) => {
@@ -180,10 +191,16 @@ const ChatModal = ({ show, onClose, property, threadId, user, onBack }) => {
               onChange={(e) => setInput(e.target.value)}
               onFocus={scrollToBottom}
               aria-label="Message"
+              disabled={isSending}
             />
-            <button type="submit" className="chat-panel-send" aria-label="Send">
+            <button type="submit" className="chat-panel-send" aria-label="Send" disabled={isSending || !input.trim()}>
               <i className="fas fa-paper-plane" aria-hidden></i>
             </button>
+            {sendError && (
+              <p className="chat-panel-submit-error" role="alert">
+                {sendError}
+              </p>
+            )}
           </form>
         </div>
       </div>

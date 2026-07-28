@@ -269,4 +269,77 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/debug-login
+ * Dev-only: promote/create a debug admin and return a session.
+ * Requires DEBUG_AUTH=1 in project .env. Never enable in production.
+ */
+router.post('/debug-login', async (req, res) => {
+  if (process.env.DEBUG_AUTH !== '1') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  const pool = getPool(req);
+  if (!pool) return res.status(503).json({ error: 'Database not available' });
+
+  const preferredEmail = (process.env.DEBUG_AUTH_EMAIL || '').trim().toLowerCase();
+  const fallbackEmail = 'debug-admin@balhinbalay.local';
+  const search = preferredEmail || 'khacey';
+
+  try {
+    let user = null;
+    if (preferredEmail) {
+      const { rows } = await pool.query(
+        'SELECT id, email, name, role FROM users WHERE LOWER(email) = $1 LIMIT 1',
+        [preferredEmail]
+      );
+      user = rows[0] || null;
+    }
+    if (!user) {
+      const { rows } = await pool.query(
+        `SELECT id, email, name, role FROM users
+         WHERE LOWER(email) LIKE $1 OR LOWER(email) = $2
+         ORDER BY created_at ASC NULLS LAST
+         LIMIT 1`,
+        ['%' + search.toLowerCase() + '%', search.toLowerCase()]
+      );
+      user = rows[0] || null;
+    }
+    if (!user) {
+      const passwordHash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+      const { rows } = await pool.query(
+        `INSERT INTO users (email, password_hash, name, email_verified, account_status, role)
+         VALUES ($1, $2, $3, true, 'active', 'admin')
+         RETURNING id, email, name, role`,
+        [preferredEmail || fallbackEmail, passwordHash, 'Debug Admin']
+      );
+      user = rows[0];
+    } else {
+      const { rows } = await pool.query(
+        `UPDATE users
+         SET role = 'admin', email_verified = true, account_status = 'active',
+             confirmation_token = NULL, confirmation_expires = NULL
+         WHERE id = $1
+         RETURNING id, email, name, role`,
+        [user.id]
+      );
+      user = rows[0];
+    }
+
+    const token = signToken({ id: user.id, email: user.email });
+    return res.json({
+      ok: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || user.email,
+        role: user.role || 'admin'
+      }
+    });
+  } catch (err) {
+    console.error('[auth/debug-login]', err.message || err);
+    return res.status(500).json({ ok: false, message: 'Debug login failed.' });
+  }
+});
+
 module.exports = router;

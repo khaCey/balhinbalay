@@ -31,8 +31,15 @@ body {
   flex-direction: column;
 }
 
-/* Touch-friendly minimum tap target for primary controls */
-button:not(.btn-favorite):not(.btn-close):not(.carousel-control-prev):not(.carousel-control-next):not(.btn-view-mode),
+/* Touch-friendly minimum tap target for primary controls.
+   Note: many :not()s make this very specific — panel overrides need !important. */
+button:not(.btn-favorite):not(.btn-close):not(.carousel-control-prev):not(.carousel-control-next):not(.btn-view-mode):not(.carousel-indicator-dot):not(.pd-gallery-dot):not(.search-action):not(.search-input-go),
 a.btn, select, .form-control.search-input {
   min-height: 44px;
+}
+
+/* Landing search panel: explicit tokens beat the global 44px tap floor. */
+.search-panel button,
+.bb-search-module button {
+  min-height: unset !important;
 }

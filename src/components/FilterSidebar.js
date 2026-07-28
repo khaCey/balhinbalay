@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { philippineRegions, getCitiesByRegion, getCitiesByRegionAndProvince } from '../data/cities';
 import SearchBar from './SearchBar';
 import { useSavedSearches } from '../context/SavedSearchesContext';
+import { trackEvent } from '../utils/analytics';
 
 const FilterSidebar = ({
   listingType,
@@ -42,6 +43,10 @@ const FilterSidebar = ({
   const handleSaveCurrent = () => {
     if (!currentFilterState) return;
     saveSearch(saveName.trim() || 'My filters', currentFilterState);
+    trackEvent('filter_save', {
+      listing_type: listingType,
+      has_search_query: !!searchQuery.trim()
+    });
     setSaveName('');
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
@@ -49,7 +54,23 @@ const FilterSidebar = ({
 
   const handleApplySaved = (id) => {
     const state = getSearch(id);
-    if (state) onApplySavedState?.(state);
+    if (state) {
+      trackEvent('filter_apply', {
+        listing_type: state.listingType || listingType || '',
+        source: 'saved_preset'
+      });
+      onApplySavedState?.(state);
+    }
+  };
+  const handleApplyFilters = (event) => {
+    event.stopPropagation();
+    trackEvent('filter_apply', {
+      listing_type: listingType,
+      min_beds: minBeds,
+      min_baths: minBaths,
+      has_search_query: !!searchQuery.trim()
+    });
+    onApply?.();
   };
 
   const citiesFromRegionAndProvince = getCitiesByRegionAndProvince(selectedRegion || 'all', selectedProvince || null);
@@ -303,7 +324,7 @@ const FilterSidebar = ({
       </div>
       )}
 
-      <button type="button" className="btn-apply-filters" onClick={(e) => { e.stopPropagation(); onApply?.(); }}>
+      <button type="button" className="btn-apply-filters" onClick={handleApplyFilters}>
         <i className={locationOnly ? 'fas fa-check me-2' : 'fas fa-search me-2'} aria-hidden />
         {locationOnly ? 'Apply' : 'Search Properties'}
       </button>

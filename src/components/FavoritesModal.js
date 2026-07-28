@@ -72,7 +72,7 @@ const FavoritesModal = ({ show, onClose, favoriteListings, onSelectProperty }) =
                       <span className="badge bg-primary me-2">{property.type}</span>
                       <span className="badge bg-info me-2">{getCityById(property.cityId)?.displayName || property.city || property.cityId || '—'}</span>
                       <h5 className="favorites-modal-card-title">{property.title}</h5>
-                      <p className="favorites-modal-card-price mb-0">{formatPrice(property)}</p>
+                      <p className={`favorites-modal-card-price mb-0${property.listingType === 'rent' ? ' price-rent' : ''}`}>{formatPrice(property)}</p>
                     </div>
                   </div>
                 </li>

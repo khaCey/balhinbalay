@@ -1,73 +1,123 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ListingTypeToggle from '../components/ListingTypeToggle';
+import React, { useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import Seo from '../components/Seo';
+import SearchModule from '../components/SearchModule';
+import { DEFAULT_OG_IMAGE_PATH, toAbsoluteUrl } from '../seo/siteSeo';
 import { useSearch } from '../context/SearchContext';
-
-const CARDS = [
-  { id: 'city', title: 'City', description: 'Choose a city or area', icon: 'fa-map-marker-alt', path: 'city' },
-  { id: 'map', title: 'Map', description: 'Search visually on the map', icon: 'fa-map', path: 'map' },
-  { id: 'keyword', title: 'Keyword', description: 'House, condo, furnished, pet-friendly', icon: 'fa-search', path: 'keyword' },
-  { id: 'school', title: 'School', description: 'Search near a school or university', icon: 'fa-school', path: 'school' }
-];
-
-const defaultSearchState = {
-  selectedRegion: 'all',
-  selectedProvince: '',
-  selectedCity: 'cebu-province',
-  searchQuery: '',
-  propertyType: '',
-  priceRangeIndex: 0,
-  minBeds: 0,
-  minBaths: 0,
-  sizeRange: { min: 0, max: Infinity },
-  sortBy: 'newest',
-  selectedSchoolId: ''
-};
 
 export default function SearchPage() {
   const navigate = useNavigate();
-  const { submitSearch } = useSearch();
-  const [listingType, setListingType] = useState('sale');
+  const [searchParams] = useSearchParams();
+  const { lastSearchState, hasSearched } = useSearch();
 
-  const handleCardClick = (path) => {
-    if (path === 'map') {
-      submitSearch({
+  const listingTypeParam = searchParams.get('listingType');
+  const modeParam = searchParams.get('mode');
+  const editParam = searchParams.get('edit');
+  const listingType = listingTypeParam === 'rent' ? 'rent' : (lastSearchState?.listingType === 'rent' ? 'rent' : 'sale');
+  const isEdit = editParam === '1' || modeParam === 'edit';
+
+  const initialState = useMemo(() => {
+    if (!isEdit || !lastSearchState) {
+      return {
         listingType,
-        view: 'map',
-        ...defaultSearchState
-      });
-      navigate(`/${listingType}`);
-      return;
+        view: modeParam === 'school' || modeParam === 'keyword' ? modeParam : 'city',
+        selectedRegion: 'all',
+        selectedProvince: '',
+        selectedCity: 'cebu-province',
+        selectedCityIds: [],
+        searchQuery: '',
+        propertyType: '',
+        priceRangeIndex: 0,
+        selectedSchoolId: ''
+      };
     }
-    navigate(`/search/${path}?listingType=${listingType}`);
-  };
+    return {
+      ...lastSearchState,
+      listingType: listingTypeParam === 'rent' || listingTypeParam === 'sale'
+        ? listingTypeParam
+        : lastSearchState.listingType
+    };
+  }, [isEdit, lastSearchState, listingType, listingTypeParam, modeParam]);
+
+  const searchLandingTitle = 'Choose where you want to live';
+  const searchLandingDescription =
+    'Start with a Philippine city, then refine homes for rent or sale by property type, price, and bedrooms.';
+  const searchJsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: searchLandingTitle,
+      description: searchLandingDescription,
+      url: toAbsoluteUrl('/search')
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Home',
+          item: toAbsoluteUrl('/')
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Search',
+          item: toAbsoluteUrl('/search')
+        }
+      ]
+    }
+  ];
 
   return (
-    <div className="home-page search-page">
-      <div className="home-page-inner">
-        <div className="home-page-toggle-wrap">
-          <ListingTypeToggle value={listingType} onChange={setListingType} />
+    <div className="home-page search-page search-page-landing search-page-scrollable minimal-page">
+      <Seo
+        title={searchLandingTitle}
+        description={searchLandingDescription}
+        canonicalPath="/search"
+        ogTitle={searchLandingTitle}
+        ogDescription={searchLandingDescription}
+        ogImage={DEFAULT_OG_IMAGE_PATH}
+        jsonLd={searchJsonLd}
+        jsonLdId="seo-search-json-ld"
+      />
+      <div className="minimal-home-wrap minimal-home-wrap--city-first">
+        <div className="prototype-home-topbar">
+          <button
+            type="button"
+            className="prototype-icon-button prototype-icon-button-clear"
+            onClick={() => navigate(hasSearched ? `/${listingType}` : '/')}
+            aria-label={hasSearched ? 'Back to results' : 'Home'}
+          >
+            <i className={`fas ${hasSearched ? 'fa-arrow-left' : 'fa-home'}`} aria-hidden />
+          </button>
+          <p className="minimal-wordmark">BalhinBalay</p>
+          <button
+            type="button"
+            className="prototype-icon-button prototype-icon-button-clear"
+            onClick={() => navigate(`/search/map?listingType=${listingType}`)}
+            aria-label="Map"
+          >
+            <i className="fas fa-map-marker-alt" aria-hidden />
+          </button>
         </div>
-        <div className="home-search-cards" role="list">
-          {CARDS.map((card) => (
-            <button
-              key={card.id}
-              type="button"
-              className="home-search-card"
-              onClick={() => handleCardClick(card.path)}
-              role="listitem"
-            >
-              <span className="home-search-card-icon-wrap">
-                <i className={`fas ${card.icon}`} aria-hidden />
-              </span>
-              <span className="home-search-card-text">
-                <span className="home-search-card-title">{card.title}</span>
-                <span className="home-search-card-desc">{card.description}</span>
-              </span>
-              <i className="fas fa-chevron-right home-search-card-chevron" aria-hidden />
-            </button>
-          ))}
+
+        <div className="prototype-home-intro">
+          <p className="prototype-home-small">City-first property search</p>
+          <h1 className="minimal-hero-title">Where do you want to live?</h1>
+          <p className="prototype-home-lede">
+            Pick one or more places, then set only the essentials before viewing results.
+          </p>
         </div>
+
+        <SearchModule
+          variant="expanded"
+          initialListingType={listingType}
+          initialState={initialState}
+          autoFocus
+          defaultSuggestionsOpen
+        />
       </div>
     </div>
   );
