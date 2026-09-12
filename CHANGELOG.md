@@ -1,4 +1,35 @@
-﻿# Changelog
+# Changelog
+
+## v.1.0.00.544 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Resume the approved prototype migration inside the existing dev-based React application.
+
+### Changes (detailed)
+
+#### Added
+- src/components/ui/{AppNavigation,BottomSheet,CitySelector,Controls,PropertyTile,Comparison,PropertyGallery,PropertyCosts,PropertyFormStep,SaveSearchButton}.js
+  - AppNavigation(), BottomSheet(), CitySelector(), SegmentedControl(), PropertyTile(), ComparisonProvider(), PropertyGallery(), PropertyCosts(), PropertyFormStep(), SaveSearchButton()
+    - Added: Reusable declarative UI foundations for the approved prototype, native modal focus containment and three-listing comparison.
+- src/styles/approved-ui.css, public/fonts/*, docs/react-migration-audit.md
+  - Design foundations and migration audit
+    - Added: Approved colours, locally served DM Sans fonts, 20px gutters, responsive rails and shared surface/field styles.
+
+#### Changed
+- public/index.html, src/App.js, src/components/MainLayout.js
+  - AppContent(), MainLayout()
+    - From: Sidebar/mobile five-item navigation, full-viewport scroll lock and legacy filter overlay.
+    - To: Approved desktop header/four-item bottom navigation and native filter sheet while retaining routes, SEO, contexts and filters.
+- src/pages/{HomePage,SearchPage}.js, src/components/SearchModule.js
+  - HomePage(), SearchPage(), SearchModule()
+    - From: Large inline city browser and essential-filter panel on Home.
+    - To: Compact city-first search with a separate picker, real listing rails and preserved search payloads.
+- src/components/{PropertyCard,FavoritesButton}.js, src/components/minimal/MinimalPropertyCard.js
+  - PropertyCard(), FavoritesButton(), MinimalPropertyCard()
+    - From: Multiple card hierarchies and generic heart markup.
+    - To: Shared approved property tile and accessible pressed-state favourite control.
 
 ## v.1.0.00.543 — Development
 Date: 2026-07-23

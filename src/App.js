@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import SaveSearchButton from './components/ui/SaveSearchButton';
+import BottomSheet from './components/ui/BottomSheet';
 import SearchBar from './components/SearchBar';
 import PropertyCard from './components/PropertyCard';
 import PropertyListCard from './components/PropertyListCard';
@@ -62,6 +63,7 @@ import './App.css';
 import './styles/minimal-marketplace.css';
 import './styles/map-search-page.css';
 import './styles/prototype-palette.css';
+import './styles/approved-ui.css';
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -113,7 +115,7 @@ function AppContent() {
   const pageSize = isMobile ? 6 : 9;
   const [itemsToShow, setItemsToShow] = useState(pageSize);
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(searchParams.get('filters') === '1');
 
   const closeFiltersModal = useCallback(() => setShowAdvancedFilters(false), []);
 
@@ -734,6 +736,7 @@ function AppContent() {
                       <i className="fas fa-arrow-left" aria-hidden />
                     </button>
                     <strong>Search results</strong>
+                    <SaveSearchButton state={{ listingType, view, selectedCity, selectedCityIds, selectedRegion, selectedProvince, searchQuery, propertyType, priceRangeIndex, priceMin, priceMax, furnishedFilter, minBeds, minBaths, sizeRange, sortBy, selectedSchoolId }} />
                     <button type="button" className="minimal-results-map-btn" onClick={() => navigate(`/search/map?listingType=${listingType}`)}>
                       <i className="fas fa-map" aria-hidden /> Map
                     </button>
@@ -814,7 +817,7 @@ function AppContent() {
 
                 {searchedResultsMode !== 'map' && itemsToShow < listingsForView.length && (
                   <div className="text-center py-4">
-                    <div className="loading-more">Loading more properties...</div>
+                    <button type="button" className="bb-button bb-secondary" onClick={() => setItemsToShow(value => Math.min(value + pageSize, listingsForView.length))}>Show more properties</button>
                   </div>
                 )}
 
@@ -841,28 +844,7 @@ function AppContent() {
                     )}
                   </div>
                 )}
-              {showAdvancedFilters &&
-                createPortal(
-                  <div
-                    className="modal auth-modal filters-modal fade show"
-                    style={{ display: 'block' }}
-                    tabIndex={-1}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="filters-modal-title"
-                  >
-                    <div className="modal-backdrop fade show" onClick={closeFiltersModal} aria-hidden />
-                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-md-down filters-modal-dialog">
-                      <div className="modal-content">
-                        <div className="modal-header">
-                          <h2 id="filters-modal-title" className="modal-title">
-                            Filters
-                          </h2>
-                          <button type="button" className="modal-close-btn" onClick={closeFiltersModal} aria-label="Close">
-                            <i className="fas fa-times" aria-hidden />
-                          </button>
-                        </div>
-                        <div className="modal-body filters-modal-body">
+              <BottomSheet open={showAdvancedFilters} title="A little more your kind of place" onClose={closeFiltersModal}>
                           <div id="results-advanced-filters-panel" className="results-filters-wrap results-filters-wrap--modal">
                             {(view === 'keyword' || view === 'search') && (
                               <div className="results-search-bar-wrap">
@@ -979,12 +961,7 @@ function AppContent() {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>,
-                  document.body
-                )}
+              </BottomSheet>
               </>
             ) : (
               <SortBar
@@ -1036,7 +1013,7 @@ function AppContent() {
 
                 {effectiveViewMode !== 'map' && itemsToShow < listingsForView.length && (
                   <div className="text-center py-4">
-                    <div className="loading-more">Loading more properties...</div>
+                    <button type="button" className="bb-button bb-secondary" onClick={() => setItemsToShow(value => Math.min(value + pageSize, listingsForView.length))}>Show more properties</button>
                   </div>
                 )}
 
