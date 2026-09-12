@@ -1,5 +1,13 @@
 /* Final visual-QA regression fixes. Keep this file last in the CSS load order. */
 
+/* The legacy chat page was full-screen/fixed and therefore sat underneath the
+   approved shared header. Keep the conversation inside MainLayout instead. */
+.bb-app .chat-page {
+  position: relative;
+  inset: auto;
+  width: 100%;
+}
+
 .bb-chat-heading {
   flex: 0 0 auto;
   margin: 0 0 14px;
