@@ -1,5 +1,69 @@
 /* Final visual-QA regression fixes. Keep this file last in the CSS load order. */
 
+.bb-chat-heading {
+  flex: 0 0 auto;
+  margin: 0 0 14px;
+}
+
+.bb-chat-back {
+  min-height: 36px;
+  margin: 0 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--bb-muted);
+  font-size: 13px;
+}
+
+.bb-chat-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.bb-chat-person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.bb-chat-person .bb-avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--bb-soft);
+  color: var(--bb-blue-hover);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bb-chat-person-copy {
+  min-width: 0;
+}
+
+.bb-chat-person-copy h2 {
+  margin: 0;
+  color: var(--bb-ink);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.bb-chat-person-copy span {
+  display: block;
+  margin-top: 2px;
+  color: var(--bb-muted);
+  font-size: 12px;
+}
+
+.bb-chat-day {
+  margin: 0 0 16px;
+  color: var(--bb-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
 @media (min-width: 760px) {
   .bb-bottom-navigation {
     display: none;
@@ -9,5 +73,9 @@
      PageHeader duplicated it on desktop, unlike the approved prototype. */
   .App:has(.results-portal-summary) > .page-header {
     display: none;
+  }
+
+  .bb-chat-heading {
+    margin-bottom: 16px;
   }
 }
