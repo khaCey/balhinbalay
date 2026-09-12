@@ -15,8 +15,22 @@ import { useSearch } from '../context/SearchContext';
 import { useAuth } from '../context/AuthContext';
 import { useLoginModal } from '../context/LoginModalContext';
 import { useRecentlyViewed } from '../context/RecentlyViewedContext';
-import { cebuCities, getCityById } from '../data/cities';
+import { getCityById } from '../data/cities';
 import { getSchoolById } from '../data/schools';
+
+const popularCityIds = [
+  'cebu-city',
+  'mandaue-city',
+  'danao-city',
+  'lapu-lapu-city',
+];
+
+const popularCityCopy = {
+  'cebu-city': 'City living, with more possibilities.',
+  'mandaue-city': 'A little closer to everything.',
+  'danao-city': 'Room to breathe. Space to grow.',
+  'lapu-lapu-city': 'Make island life your everyday.',
+};
 
 function continueLabel(state) {
   if (!state) return '';
@@ -89,20 +103,10 @@ export default function HomePage() {
     [listings, listingType],
   );
 
-  const popularAreas = useMemo(() => {
-    const cityCounts = new Map();
-    (Array.isArray(listings) ? listings : []).forEach((item) => {
-      if (!item.cityId || item.cityId === 'cebu-province') return;
-      const city = getCityById(item.cityId);
-      if (!city) return;
-      const prev = cityCounts.get(item.cityId) || { city, count: 0 };
-      prev.count += 1;
-      cityCounts.set(item.cityId, prev);
-    });
-    return Array.from(cityCounts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 4);
-  }, [listings]);
+  const popularCities = useMemo(
+    () => popularCityIds.map(getCityById).filter(Boolean),
+    [],
+  );
 
   const recentListings = useMemo(() => {
     const byId = new Map(
@@ -209,19 +213,7 @@ export default function HomePage() {
             A familiar city. A fresh start.
           </SectionHeading>
           <div className="bb-rail bb-city-rail">
-            {(popularAreas.length
-              ? popularAreas
-              : cebuCities
-                  .filter((city) =>
-                    [
-                      'cebu-city',
-                      'mandaue-city',
-                      'danao-city',
-                      'lapu-lapu-city',
-                    ].includes(city.id),
-                  )
-                  .map((city) => ({ city }))
-            ).map(({ city, count }) => (
+            {popularCities.map((city) => (
               <button
                 key={city.id}
                 className="bb-city-card"
@@ -229,15 +221,7 @@ export default function HomePage() {
                 onClick={() => searchPopularCity(city)}
               >
                 <strong>{city.displayName.replace(' City', '')}</strong>
-                <p>
-                  {count
-                    ? `${count} places to explore.`
-                    : city.id === 'cebu-city'
-                      ? 'City living, with more possibilities.'
-                      : city.id === 'mandaue-city'
-                        ? 'A little closer to everything.'
-                        : 'Room for a fresh start.'}
-                </p>
+                <p>{popularCityCopy[city.id]}</p>
                 <span>
                   <Icon name="arrow" />
                 </span>
@@ -326,9 +310,11 @@ export default function HomePage() {
           <span className="bb-owner-icon">
             <Icon name="key" />
           </span>
-          <div>
-            <h2>Someone is looking for your place.</h2>
-            <p>Make your next tenant’s search a little easier.</p>
+          <div className="bb-owner-content">
+            <div>
+              <h2>Someone is looking for your place.</h2>
+              <p>Make your next tenant’s search a little easier.</p>
+            </div>
             <button
               type="button"
               className="bb-button bb-secondary"
