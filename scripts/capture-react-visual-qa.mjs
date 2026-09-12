@@ -135,6 +135,12 @@ const fixtures = [
 ];
 
 async function mockApi(page) {
+  // Playwright checks matching route handlers in reverse registration order.
+  // Register the broad fallback first so the listings fixture route below wins.
+  await page.route('**/api/**', async (route) => {
+    await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'QA mock endpoint' }) });
+  });
+
   await page.route('**/api/listings**', async (route) => {
     const requestUrl = new URL(route.request().url());
     const type = requestUrl.searchParams.get('listingType');
@@ -145,10 +151,6 @@ async function mockApi(page) {
     if (type) result = result.filter((item) => item.listingType === type);
     if (cityIds.length) result = result.filter((item) => cityIds.includes(item.cityId));
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
-  });
-
-  await page.route('**/api/**', async (route) => {
-    await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'QA mock endpoint' }) });
   });
 }
 
