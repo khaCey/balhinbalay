@@ -3,6 +3,24 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { baseUrl } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
+import { Icon } from '../components/ui/Controls';
+
+function MenuItem({ icon, title, description, onClick, danger = false }) {
+  return (
+    <button
+      type="button"
+      className={danger ? 'bb-account-menu-item bb-danger-text' : 'bb-account-menu-item'}
+      onClick={onClick}
+    >
+      <Icon name={icon} />
+      <span className="bb-account-menu-copy">
+        <strong>{title}</strong>
+        {description && <small>{description}</small>}
+      </span>
+      <span className="bb-account-chevron">›</span>
+    </button>
+  );
+}
 
 function MenuPage() {
   const navigate = useNavigate();
@@ -14,8 +32,6 @@ function MenuPage() {
     return <Navigate to="/" replace />;
   }
 
-  const handleOpenSavedSearches = () => navigate('/saved?tab=searches');
-
   const handleLogoutConfirm = () => {
     setShowLogoutConfirm(false);
     setLoggingOut(true);
@@ -26,71 +42,82 @@ function MenuPage() {
     }, 400);
   };
 
+  const avatarUrl = user.avatar_url
+    ? user.avatar_url.startsWith('http')
+      ? user.avatar_url
+      : (baseUrl || '') + user.avatar_url
+    : null;
+
   return (
-    <div className="menu-page minimal-page">
+    <div className="menu-page minimal-page bb-account-page">
       <div className="menu-page-body profile-drawer-body">
-        <div className="bb-page-heading"><h1>Your corner.</h1><p>Manage your searches, enquiries and preferences.</p></div>
-        <div className="account-card">
+        <div className="bb-page-heading">
+          <h1>Your corner.</h1>
+        </div>
+        <div className="account-card bb-account-summary">
           <div className="avatar">
-            {user.avatar_url ? (
-              <img
-                src={
-                  user.avatar_url.startsWith('http')
-                    ? user.avatar_url
-                    : (baseUrl || '') + user.avatar_url
-                }
-                alt=""
-              />
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" />
             ) : (
               (user.name || user.email || 'U').charAt(0).toUpperCase()
             )}
           </div>
-          <div>
-            <h3>{user.name || user.email || 'User'}</h3>
+          <div className="bb-account-summary-copy">
+            <h2>{user.name || user.email || 'User'}</h2>
             <p>{user.email || 'Account'}</p>
+            <button
+              type="button"
+              className="bb-text-button"
+              onClick={() => navigate('/profile')}
+            >
+              Edit profile
+            </button>
           </div>
         </div>
 
-        <div className="account-menu">
-          <button type="button" onClick={() => navigate('/profile')}><span>Edit profile</span><span>›</span></button>
-          <button type="button" onClick={() => navigate('/messages')}><span>Messages</span><span>›</span></button>
-          <button type="button" onClick={() => navigate('/add-property')}>
-            <span>Add property</span>
-            <span>›</span>
-          </button>
-          <button type="button" onClick={() => navigate('/my-properties')}>
-            <span>My properties</span>
-            <span>›</span>
-          </button>
-          <button type="button" onClick={() => navigate('/saved')}>
-            <span>Saved properties</span>
-            <span>›</span>
-          </button>
-          <button type="button" onClick={handleOpenSavedSearches}>
-            <span>Saved searches</span>
-            <span>›</span>
-          </button>
-          <button type="button" onClick={() => navigate('/settings')}>
-            <span>Settings</span>
-            <span>›</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowLogoutConfirm(true)}
-            disabled={loggingOut}
-          >
-            {loggingOut ? (
-              <>
-                <span>Logging out...</span>
-                <span>›</span>
-              </>
-            ) : (
-              <>
-                <span>Log out</span>
-                <span>›</span>
-              </>
-            )}
-          </button>
+        <div className="account-menu bb-account-menu-group">
+          <MenuItem
+            icon="heart"
+            title="Saved places"
+            description="All your possibilities, together"
+            onClick={() => navigate('/saved')}
+          />
+          <MenuItem
+            icon="message"
+            title="Messages"
+            description="Keep your property enquiries in view"
+            onClick={() => navigate('/messages')}
+          />
+          <MenuItem
+            icon="home"
+            title="My properties"
+            description="Manage your listings"
+            onClick={() => navigate('/my-properties')}
+          />
+          <MenuItem
+            icon="plus"
+            title="List a property"
+            description="Help someone find their next home"
+            onClick={() => navigate('/add-property')}
+          />
+        </div>
+
+        <div className="account-menu bb-account-menu-group">
+          <MenuItem
+            icon="user"
+            title="Settings"
+            description="Notifications, privacy and account"
+            onClick={() => navigate('/settings')}
+          />
+          <MenuItem
+            icon="close"
+            title={loggingOut ? 'Logging out…' : 'Log out'}
+            description="Sign out of this account"
+            danger
+            onClick={() => {
+              if (!loggingOut) setShowLogoutConfirm(true);
+            }}
+          />
         </div>
       </div>
 
