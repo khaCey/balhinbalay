@@ -2,6 +2,8 @@
 
 Each item is isolated. All independent frontend work continues. No backend or schema changes have been made.
 
+12 September checkpoint: current database design already describes several intended capabilities below, including structured interactions and separate building amenities. Those design intentions do not mean the legacy API supports them. Pending confirmations concern implementation scope and unresolved semantics; this branch does not reclassify accepted decisions or implement the future API. Idea Register updates were skipped at the user’s explicit request.
+
 ## 1. Popularity and personalised ranking
 
 Area: Home and search ordering.

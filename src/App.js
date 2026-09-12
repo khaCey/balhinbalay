@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallba
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import SaveSearchButton from './components/ui/SaveSearchButton';
 import BottomSheet from './components/ui/BottomSheet';
+import OwnerListing from './components/ui/OwnerListing';
 import SearchBar from './components/SearchBar';
 import PropertyCard from './components/PropertyCard';
 import PropertyListCard from './components/PropertyListCard';
@@ -678,7 +679,8 @@ function AppContent() {
         {!(isMobile && hasSearched && !showMyPropertiesOnly) && (
           <PageHeader
             title={showMyPropertiesOnly ? 'My properties' : (listingType === 'rent' ? 'For Rent' : 'For Sale')}
-            onBack={() => navigate(`/search?listingType=${listingType}&edit=1`)}
+            onBack={() => navigate(showMyPropertiesOnly ? '/menu' : `/search?listingType=${listingType}&edit=1`)}
+            right={showMyPropertiesOnly && user ? <button type="button" className="bb-button" onClick={() => navigate('/add-property')}>+ Add</button> : undefined}
           />
         )}
 
@@ -708,6 +710,7 @@ function AppContent() {
             )}
             {showMyPropertiesOnly && user && (
               <div className="my-properties-bar">
+                <p className="bb-owner-intro">A clear view of every listing.</p>
                 <div className="my-properties-bar-toggle-wrap">
                   <ListingTypeToggle
                     value={myPropertiesListingType}
@@ -988,11 +991,13 @@ function AppContent() {
                   />
                 ) : (
                   <section
-                    className={`listing-grid ${effectiveViewMode === 'list' ? 'list-view' : ''}`}
+                    className={showMyPropertiesOnly ? 'bb-owner-list' : `listing-grid ${effectiveViewMode === 'list' ? 'list-view' : ''}`}
                     id="listingArea"
                   >
                     {visibleListings.map((property, index) =>
-                      effectiveViewMode === 'list' ? (
+                      showMyPropertiesOnly ? (
+                        <OwnerListing key={property.id} property={property} onOpen={() => handleViewDetails(index)} />
+                      ) : effectiveViewMode === 'list' ? (
                         <PropertyListCard
                           key={property.id || `property-${index}`}
                           property={property}

@@ -2,6 +2,8 @@ import React from 'react';
 
 export function Icon({ name, ...props }) {
   const paths = {
+    trash: 'M3 6h18M9 3h6M6 6l1 15h10l1-15M10 10v7m4-7v7',
+    edit: 'm4 15 12-12 5 5L9 20l-6 1 1-6m9-9 5 5',
     home: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z',
     search: 'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
     heart:

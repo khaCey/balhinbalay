@@ -1,5 +1,36 @@
 # Changelog
 
+## v.1.0.00.547 — Development
+Date: 2026-09-12
+Type: Dev Change
+
+### Summary
+- Continue the existing React checkpoint with approved account forms and owner listing management.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ProfilePage.js
+  - ProfilePage(), handleSaveProfile()
+    - From: Separate inline pencil editors with hidden email errors and a password completion message that disappeared.
+    - To: Shared photo/name/email form using the same updateProfile contract, visible failure/completion feedback, labelled reset fields and keyboard-accessible password controls.
+- src/pages/SettingsPage.js
+  - SettingsPage(), handleDelete(), closeDelete()
+    - From: Inline destructive form and obsolete directions to the mobile app.
+    - To: Approved account action rows and dismissible delete sheet retaining password verification/API payload, clearing the draft on cancel, and accurate web notification availability.
+- src/App.js, src/pages/AddPropertyPage.js, src/components/AddPropertyForm.js
+  - AppContent(), AddPropertyPage(), AddPropertyForm()
+    - From: General search cards for owned listings and no direct availability-step entry.
+    - To: Owner cards, Add action and availability link opening the existing edit wizard at Costs & availability. Preserve listing handlers, fields and final submission.
+
+#### Added
+- src/components/ui/OwnerListing.js, src/components/ui/Controls.js, src/styles/approved-ui.css
+  - OwnerListing(), Icon()
+    - Added: Compact owner summary/status/actions, native unlist confirmation with retry, and shared account/owner styles.
+- src/__tests__/account-owner-migration.test.js
+  - Account and owner behaviour tests
+    - Added: Five checks for profile save failure/success, password reset, deletion cancel/failure and owner availability/unlist retry.
+
 ## v.1.0.00.546 — Development
 Date: 2026-09-11
 Type: Dev Change

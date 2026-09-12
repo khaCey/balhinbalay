@@ -123,11 +123,11 @@ const REGIONS_OPTIONS = philippineRegions.filter((r) => r.id !== 'all');
 const REGIONS_WITH_CITIES = getRegionIdsWithCities();
 const DEFAULT_REGION = REGIONS_WITH_CITIES[0] || 'region-vii';
 
-function AddPropertyForm({ initialListing, onSuccess }) {
+function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
   const { user } = useAuth();
   const { addListing, updateListing } = useUserListings();
   const isEdit = !!initialListing;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => initialListing && initialStep === 3 ? 3 : 0);
   const formRef = useRef(null);
   const stepNames = ['The basics', 'Location', 'Your space', 'Costs & availability', 'Photos', 'Contact & review'];
   const nextStep = () => {
