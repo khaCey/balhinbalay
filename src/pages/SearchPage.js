@@ -1,26 +1,30 @@
 import React, { useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import Seo from '../components/Seo';
 import SearchModule from '../components/SearchModule';
 import { DEFAULT_OG_IMAGE_PATH, toAbsoluteUrl } from '../seo/siteSeo';
 import { useSearch } from '../context/SearchContext';
 
 export default function SearchPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { lastSearchState, hasSearched } = useSearch();
+  const { lastSearchState } = useSearch();
 
   const listingTypeParam = searchParams.get('listingType');
   const modeParam = searchParams.get('mode');
   const editParam = searchParams.get('edit');
-  const listingType = listingTypeParam === 'rent' ? 'rent' : (lastSearchState?.listingType === 'rent' ? 'rent' : 'sale');
+  const listingType = ['rent', 'sale'].includes(listingTypeParam)
+    ? listingTypeParam
+    : lastSearchState?.listingType || 'rent';
   const isEdit = editParam === '1' || modeParam === 'edit';
 
   const initialState = useMemo(() => {
     if (!isEdit || !lastSearchState) {
       return {
         listingType,
-        view: modeParam === 'school' || modeParam === 'keyword' ? modeParam : 'city',
+        view:
+          modeParam === 'school' || modeParam === 'keyword'
+            ? modeParam
+            : 'city',
         selectedRegion: 'all',
         selectedProvince: '',
         selectedCity: 'cebu-province',
@@ -28,14 +32,18 @@ export default function SearchPage() {
         searchQuery: '',
         propertyType: '',
         priceRangeIndex: 0,
-        selectedSchoolId: ''
+        selectedSchoolId: '',
       };
     }
     return {
       ...lastSearchState,
-      listingType: listingTypeParam === 'rent' || listingTypeParam === 'sale'
-        ? listingTypeParam
-        : lastSearchState.listingType
+      ...(['school', 'keyword', 'city'].includes(modeParam)
+        ? { view: modeParam }
+        : {}),
+      listingType:
+        listingTypeParam === 'rent' || listingTypeParam === 'sale'
+          ? listingTypeParam
+          : lastSearchState.listingType,
     };
   }, [isEdit, lastSearchState, listingType, listingTypeParam, modeParam]);
 
@@ -48,7 +56,7 @@ export default function SearchPage() {
       '@type': 'WebPage',
       name: searchLandingTitle,
       description: searchLandingDescription,
-      url: toAbsoluteUrl('/search')
+      url: toAbsoluteUrl('/search'),
     },
     {
       '@context': 'https://schema.org',
@@ -58,16 +66,16 @@ export default function SearchPage() {
           '@type': 'ListItem',
           position: 1,
           name: 'Home',
-          item: toAbsoluteUrl('/')
+          item: toAbsoluteUrl('/'),
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Search',
-          item: toAbsoluteUrl('/search')
-        }
-      ]
-    }
+          item: toAbsoluteUrl('/search'),
+        },
+      ],
+    },
   ];
 
   return (
@@ -82,42 +90,24 @@ export default function SearchPage() {
         jsonLd={searchJsonLd}
         jsonLdId="seo-search-json-ld"
       />
-      <div className="minimal-home-wrap minimal-home-wrap--city-first">
-        <div className="prototype-home-topbar">
-          <button
-            type="button"
-            className="prototype-icon-button prototype-icon-button-clear"
-            onClick={() => navigate(hasSearched ? `/${listingType}` : '/')}
-            aria-label={hasSearched ? 'Back to results' : 'Home'}
-          >
-            <i className={`fas ${hasSearched ? 'fa-arrow-left' : 'fa-home'}`} aria-hidden />
-          </button>
-          <p className="minimal-wordmark">BalhinBalay</p>
-          <button
-            type="button"
-            className="prototype-icon-button prototype-icon-button-clear"
-            onClick={() => navigate(`/search/map?listingType=${listingType}`)}
-            aria-label="Map"
-          >
-            <i className="fas fa-map-marker-alt" aria-hidden />
-          </button>
+      <div className="minimal-home-wrap minimal-home-wrap--city-first bb-search-layout">
+        <div className="bb-page-heading">
+          <p className="bb-eyebrow">Find your place</p>
+          <h1>Start somewhere you love.</h1>
+          <p>Choose how you want to search.</p>
         </div>
-
-        <div className="prototype-home-intro">
-          <p className="prototype-home-small">City-first property search</p>
-          <h1 className="minimal-hero-title">Where do you want to live?</h1>
-          <p className="prototype-home-lede">
-            Pick one or more places, then set only the essentials before viewing results.
-          </p>
-        </div>
-
         <SearchModule
           variant="expanded"
           initialListingType={listingType}
           initialState={initialState}
-          autoFocus
-          defaultSuggestionsOpen
         />
+        <section className="bb-search-guidance" aria-labelledby="search-guidance-title">
+          <h2 id="search-guidance-title">A search that starts with you</h2>
+          <p>
+            Pick a location first. You can fine-tune your budget, space and
+            must-haves in the results.
+          </p>
+        </section>
       </div>
     </div>
   );

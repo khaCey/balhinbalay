@@ -1,0 +1,28 @@
+/* Final Home parity refinements.
+   Keep this file narrow: these rules only correct verified differences against
+   the approved static Home and should not become another global design layer. */
+
+.bb-home .bb-city-field > .icon:last-child {
+  color: #246bff;
+}
+
+/* The approved Home cards stop after the type/compare row. Richer listing
+   metadata remains available on results/detail views, but not in the Home rail. */
+.bb-home .bb-property .bb-property-footer ~ .bb-property-location,
+.bb-home .bb-property .bb-property-footer ~ .bb-badge {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  /* Lock the desktop place-card geometry to the approved 156 px tiles. */
+  .bb-home .bb-city-card {
+    min-height: 156px;
+    height: 156px;
+  }
+}
+
+@media (max-width: 760px) {
+  .bb-home .bb-city-card {
+    min-height: 142px;
+  }
+}

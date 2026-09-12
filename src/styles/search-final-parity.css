@@ -1,0 +1,25 @@
+/* Verified Search-page differences against the approved static prototype. */
+
+/* The approved Search page keeps the compact search card. More filters belong
+   to Results, so do not expose the migration-only Essential filters disclosure
+   on the Search landing page. */
+.search-page-landing .bb-search-essentials {
+  display: none;
+}
+
+.search-page-landing .bb-city-field > .icon:last-child {
+  color: #246bff;
+}
+
+/* Keep the approved search guidance visually separated from the search card. */
+.search-page-landing .bb-search-guidance {
+  margin-top: 30px;
+}
+
+.search-page-landing .bb-search-guidance h2 {
+  margin: 0;
+}
+
+.search-page-landing .bb-search-guidance p {
+  margin-top: 8px;
+}

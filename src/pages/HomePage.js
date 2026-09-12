@@ -1,16 +1,36 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Seo from '../components/Seo';
+import { Icon, SectionHeading, EmptyState } from '../components/ui/Controls';
 import SearchModule from '../components/SearchModule';
 import MinimalPropertyCard from '../components/minimal/MinimalPropertyCard';
-import { DEFAULT_OG_IMAGE_PATH, SITE_NAME, SITE_DESCRIPTION, toAbsoluteUrl } from '../seo/siteSeo';
+import {
+  DEFAULT_OG_IMAGE_PATH,
+  SITE_NAME,
+  SITE_DESCRIPTION,
+  toAbsoluteUrl,
+} from '../seo/siteSeo';
 import { useListings } from '../context/ListingsContext';
 import { useSearch } from '../context/SearchContext';
 import { useAuth } from '../context/AuthContext';
 import { useLoginModal } from '../context/LoginModalContext';
 import { useRecentlyViewed } from '../context/RecentlyViewedContext';
-import { cebuCities, getCityById } from '../data/cities';
+import { getCityById } from '../data/cities';
 import { getSchoolById } from '../data/schools';
+
+const popularCityIds = [
+  'cebu-city',
+  'mandaue-city',
+  'danao-city',
+  'lapu-lapu-city',
+];
+
+const popularCityCopy = {
+  'cebu-city': 'City living, with more possibilities.',
+  'mandaue-city': 'A little closer to everything.',
+  'danao-city': 'Room to breathe. Space to grow.',
+  'lapu-lapu-city': 'Make island life your everyday.',
+};
 
 function continueLabel(state) {
   if (!state) return '';
@@ -20,7 +40,9 @@ function continueLabel(state) {
   }
   const selectedCityIds = Array.isArray(state.selectedCityIds)
     ? state.selectedCityIds
-    : (state.selectedCity && state.selectedCity !== 'cebu-province' ? [state.selectedCity] : []);
+    : state.selectedCity && state.selectedCity !== 'cebu-province'
+      ? [state.selectedCity]
+      : [];
   if (state.view === 'city' && selectedCityIds.length > 0) {
     const firstCity = getCityById(selectedCityIds[0])?.displayName || 'city';
     return selectedCityIds.length === 1
@@ -36,7 +58,7 @@ function continueLabel(state) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { listings } = useListings();
+  const { listings, loading, error, refreshListings } = useListings();
   const { lastSearchState, hasSearched, submitSearch } = useSearch();
   const { user } = useAuth();
   const { openLogin } = useLoginModal();
@@ -48,7 +70,7 @@ export default function HomePage() {
       '@type': 'Organization',
       name: SITE_NAME,
       url: toAbsoluteUrl('/'),
-      logo: toAbsoluteUrl('/logo.png')
+      logo: toAbsoluteUrl('/logo.png'),
     },
     {
       '@context': 'https://schema.org',
@@ -59,29 +81,44 @@ export default function HomePage() {
       potentialAction: {
         '@type': 'SearchAction',
         target: `${toAbsoluteUrl('/search')}?listingType={listingType}`,
-        'query-input': 'required name=listingType'
-      }
-    }
+        'query-input': 'required name=listingType',
+      },
+    },
   ];
 
-  const popularAreas = useMemo(() => {
-    const cityCounts = new Map();
-    (Array.isArray(listings) ? listings : []).forEach((item) => {
-      if (!item.cityId || item.cityId === 'cebu-province') return;
-      const city = getCityById(item.cityId);
-      if (!city) return;
-      const prev = cityCounts.get(item.cityId) || { city, count: 0 };
-      prev.count += 1;
-      cityCounts.set(item.cityId, prev);
-    });
-    return Array.from(cityCounts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 4);
-  }, [listings]);
+  const [listingType, setListingType] = useState(
+    lastSearchState?.listingType || 'rent',
+  );
+  const featured = useMemo(
+    () =>
+      listings
+        .filter(
+          (item) =>
+            item.listingType === listingType &&
+            !item.sold &&
+            !item.currentlyRented &&
+            (!item.status || item.status === 'approved'),
+        )
+        .slice(0, 6),
+    [listings, listingType],
+  );
+
+  const popularCities = useMemo(
+    () => popularCityIds.map(getCityById).filter(Boolean),
+    [],
+  );
 
   const recentListings = useMemo(() => {
-    const byId = new Map((Array.isArray(listings) ? listings : []).map((item) => [String(item.id), item]));
-    return recentIds.map((id) => byId.get(String(id))).filter(Boolean).slice(0, 6);
+    const byId = new Map(
+      (Array.isArray(listings) ? listings : []).map((item) => [
+        String(item.id),
+        item,
+      ]),
+    );
+    return recentIds
+      .map((id) => byId.get(String(id)))
+      .filter(Boolean)
+      .slice(0, 6);
   }, [listings, recentIds]);
 
   const continueSearch = () => {
@@ -90,14 +127,15 @@ export default function HomePage() {
       return;
     }
     if (lastSearchState.view === 'map') {
-      navigate(`/search/map?listingType=${lastSearchState.listingType || 'sale'}`);
+      navigate(
+        `/search/map?listingType=${lastSearchState.listingType || 'sale'}`,
+      );
       return;
     }
     navigate(`/${lastSearchState.listingType === 'rent' ? 'rent' : 'sale'}`);
   };
 
   const searchPopularCity = (city) => {
-    const listingType = lastSearchState?.listingType === 'rent' ? 'rent' : 'sale';
     submitSearch({
       listingType,
       view: 'city',
@@ -112,7 +150,7 @@ export default function HomePage() {
       minBaths: 0,
       sizeRange: { min: 0, max: Infinity },
       sortBy: 'newest',
-      selectedSchoolId: ''
+      selectedSchoolId: '',
     });
     navigate(`/${listingType}`);
   };
@@ -129,117 +167,163 @@ export default function HomePage() {
         jsonLd={homeJsonLd}
         jsonLdId="seo-home-json-ld"
       />
-      <div className="minimal-home-wrap minimal-home-wrap--city-first">
-        <div className="prototype-home-topbar">
-          <button
-            type="button"
-            className="prototype-home-brand"
-            onClick={() => navigate('/')}
-            aria-label="BalhinBalay home"
-          >
-            <img src="/logo.png" alt="" aria-hidden />
-            <span className="minimal-wordmark">BalhinBalay</span>
-          </button>
-          <nav className="prototype-home-nav" aria-label="Primary">
-            <button type="button" onClick={() => navigate('/saved')}>Saved</button>
-            <button type="button" onClick={() => (user ? navigate('/messages') : openLogin())}>Messages</button>
-            <button type="button" onClick={() => (user ? navigate('/add-property') : openLogin())}>List a property</button>
-          </nav>
-          <button
-            type="button"
-            className="prototype-home-account-btn"
-            onClick={() => (user ? navigate('/menu') : openLogin())}
-            aria-label={user ? 'Account' : 'Log in'}
-          >
-            <i className="fas fa-user-circle" aria-hidden />
-          </button>
-        </div>
-        <div className="prototype-home-intro">
-          <p className="prototype-home-small">City-first property search</p>
-          <h1 className="minimal-hero-title">Where do you want to live?</h1>
-          <p className="prototype-home-lede">
-            Choose the places that matter first. Then decide whether to rent or buy and set the essentials.
-          </p>
-        </div>
-
-        <SearchModule
-          variant="compact"
-          initialListingType={lastSearchState?.listingType === 'rent' ? 'rent' : 'sale'}
-          defaultSuggestionsOpen
-        />
-
-        {hasSearched && lastSearchState && (
-          <section className="bb-home-section" aria-label="Continue your search">
-            <div className="section-heading">
-              <h3>Continue your search</h3>
+      <div className="bb-home">
+        <div className="bb-home-hero">
+          <div>
+            <div className="bb-eyebrow">
+              <Icon name="pin" />A place to call yours
             </div>
-            <button type="button" className="bb-home-continue" onClick={continueSearch}>
-              <span className="bb-home-continue-label">{continueLabel(lastSearchState)}</span>
-              <i className="fas fa-chevron-right" aria-hidden />
+            <h1>
+              Where do you
+              <br />
+              want to <span>live?</span>
+            </h1>
+            <p>
+              Find your city. Explore the possibilities.
+              <br />
+              Feel a little closer to home.
+            </p>
+          </div>
+          <SearchModule
+            initialListingType={listingType}
+            onListingTypeChange={setListingType}
+          />
+        </div>
+        {hasSearched && lastSearchState && (
+          <section className="bb-section">
+            <button
+              className="bb-continue"
+              type="button"
+              onClick={continueSearch}
+            >
+              <span>
+                <strong>Pick up where you left off</strong>
+                <small>{continueLabel(lastSearchState)}</small>
+              </span>
+              <Icon name="arrow" />
             </button>
           </section>
         )}
-
-        {popularAreas.length > 0 && (
-          <section className="bb-home-section" aria-label="Popular places">
-            <div className="section-heading">
-              <h3>Popular places</h3>
-            </div>
-            <div className="area-grid">
-              {popularAreas.map(({ city, count }) => (
-                <button
-                  key={city.id}
-                  type="button"
-                  className="area-card"
-                  onClick={() => searchPopularCity(city)}
-                >
-                  <span className="count">{count} listing{count === 1 ? '' : 's'}</span>
-                  <h4>{(city.displayName || city.name || '').replace(/\s+City$/i, '')}</h4>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {popularAreas.length === 0 && cebuCities.some((c) => c.id === 'cebu-city') && (
-          <section className="bb-home-section" aria-label="Popular places">
-            <div className="section-heading">
-              <h3>Popular places</h3>
-            </div>
-            <div className="area-grid">
-              {cebuCities
-                .filter((c) => ['cebu-city', 'mandaue-city', 'lapu-lapu-city', 'talisay-city'].includes(c.id))
-                .map((city) => (
-                  <button
-                    key={city.id}
-                    type="button"
-                    className="area-card"
-                    onClick={() => searchPopularCity(city)}
-                  >
-                    <span className="count">Explore</span>
-                    <h4>{(city.displayName || city.name || '').replace(/\s+City$/i, '')}</h4>
-                  </button>
-                ))}
-            </div>
-          </section>
-        )}
-
-        {recentListings.length > 0 && (
-          <section className="bb-home-section" aria-label="Recently viewed">
-            <h2 className="minimal-home-section-title">Recently viewed</h2>
-            <div className="minimal-results-list">
-              {recentListings.map((property, index) => (
+        <section className="bb-section">
+          <SectionHeading
+            title="Popular places"
+            action="All cities"
+            onAction={() => navigate(`/search?listingType=${listingType}`)}
+          >
+            A familiar city. A fresh start.
+          </SectionHeading>
+          <div className="bb-rail bb-city-rail">
+            {popularCities.map((city) => (
+              <button
+                key={city.id}
+                className="bb-city-card"
+                type="button"
+                onClick={() => searchPopularCity(city)}
+              >
+                <strong>{city.displayName.replace(' City', '')}</strong>
+                <p>{popularCityCopy[city.id]}</p>
+                <span>
+                  <Icon name="arrow" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="bb-section">
+          <SectionHeading
+            title="Places to explore"
+            action="See more"
+            onAction={() => {
+              submitSearch({
+                listingType,
+                view: 'city',
+                selectedCity: 'cebu-province',
+                selectedCityIds: [],
+                sortBy: 'newest',
+              });
+              navigate(`/${listingType}`);
+            }}
+          >
+            Homes worth a closer look.
+          </SectionHeading>
+          {loading ? (
+            <p role="status" className="bb-muted">
+              Loading homes…
+            </p>
+          ) : error ? (
+            <EmptyState
+              title="We couldn’t load homes."
+              action="Try again"
+              onAction={refreshListings}
+            >
+              {error}
+            </EmptyState>
+          ) : featured.length ? (
+            <div className="bb-rail">
+              {featured.map((property) => (
                 <MinimalPropertyCard
-                  key={property.id || `recent-${index}`}
+                  key={property.id}
                   property={property}
                   className="minimal-property-card--home"
-                  showDivider={index < recentListings.length - 1}
-                  onOpen={() => navigate(`/property/${property.id}`, { state: { from: '/' } })}
+                  onOpen={() =>
+                    navigate(`/property/${property.id}`, {
+                      state: { from: '/' },
+                    })
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="A fresh start."
+              action="Start a search"
+              onAction={() => navigate('/search')}
+            >
+              No listings available for this choice yet.
+            </EmptyState>
+          )}
+        </section>
+        {recentListings.length > 0 && (
+          <section className="bb-section">
+            <SectionHeading
+              title="Recently viewed"
+              action="View all"
+              onAction={() => navigate('/saved?tab=recent')}
+            />
+            <div className="bb-rail">
+              {recentListings.map((property) => (
+                <MinimalPropertyCard
+                  key={property.id}
+                  property={property}
+                  className="minimal-property-card--home"
+                  onOpen={() =>
+                    navigate(`/property/${property.id}`, {
+                      state: { from: '/' },
+                    })
+                  }
                 />
               ))}
             </div>
           </section>
         )}
+        <section className="bb-owner-banner">
+          <span className="bb-owner-icon">
+            <Icon name="key" />
+          </span>
+          <div className="bb-owner-content">
+            <div>
+              <h2>Someone is looking for your place.</h2>
+              <p>Make your next tenant’s search a little easier.</p>
+            </div>
+            <button
+              type="button"
+              className="bb-button bb-secondary"
+              onClick={() => (user ? navigate('/add-property') : openLogin())}
+            >
+              List a property <Icon name="arrow" />
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

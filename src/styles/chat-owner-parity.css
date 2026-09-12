@@ -1,0 +1,360 @@
+/* Chat + owner-listing parity with the approved prototype. */
+
+/* Chat */
+.bb-app .chat-page {
+  max-width: 750px;
+  margin: 0 auto;
+  height: calc(100dvh - 72px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bb-app .chat-page .page-header {
+  flex: 0 0 auto;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+}
+
+.bb-chat-property {
+  margin-bottom: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--bb-line);
+  border-radius: 14px;
+  background: white;
+  color: var(--bb-ink);
+  text-align: left;
+  box-shadow: var(--bb-shadow);
+}
+
+.bb-chat-property img {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  object-fit: cover;
+  border-radius: 9px;
+}
+
+.bb-chat-property span {
+  min-width: 0;
+}
+
+.bb-chat-property strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bb-chat-property small {
+  display: block;
+  margin-top: 4px;
+  color: var(--bb-muted);
+  font-size: 12px;
+}
+
+.bb-app .chat-page-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bb-app .chat-page-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 0 20px;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+
+.bb-app .chat-panel-message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.bb-app .chat-panel-message-row-me {
+  justify-content: flex-end;
+}
+
+.bb-app .chat-panel-message-row-them {
+  justify-content: flex-start;
+}
+
+.bb-app .chat-panel-bubble {
+  max-width: 85%;
+  padding: 12px 15px;
+  border: 1px solid var(--bb-line);
+  border-radius: 16px 16px 16px 4px;
+  background: white;
+  color: var(--bb-ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.bb-app .chat-panel-bubble-me {
+  border-color: #d7e5ff;
+  border-radius: 16px 16px 4px 16px;
+  background: #e6efff;
+  color: var(--bb-ink);
+}
+
+.bb-app .chat-panel-bubble-them {
+  border-radius: 16px 16px 16px 4px;
+}
+
+.bb-app .chat-panel-sender {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--bb-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bb-app .chat-panel-text {
+  margin: 0;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bb-app .chat-panel-time-outside {
+  min-width: 34px;
+  padding-bottom: 2px;
+  color: var(--bb-muted);
+  font-size: 10px;
+}
+
+.bb-app .chat-panel-placeholder {
+  margin: auto;
+  padding: 24px;
+  color: var(--bb-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.bb-app .chat-page-form {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid var(--bb-line);
+  border-radius: 16px 16px 0 0;
+  background: white;
+}
+
+.bb-app .chat-panel-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  max-height: 120px;
+  padding: 12px;
+  resize: none;
+  border: 1px solid #ccd9e7;
+  border-radius: 12px;
+  background: white;
+  color: var(--bb-ink);
+  font-family: var(--bb-font);
+  font-size: 14px;
+}
+
+.bb-app .chat-panel-send {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bb-blue);
+  color: white;
+}
+
+.bb-app .chat-panel-send:disabled {
+  opacity: 0.5;
+}
+
+.bb-app .chat-panel-submit-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--bb-red);
+  font-size: 12px;
+}
+
+/* My Properties */
+.my-properties-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0 20px;
+}
+
+.bb-owner-intro {
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 14px;
+}
+
+.my-properties-bar-toggle-wrap {
+  flex: 0 0 auto;
+}
+
+.bb-owner-listing {
+  padding: 16px;
+  border: 1px solid var(--bb-line);
+  border-radius: 17px;
+  background: white;
+}
+
+.bb-owner-listing-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.bb-owner-listing-status small {
+  color: var(--bb-muted);
+  font-size: 11px;
+}
+
+.bb-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bb-status--active {
+  background: #e6f5ef;
+  color: #147457;
+}
+
+.bb-status--pending-approval {
+  background: #fff3dd;
+  color: #8b6110;
+}
+
+.bb-status--rejected {
+  background: #fff0f2;
+  color: #ad3144;
+}
+
+.bb-status--rented,
+.bb-status--sold,
+.bb-status--unlisted,
+.bb-status--status-unavailable {
+  background: #edf1f5;
+  color: var(--bb-muted);
+}
+
+.bb-owner-summary {
+  width: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--bb-ink);
+  text-align: left;
+}
+
+.bb-owner-summary > img,
+.bb-owner-photo-empty {
+  width: 96px;
+  height: 88px;
+  flex: 0 0 96px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--bb-soft);
+}
+
+.bb-owner-photo-empty {
+  display: grid;
+  place-items: center;
+  color: var(--bb-muted);
+}
+
+.bb-owner-summary > span:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.bb-owner-summary .bb-price {
+  display: block;
+  margin: 0 0 3px;
+  color: var(--bb-ink);
+  font-size: 18px;
+}
+
+.bb-owner-summary > span > strong:not(.bb-price) {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bb-owner-summary > span > small {
+  display: block;
+  margin-top: 3px;
+  color: var(--bb-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.bb-owner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--bb-line);
+}
+
+.bb-owner-actions .bb-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.bb-owner-actions .bb-text-button {
+  margin-left: auto;
+  min-height: 38px;
+}
+
+@media (min-width: 760px) {
+  .bb-chat-property img {
+    width: 96px;
+    height: 88px;
+    flex-basis: 96px;
+  }
+
+  .bb-owner-summary > img,
+  .bb-owner-photo-empty {
+    width: 110px;
+    height: 100px;
+    flex-basis: 110px;
+  }
+}

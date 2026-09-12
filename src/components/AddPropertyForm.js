@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUserListings } from '../context/UserListingsContext';
 import {
@@ -9,6 +9,7 @@ import {
   getRegionIdsWithCities
 } from '../data/cities';
 import { getBarangayCoordinates } from '../data/barangayCentroids';
+import PropertyFormStep from './ui/PropertyFormStep';
 import MapPicker from './MapPicker';
 import ConfirmModal from './ConfirmModal';
 
@@ -122,10 +123,16 @@ const REGIONS_OPTIONS = philippineRegions.filter((r) => r.id !== 'all');
 const REGIONS_WITH_CITIES = getRegionIdsWithCities();
 const DEFAULT_REGION = REGIONS_WITH_CITIES[0] || 'region-vii';
 
-function AddPropertyForm({ initialListing, onSuccess }) {
+function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
   const { user } = useAuth();
   const { addListing, updateListing } = useUserListings();
   const isEdit = !!initialListing;
+  const [step, setStep] = useState(() => initialListing && initialStep === 3 ? 3 : 0);
+  const formRef = useRef(null);
+  const stepNames = ['The basics', 'Location', 'Your space', 'Costs & availability', 'Photos', 'Contact & review'];
+  const nextStep = () => {
+    if (formRef.current?.reportValidity()) setStep(value => Math.min(value + 1, 5));
+  };
   const [title, setTitle] = useState('');
   const [listingType, setListingType] = useState('sale');
   const [propertyType, setPropertyType] = useState('House');
@@ -259,6 +266,7 @@ function AddPropertyForm({ initialListing, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step < 5) { nextStep(); return; }
     setSubmitError('');
     setSubmitting(true);
     const titleTrimmed = title.trim();
@@ -390,12 +398,13 @@ function AddPropertyForm({ initialListing, onSuccess }) {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <section className="add-property-form-section">
-            <h6 className="add-property-section-title">Basic info</h6>
+        <form ref={formRef} onSubmit={handleSubmit} className="bb-owner-form">
+          <div className="bb-step-heading"><span>Step {step + 1} of 6</span><strong>{stepNames[step]}</strong></div>
+          <div className="bb-step-progress" aria-hidden="true">{stepNames.map((name, index) => <span key={name} className={index <= step ? 'active' : ''} />)}</div>
+          <PropertyFormStep active={step === 0} title={stepNames[0]}>
             <div className="mb-3">
-              <label className="form-label">Title *</label>
-              <input
+              <label className="form-label" htmlFor="listing-field-1">Title *</label>
+              <input id="listing-field-1"
                 type="text"
                 className="form-control"
                 placeholder="e.g. Modern 2BR House in Cebu City"
@@ -406,15 +415,15 @@ function AddPropertyForm({ initialListing, onSuccess }) {
             </div>
             <div className="row g-2 mb-3">
               <div className="col-6">
-                <label className="form-label">Listing type</label>
-                <select className="form-select" value={listingType} onChange={(e) => setListingType(e.target.value)}>
+                <label className="form-label" htmlFor="listing-field-2">Listing type</label>
+                <select id="listing-field-2" className="form-select" value={listingType} onChange={(e) => setListingType(e.target.value)}>
                   <option value="sale">For Sale</option>
                   <option value="rent">For Rent</option>
                 </select>
               </div>
               <div className="col-6">
-                <label className="form-label">Property type</label>
-                <select className="form-select" value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
+                <label className="form-label" htmlFor="listing-field-3">Property type</label>
+                <select id="listing-field-3" className="form-select" value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
                   {PROPERTY_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -422,8 +431,8 @@ function AddPropertyForm({ initialListing, onSuccess }) {
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label">Price (₱) *</label>
-              <input
+              <label className="form-label" htmlFor="listing-field-4">Price (₱) *</label>
+              <input id="listing-field-4"
                 type="number"
                 className="form-control"
                 placeholder={listingType === 'rent' ? 'e.g. 15000' : 'e.g. 5000000'}
@@ -434,51 +443,11 @@ function AddPropertyForm({ initialListing, onSuccess }) {
               />
               {listingType === 'rent' && <small className="text-muted">per month</small>}
             </div>
-            {listingType === 'rent' && (
-              <>
-                <div className="mb-3">
-                  <label className="form-label">Key money (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={keyMoney} onChange={(e) => setKeyMoney(e.target.value)} placeholder="e.g. 50000" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Security deposit (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} placeholder="e.g. 15000" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Extra fees (optional)</label>
-                  <input type="text" className="form-control" value={extraFees} onChange={(e) => setExtraFees(e.target.value)} placeholder="e.g. Other fees (text)" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Advance pay (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={advancePay} onChange={(e) => setAdvancePay(e.target.value)} placeholder="e.g. 1 month" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Broker fee (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={brokerFee} onChange={(e) => setBrokerFee(e.target.value)} placeholder="e.g. 5000" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Association fee (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={associationFee} onChange={(e) => setAssociationFee(e.target.value)} placeholder="e.g. monthly" />
-                </div>
-                <div className="mb-3">
-                  <label className="form-check">
-                    <input type="checkbox" className="form-check-input" checked={utilitiesIncluded} onChange={(e) => setUtilitiesIncluded(e.target.checked)} />
-                    <span className="form-check-label">Utilities included</span>
-                  </label>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Reservation fee (optional) ₱</label>
-                  <input type="number" className="form-control" min="0" value={reservationFee} onChange={(e) => setReservationFee(e.target.value)} placeholder="e.g. 5000" />
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="add-property-form-section">
-            <h6 className="add-property-section-title">Location</h6>
+          </PropertyFormStep>
+<PropertyFormStep active={step === 1} title={stepNames[1]}>
             <div className="mb-3">
-              <label className="form-label">Region</label>
-              <select className="form-select" value={regionId} onChange={handleRegionChange}>
+              <label className="form-label" htmlFor="listing-field-5">Region</label>
+              <select id="listing-field-5" className="form-select" value={regionId} onChange={handleRegionChange}>
                 {REGIONS_OPTIONS.map((r) => (
                   <option key={r.id} value={r.id}>{r.displayName}</option>
                 ))}
@@ -486,16 +455,16 @@ function AddPropertyForm({ initialListing, onSuccess }) {
             </div>
             <div className="row g-2 mb-3">
               <div className="col-6">
-                <label className="form-label">Province</label>
-                <select className="form-select" value={effectiveProvince} onChange={handleProvinceChange}>
+                <label className="form-label" htmlFor="listing-field-6">Province</label>
+                <select id="listing-field-6" className="form-select" value={effectiveProvince} onChange={handleProvinceChange}>
                   {provinceOptions.map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
               </div>
               <div className="col-6">
-                <label className="form-label">City</label>
-                <select className="form-select" value={validCityId} onChange={(e) => setCityId(e.target.value)}>
+                <label className="form-label" htmlFor="listing-field-7">City</label>
+                <select id="listing-field-7" className="form-select" value={validCityId} onChange={(e) => setCityId(e.target.value)}>
                   {cityOptions.map((c) => (
                     <option key={c.id} value={c.id}>{c.displayName}</option>
                   ))}
@@ -503,8 +472,8 @@ function AddPropertyForm({ initialListing, onSuccess }) {
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label">Location / Barangay</label>
-              <input
+              <label className="form-label" htmlFor="listing-field-8">Location / Barangay</label>
+              <input id="listing-field-8"
                 type="text"
                 className="form-control"
                 placeholder="e.g. Barangay Lahug"
@@ -539,43 +508,52 @@ function AddPropertyForm({ initialListing, onSuccess }) {
                 />
               </div>
             )}
-          </section>
-
-          <section className="add-property-form-section">
-            <h6 className="add-property-section-title">Property details</h6>
+          </PropertyFormStep>
+<PropertyFormStep active={step === 2} title={stepNames[2]}>
             <div className="row g-2 mb-3">
               <div className="col-4">
                 <label className="form-label">
                   <i className="fas fa-bed me-1" aria-hidden />
                   Bedrooms
                 </label>
-                <input type="number" className="form-control" min="0" value={beds} onChange={(e) => setBeds(e.target.value)} />
+                <input type="number" className="form-control" min="0" aria-label="Bedrooms" value={beds} onChange={(e) => setBeds(e.target.value)} />
               </div>
               <div className="col-4">
                 <label className="form-label">
                   <i className="fas fa-bath me-1" aria-hidden />
                   Bathrooms
                 </label>
-                <input type="number" className="form-control" min="0" value={baths} onChange={(e) => setBaths(e.target.value)} />
+                <input type="number" className="form-control" min="0" aria-label="Bathrooms" value={baths} onChange={(e) => setBaths(e.target.value)} />
               </div>
               <div className="col-4">
                 <label className="form-label">
                   <i className="fas fa-ruler-combined me-1" aria-hidden />
                   Size (sqm)
                 </label>
-                <input type="number" className="form-control" min="0" value={sizeSqm} onChange={(e) => setSizeSqm(e.target.value)} />
+                <input type="number" className="form-control" min="0" aria-label="Floor area in square metres" value={sizeSqm} onChange={(e) => setSizeSqm(e.target.value)} />
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label">Furnished</label>
-              <select className="form-select" value={furnished} onChange={(e) => setFurnished(e.target.value)}>
+              <label className="form-label" htmlFor="listing-field-9">Furnished</label>
+              <select id="listing-field-9" className="form-select" value={furnished} onChange={(e) => setFurnished(e.target.value)}>
                 <option value="">—</option>
                 <option value="furnished">Furnished</option>
                 <option value="semi-furnished">Semi-furnished</option>
                 <option value="unfurnished">Unfurnished</option>
               </select>
             </div>
-            {listingType === 'sale' && (
+            <div className="mb-3">
+              <label className="form-label" htmlFor="listing-field-11">Description</label>
+              <textarea id="listing-field-11"
+                className="form-control"
+                rows={3}
+                placeholder="Describe the property..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+          </PropertyFormStep>
+<PropertyFormStep active={step === 3} title={stepNames[3]}>            {listingType === 'sale' && (
               <div className="mb-3">
                 <label className="form-check">
                   <input type="checkbox" className="form-check-input" checked={sold} onChange={(e) => setSold(e.target.checked)} />
@@ -592,25 +570,51 @@ function AddPropertyForm({ initialListing, onSuccess }) {
                   </label>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Next availability (optional)</label>
-                  <input type="text" className="form-control" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)} placeholder="e.g. March 2026 or Available now" />
+                  <label className="form-label" htmlFor="listing-field-10">Next availability (optional)</label>
+                  <input id="listing-field-10" type="text" className="form-control" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)} placeholder="e.g. March 2026 or Available now" />
                 </div>
               </>
             )}
-            <div className="mb-3">
-              <label className="form-label">Description</label>
-              <textarea
-                className="form-control"
-                rows={3}
-                placeholder="Describe the property..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-          </section>
-
-          <section className="add-property-form-section">
-            <h6 className="add-property-section-title">Images</h6>
+            {listingType === 'rent' && (
+              <>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-12">Key money (optional) ₱</label>
+                  <input id="listing-field-12" type="number" className="form-control" min="0" value={keyMoney} onChange={(e) => setKeyMoney(e.target.value)} placeholder="e.g. 50000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-13">Security deposit (optional) ₱</label>
+                  <input id="listing-field-13" type="number" className="form-control" min="0" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} placeholder="e.g. 15000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-14">Extra fees (optional)</label>
+                  <input id="listing-field-14" type="text" className="form-control" value={extraFees} onChange={(e) => setExtraFees(e.target.value)} placeholder="e.g. Other fees (text)" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-15">Advance pay (optional) ₱</label>
+                  <input id="listing-field-15" type="number" className="form-control" min="0" value={advancePay} onChange={(e) => setAdvancePay(e.target.value)} placeholder="e.g. 15000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-16">Broker fee (optional) ₱</label>
+                  <input id="listing-field-16" type="number" className="form-control" min="0" value={brokerFee} onChange={(e) => setBrokerFee(e.target.value)} placeholder="e.g. 5000" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-17">Association fee (optional) ₱</label>
+                  <input id="listing-field-17" type="number" className="form-control" min="0" value={associationFee} onChange={(e) => setAssociationFee(e.target.value)} placeholder="e.g. monthly" />
+                </div>
+                <div className="mb-3">
+                  <label className="form-check">
+                    <input type="checkbox" className="form-check-input" checked={utilitiesIncluded} onChange={(e) => setUtilitiesIncluded(e.target.checked)} />
+                    <span className="form-check-label">Utilities included</span>
+                  </label>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="listing-field-18">Reservation fee (optional) ₱</label>
+                  <input id="listing-field-18" type="number" className="form-control" min="0" value={reservationFee} onChange={(e) => setReservationFee(e.target.value)} placeholder="e.g. 5000" />
+                </div>
+              </>
+            )}
+{listingType === 'sale' && <p className="bb-muted">Your asking price is set in The basics.</p>}</PropertyFormStep>
+<PropertyFormStep active={step === 4} title={stepNames[4]}>
             <div className="mb-3">
               <div className="add-property-image-upload mb-2">
                 <input
@@ -646,27 +650,24 @@ function AddPropertyForm({ initialListing, onSuccess }) {
                 </div>
               )}
             </div>
-          </section>
+          </PropertyFormStep>
+<PropertyFormStep active={step === 5} title={stepNames[5]}>
+            <div className="mb-3">
+              <label className="form-label" htmlFor="listing-field-19">Name</label>
+              <input id="listing-field-19" type="text" className="form-control" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label" htmlFor="listing-field-20">Phone</label>
+              <input id="listing-field-20" type="tel" className="form-control" placeholder="+63 917 123 4567" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label" htmlFor="listing-field-21">Email</label>
+              <input id="listing-field-21" type="email" className="form-control" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
+            </div>
+          <div className="bb-panel bb-listing-review"><h2>Ready for a fresh start?</h2><p><strong>{title}</strong></p><p>{listingType === 'rent' ? 'For rent' : 'For sale'} · {propertyType} · ₱{Number(price).toLocaleString()}</p><p>{location}, {getCityById(validCityId)?.displayName}</p><p>{uploadedImages.length + (imageUrl ? 1 : 0)} photos · {contactName || user?.name}</p><small>New listings are reviewed before appearing in search.</small></div></PropertyFormStep>
 
-          <section className="add-property-form-section">
-            <h6 className="add-property-section-title">Contact info</h6>
-            <div className="mb-3">
-              <label className="form-label">Name</label>
-              <input type="text" className="form-control" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Phone</label>
-              <input type="tel" className="form-control" placeholder="+63 917 123 4567" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Email</label>
-              <input type="email" className="form-control" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-            </div>
-          </section>
-
-          <button type="submit" className="btn btn-primary w-100" disabled={submitting}>
-            {submitting ? 'Saving…' : (isEdit ? 'Save changes' : 'Add property')}
-          </button>
+          <div className="bb-form-navigation">{step > 0 && <button type="button" className="bb-button bb-secondary" onClick={() => setStep(value => value - 1)} disabled={submitting}>Back</button>}
+          <button type="submit" className="bb-button" disabled={submitting}>{step < 5 ? 'Continue' : submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Submit listing'}</button></div>
         </form>
       )}
       <ConfirmModal

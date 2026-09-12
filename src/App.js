@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import SaveSearchButton from './components/ui/SaveSearchButton';
+import BottomSheet from './components/ui/BottomSheet';
+import OwnerListing from './components/ui/OwnerListing';
 import SearchBar from './components/SearchBar';
 import PropertyCard from './components/PropertyCard';
 import PropertyListCard from './components/PropertyListCard';
@@ -55,13 +57,13 @@ import HomePage from './pages/HomePage/index';
 import SearchPage from './pages/SearchPage/index';
 import SearchMapPage from './pages/SearchMapPage/index';
 import MenuPage from './pages/MenuPage/index';
-import MinimalFilterChips from './components/minimal/MinimalFilterChips';
 import Seo from './components/Seo';
 import { DEFAULT_OG_IMAGE_PATH, toAbsoluteUrl } from './seo/siteSeo';
 import './App.css';
 import './styles/minimal-marketplace.css';
 import './styles/map-search-page.css';
 import './styles/prototype-palette.css';
+import './styles/approved-ui.css';
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -108,12 +110,12 @@ function AppContent() {
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'list' : 'grid'
   );
   const effectiveViewMode = view === 'map' ? 'map' : viewMode;
-  const searchedResultsMode = (!showMyPropertiesOnly && hasSearched) ? 'list' : effectiveViewMode;
+  const searchedResultsMode = (!showMyPropertiesOnly && hasSearched) ? viewMode : effectiveViewMode;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const pageSize = isMobile ? 6 : 9;
   const [itemsToShow, setItemsToShow] = useState(pageSize);
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(searchParams.get('filters') === '1');
 
   const closeFiltersModal = useCallback(() => setShowAdvancedFilters(false), []);
 
@@ -473,54 +475,10 @@ function AppContent() {
   const selectedSchool = selectedSchoolId ? getSchoolById(selectedSchoolId) : null;
   const sliderMaxForCriteria = priceSliderConfig[listingType]?.max ?? 10000000;
 
-  const criteriaProvinceCity = useMemo(() => {
-    if (showMyPropertiesOnly) return '';
-    if (view === 'school' && selectedSchool?.name) {
-      return `Near school – ${selectedSchool.name}`;
-    }
-    if ((view === 'keyword' || view === 'search') && searchQuery.trim()) {
-      return `Keyword – ${searchQuery.trim()}`;
-    }
-    if (selectedCitiesData.length > 1) {
-      return `${selectedCitiesData[0].displayName} + ${selectedCitiesData.length - 1} more`;
-    }
-    if (selectedCitiesData.length === 1) {
-      const city = selectedCitiesData[0];
-      return city.province ? `${city.province} – ${city.displayName}` : city.displayName;
-    }
-    if (selectedCityData) {
-      const province = selectedCityData.province || '';
-      const city = selectedCityData.displayName || '';
-      if (province && city) return `${province} – ${city}`;
-    }
-    if (selectedRegionData && selectedRegion !== 'all') {
-      return `${selectedRegionData.displayName} – All cities`;
-    }
-    return listingType === 'rent' ? 'Philippines – All rentals' : 'Philippines – All sales';
-  }, [
-    showMyPropertiesOnly,
-    view,
-    selectedSchool?.name,
-    searchQuery,
-    selectedCitiesData,
-    selectedCityData,
-    selectedRegionData,
-    selectedRegion,
-    listingType
-  ]);
-
   const criteriaPriceLabel = useMemo(
     () => formatSearchPriceRangeLine(effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria),
     [effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria]
   );
-
-  const quickFilterChips = [
-    { id: 'mode', label: listingType === 'rent' ? 'Rent' : 'Buy' },
-    { id: 'price', label: 'Price' },
-    { id: 'type', label: 'Property type' },
-    { id: 'beds', label: 'Beds' },
-    { id: 'more', label: 'More' }
-  ];
 
   const isPublicResultsRoute = !showMyPropertiesOnly && (location.pathname === '/sale' || location.pathname === '/rent');
   const resultsRoutePath = listingType === 'rent' ? '/rent' : '/sale';
@@ -536,6 +494,23 @@ function AppContent() {
     const base = listingType === 'rent' ? 'For Rent Properties' : 'For Sale Properties';
     return publicLocationLabel ? `${base} in ${publicLocationLabel}` : `${base} in the Philippines`;
   }, [listingType, publicLocationLabel]);
+  const resultsHeadingLabel = useMemo(() => {
+    if (view === 'school') return 'Near your campus';
+    if (view === 'map') return 'Explore the map';
+    return publicLocationLabel || 'All locations';
+  }, [view, publicLocationLabel]);
+  const activeResultsFilterCount = useMemo(() => {
+    let count = 0;
+    if (propertyType) count += 1;
+    if (effectivePriceMin != null || effectivePriceMax != null) count += 1;
+    if (minBeds > 0) count += 1;
+    if (minBaths > 0) count += 1;
+    if (furnishedFilter) count += 1;
+    if (sizeRange.min > 0 || sizeRange.max !== Infinity) count += 1;
+    if (searchQuery.trim()) count += 1;
+    if (selectedSchoolId) count += 1;
+    return count;
+  }, [propertyType, effectivePriceMin, effectivePriceMax, minBeds, minBaths, furnishedFilter, sizeRange.min, sizeRange.max, searchQuery, selectedSchoolId]);
   const resultsDescription = useMemo(() => {
     const modeLabel = listingType === 'rent' ? 'rental' : 'for-sale';
     const countPart = hasSearched ? `${listingsForView.length} ${modeLabel} listing${listingsForView.length === 1 ? '' : 's'} found.` : '';
@@ -676,7 +651,8 @@ function AppContent() {
         {!(isMobile && hasSearched && !showMyPropertiesOnly) && (
           <PageHeader
             title={showMyPropertiesOnly ? 'My properties' : (listingType === 'rent' ? 'For Rent' : 'For Sale')}
-            onBack={() => navigate(`/search?listingType=${listingType}&edit=1`)}
+            onBack={() => navigate(showMyPropertiesOnly ? '/menu' : `/search?listingType=${listingType}&edit=1`)}
+            right={showMyPropertiesOnly && user ? <button type="button" className="bb-button" onClick={() => navigate('/add-property')}>+ Add</button> : undefined}
           />
         )}
 
@@ -706,6 +682,7 @@ function AppContent() {
             )}
             {showMyPropertiesOnly && user && (
               <div className="my-properties-bar">
+                <p className="bb-owner-intro">A clear view of every listing.</p>
                 <div className="my-properties-bar-toggle-wrap">
                   <ListingTypeToggle
                     value={myPropertiesListingType}
@@ -727,38 +704,50 @@ function AppContent() {
             <>
             {!showMyPropertiesOnly && hasSearched ? (
               <>
-              <section className="results-portal-block results-portal-summary minimal-results-shell" aria-label="Search summary">
-                <div className="minimal-results-header">
-                  <div className="minimal-results-topline">
-                    <button type="button" className="minimal-results-back" onClick={() => navigate(`/search?listingType=${listingType}&edit=1`)}>
-                      <i className="fas fa-arrow-left" aria-hidden />
-                    </button>
-                    <strong>Search results</strong>
-                    <button type="button" className="minimal-results-map-btn" onClick={() => navigate(`/search/map?listingType=${listingType}`)}>
-                      <i className="fas fa-map" aria-hidden /> Map
-                    </button>
-                  </div>
+              <section className="results-portal-block results-portal-summary minimal-results-shell prototype-results-summary" aria-label="Search summary">
+                <div className="prototype-results-heading-row">
                   <button
                     type="button"
-                    className="prototype-results-search"
+                    className="prototype-results-location-heading"
                     onClick={() => setShowAdvancedFilters(true)}
                     aria-expanded={showAdvancedFilters}
                     aria-haspopup="dialog"
                     aria-controls="results-advanced-filters-panel"
                   >
-                    <i className="fas fa-search" aria-hidden />
-                    <span>{criteriaProvinceCity}</span>
-                    <i className="fas fa-sliders-h" aria-hidden />
+                    <strong>{resultsHeadingLabel}</strong>
+                    <span>
+                      {listingType === 'rent' ? 'Places to rent' : 'Places to buy'}
+                      <i className="fas fa-chevron-down" aria-hidden />
+                    </span>
                   </button>
-                  <MinimalFilterChips
-                    chips={quickFilterChips}
-                    onSelect={() => setShowAdvancedFilters(true)}
-                    activeId="mode"
+                  <SaveSearchButton
+                    iconOnly
+                    state={{ listingType, view, selectedCity, selectedCityIds, selectedRegion, selectedProvince, searchQuery, propertyType, priceRangeIndex, priceMin, priceMax, furnishedFilter, minBeds, minBaths, sizeRange, sortBy, selectedSchoolId }}
                   />
                 </div>
-                <div className="minimal-results-body">
-                  <div className="minimal-results-meta-row">
-                    <p className="minimal-results-count">{listingsForView.length.toLocaleString()} results</p>
+
+                <div className="prototype-results-filter-row" aria-label="Result filters">
+                  <button type="button" className={`prototype-result-chip ${activeResultsFilterCount ? 'active' : ''}`} onClick={() => setShowAdvancedFilters(true)}>
+                    <i className="fas fa-sliders-h" aria-hidden />
+                    Filters
+                    {activeResultsFilterCount > 0 && <span className="prototype-result-filter-count">{activeResultsFilterCount}</span>}
+                  </button>
+                  <button type="button" className="prototype-result-chip" onClick={() => setShowAdvancedFilters(true)}>
+                    {listingType === 'rent' ? 'Rent' : 'Buy'} <i className="fas fa-chevron-down" aria-hidden />
+                  </button>
+                  <button type="button" className="prototype-result-chip" onClick={() => setShowAdvancedFilters(true)}>
+                    {(effectivePriceMin != null || effectivePriceMax != null) ? criteriaPriceLabel : 'Price'} <i className="fas fa-chevron-down" aria-hidden />
+                  </button>
+                  <button type="button" className="prototype-result-chip" onClick={() => setShowAdvancedFilters(true)}>
+                    {minBeds > 0 ? `${minBeds}+ beds` : 'Bedrooms'} <i className="fas fa-chevron-down" aria-hidden />
+                  </button>
+                </div>
+
+                <div className="prototype-results-toolbar">
+                  <p className="minimal-results-count">
+                    {listingsForView.length.toLocaleString()} {listingsForView.length === 1 ? 'place' : 'places'}
+                  </p>
+                  <div className="prototype-results-toolbar-actions">
                     <select
                       className="prototype-results-sort"
                       value={sortBy}
@@ -771,6 +760,9 @@ function AppContent() {
                       <option value="size-large">Size: large first</option>
                       <option value="size-small">Size: small first</option>
                     </select>
+                    <button type="button" className="minimal-results-map-btn" onClick={() => navigate(`/search/map?listingType=${listingType}`)}>
+                      <i className="fas fa-map" aria-hidden /> Map
+                    </button>
                   </div>
                 </div>
               </section>
@@ -814,7 +806,7 @@ function AppContent() {
 
                 {searchedResultsMode !== 'map' && itemsToShow < listingsForView.length && (
                   <div className="text-center py-4">
-                    <div className="loading-more">Loading more properties...</div>
+                    <button type="button" className="bb-button bb-secondary" onClick={() => setItemsToShow(value => Math.min(value + pageSize, listingsForView.length))}>Show more properties</button>
                   </div>
                 )}
 
@@ -841,28 +833,7 @@ function AppContent() {
                     )}
                   </div>
                 )}
-              {showAdvancedFilters &&
-                createPortal(
-                  <div
-                    className="modal auth-modal filters-modal fade show"
-                    style={{ display: 'block' }}
-                    tabIndex={-1}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="filters-modal-title"
-                  >
-                    <div className="modal-backdrop fade show" onClick={closeFiltersModal} aria-hidden />
-                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-md-down filters-modal-dialog">
-                      <div className="modal-content">
-                        <div className="modal-header">
-                          <h2 id="filters-modal-title" className="modal-title">
-                            Filters
-                          </h2>
-                          <button type="button" className="modal-close-btn" onClick={closeFiltersModal} aria-label="Close">
-                            <i className="fas fa-times" aria-hidden />
-                          </button>
-                        </div>
-                        <div className="modal-body filters-modal-body">
+              <BottomSheet open={showAdvancedFilters} title="A little more your kind of place" onClose={closeFiltersModal}>
                           <div id="results-advanced-filters-panel" className="results-filters-wrap results-filters-wrap--modal">
                             {(view === 'keyword' || view === 'search') && (
                               <div className="results-search-bar-wrap">
@@ -979,12 +950,7 @@ function AppContent() {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>,
-                  document.body
-                )}
+              </BottomSheet>
               </>
             ) : (
               <SortBar
@@ -1011,11 +977,13 @@ function AppContent() {
                   />
                 ) : (
                   <section
-                    className={`listing-grid ${effectiveViewMode === 'list' ? 'list-view' : ''}`}
+                    className={showMyPropertiesOnly ? 'bb-owner-list' : `listing-grid ${effectiveViewMode === 'list' ? 'list-view' : ''}`}
                     id="listingArea"
                   >
                     {visibleListings.map((property, index) =>
-                      effectiveViewMode === 'list' ? (
+                      showMyPropertiesOnly ? (
+                        <OwnerListing key={property.id} property={property} onOpen={() => handleViewDetails(index)} />
+                      ) : effectiveViewMode === 'list' ? (
                         <PropertyListCard
                           key={property.id || `property-${index}`}
                           property={property}
@@ -1036,7 +1004,7 @@ function AppContent() {
 
                 {effectiveViewMode !== 'map' && itemsToShow < listingsForView.length && (
                   <div className="text-center py-4">
-                    <div className="loading-more">Loading more properties...</div>
+                    <button type="button" className="bb-button bb-secondary" onClick={() => setItemsToShow(value => Math.min(value + pageSize, listingsForView.length))}>Show more properties</button>
                   </div>
                 )}
 

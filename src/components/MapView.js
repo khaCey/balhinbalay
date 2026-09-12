@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import { getCityById } from '../data/cities';
+import React, { useEffect, useRef, useState } from 'react';
 import { buildMapPriceMarkerHtml } from './map/MapPriceMarker';
 
 const MapView = ({
@@ -11,6 +10,7 @@ const MapView = ({
   initialViewport = null,
   onViewportChange
 }) => {
+  const [error, setError] = useState('');
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const clusterGroupRef = useRef(null);
@@ -35,7 +35,7 @@ const MapView = ({
     let cancelled = false;
 
     function ensureLeaflet() {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         if (!document.querySelector('link[href*="leaflet"]')) {
           const link = document.createElement('link');
           link.rel = 'stylesheet';
@@ -50,6 +50,7 @@ const MapView = ({
           script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
           script.crossOrigin = '';
           script.onload = () => resolve();
+          script.onerror = () => reject(new Error('The map could not load. Check your connection or use list view.'));
           document.body.appendChild(script);
         } else {
           resolve();
@@ -58,7 +59,7 @@ const MapView = ({
     }
 
     function ensureMarkerCluster() {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         if (window.L?.MarkerClusterGroup) {
           resolve();
           return;
@@ -77,6 +78,7 @@ const MapView = ({
           const script = document.createElement('script');
           script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
           script.onload = () => resolve();
+          script.onerror = () => reject(new Error('The map could not load. Check your connection or use list view.'));
           document.body.appendChild(script);
         } else {
           resolve();
@@ -138,28 +140,16 @@ const MapView = ({
         if (!property.coordinates) return;
         bounds.push([property.coordinates.lat, property.coordinates.lng]);
 
-        const cityName = getCityById(property.cityId)?.displayName || property.city || property.cityId || '';
-        const locationLine = [property.location, cityName].filter(Boolean).join(', ') || '—';
         const markerIcon = window.L.divIcon({
           html: buildMapPriceMarkerHtml(property, property.id === selectedPropertyIdRef.current),
           className: 'map-price-marker-wrap',
           iconSize: [76, 24],
           iconAnchor: [38, 12]
         });
-        const marker = window.L.marker([property.coordinates.lat, property.coordinates.lng], { icon: markerIcon })
-          .bindPopup(`
-            <div style="min-width: 200px;">
-              <h6 style="margin: 0 0 8px 0; font-weight: bold;">${property.title}</h6>
-              <p style="margin: 0 0 4px 0; color: #1f6f52; font-weight: bold;">${property.price.toLocaleString()} ₱${property.listingType === 'rent' ? '/month' : ''}</p>
-              <p style="margin: 0 0 8px 0; font-size: 0.9em; color: #666;">${locationLine}</p>
-              <button onclick="window.mapPropertyClick('${property.id}')" style="width: 100%; padding: 6px; background: #1f6f52; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                View Details
-              </button>
-            </div>
-          `);
-
+        const marker = window.L.marker([property.coordinates.lat, property.coordinates.lng], { icon: markerIcon, title: property.title || 'View property', alt: property.title || 'Property' });
         marker.on('click', () => {
-          onSelectPropertyRef.current?.(property);
+          if (onSelectPropertyRef.current) onSelectPropertyRef.current(property);
+          else onPropertyClickRef.current?.(properties.indexOf(property));
         });
 
         markerByPropertyIdRef.current.set(property.id, marker);
@@ -183,7 +173,7 @@ const MapView = ({
     ensureLeaflet().then(ensureMarkerCluster).then(() => {
       if (cancelled) return;
       initializeMap();
-    });
+    }).catch(error => { if (!cancelled) setError(error.message); });
 
     return () => {
       cancelled = true;
@@ -205,21 +195,6 @@ const MapView = ({
     };
   }, [properties, selectedCity, initialViewport, onViewportChange]);
 
-  // Expose click handler globally for popup buttons
-  useEffect(() => {
-    window.mapPropertyClick = (propertyId) => {
-      const selected = properties.find((p) => p.id === propertyId);
-      if (selected) onSelectPropertyRef.current?.(selected);
-      const index = properties.findIndex(p => p.id === propertyId);
-      if (index !== -1 && onPropertyClickRef.current) {
-        onPropertyClickRef.current(index);
-      }
-    };
-    return () => {
-      delete window.mapPropertyClick;
-    };
-  }, [properties]);
-
   useEffect(() => {
     if (!window.L) return;
     markerByPropertyIdRef.current.forEach((marker, propertyId) => {
@@ -238,6 +213,7 @@ const MapView = ({
   return (
     <div className="map-view-container">
       <div ref={mapRef} className="map-view" />
+      {error && <p className="bb-map-error" role="alert">{error}</p>}
     </div>
   );
 };

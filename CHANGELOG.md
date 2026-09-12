@@ -1,4 +1,123 @@
-﻿# Changelog
+# Changelog
+
+## v.1.0.00.547 — Development
+Date: 2026-09-12
+Type: Dev Change
+
+### Summary
+- Continue the existing React checkpoint with approved account forms and owner listing management.
+
+### Changes (detailed)
+
+#### Changed
+- src/pages/ProfilePage.js
+  - ProfilePage(), handleSaveProfile()
+    - From: Separate inline pencil editors with hidden email errors and a password completion message that disappeared.
+    - To: Shared photo/name/email form using the same updateProfile contract, visible failure/completion feedback, labelled reset fields and keyboard-accessible password controls.
+- src/pages/SettingsPage.js
+  - SettingsPage(), handleDelete(), closeDelete()
+    - From: Inline destructive form and obsolete directions to the mobile app.
+    - To: Approved account action rows and dismissible delete sheet retaining password verification/API payload, clearing the draft on cancel, and accurate web notification availability.
+- src/App.js, src/pages/AddPropertyPage.js, src/components/AddPropertyForm.js
+  - AppContent(), AddPropertyPage(), AddPropertyForm()
+    - From: General search cards for owned listings and no direct availability-step entry.
+    - To: Owner cards, Add action and availability link opening the existing edit wizard at Costs & availability. Preserve listing handlers, fields and final submission.
+
+#### Added
+- src/components/ui/OwnerListing.js, src/components/ui/Controls.js, src/styles/approved-ui.css
+  - OwnerListing(), Icon()
+    - Added: Compact owner summary/status/actions, native unlist confirmation with retry, and shared account/owner styles.
+- src/__tests__/account-owner-migration.test.js
+  - Account and owner behaviour tests
+    - Added: Five checks for profile save failure/success, password reset, deletion cancel/failure and owner availability/unlist retry.
+
+## v.1.0.00.546 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Verify the React migration and record a resumable implementation and review checkpoint.
+
+### Changes (detailed)
+
+#### Added
+- src/__tests__/{migration,app-migration}.test.js, src/setupTests.js
+  - Component and App integration tests
+    - Added: Thirteen checks covering search state, saved flows, fees, comparison, map filtering, owner validation/submission and chat failure handling using controlled data.
+- docs/react-migration-handoff.md
+  - Migration checkpoint
+    - Added: Completed scope, partial work, six confirmation topics, verification evidence and outstanding browser/live-service checks.
+
+#### Changed
+- package.json
+  - jest.moduleNameMapper
+    - From: CRA Jest resolution cannot resolve the installed Router 7 package exports.
+    - To: Explicit test-only mappings to the installed router modules; retain production tooling and dependencies.
+
+## v.1.0.00.545 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Connect the remaining approved UI to real property, saved, map, owner and messaging functionality.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PropertyDetailContent.js
+  - PropertyDetailContent(), share(), report()
+    - From: Legacy detail sections and duplicated action stacks.
+    - To: Shared gallery, property facts, explicit fee disclosure, responsive owner contact and native report sheet; retain real chat/report/share callbacks.
+- src/pages/{SavedPage,MenuPage,MessagesPage,ChatPage}.js
+  - SavedPage(), MenuPage(), MessagesPage(), ChatPage()
+    - From: Favourites-only Saved, saved-search links pointing at results, chat without a property preview.
+    - To: Three saved tabs, real resume/delete handlers, account menu links and property-linked chat with the existing send/error behaviour.
+- src/components/AddPropertyForm.js, src/pages/AddPropertyPage.js
+  - AddPropertyForm(), nextStep(), handleSubmit(), AddPropertyPage()
+    - From: One long form and potential add-form fallback when an edit listing had not loaded.
+    - To: Six steps retaining existing fields/validation/upload and API payload; prevent unavailable edit routes from creating a new listing; return to My properties after success.
+
+#### Fixed
+- src/pages/SearchMapPage.js, src/components/MapView.js, src/components/map/MapPropertyPreview.js, src/context/SearchContext.js
+  - SearchMapPage(), MapView(), MapPropertyPreview(), SearchProvider()
+    - From: Map ignored several active filters, fell back to unrelated listings for empty results, lost viewport state, and used a global HTML popup callback.
+    - To: Use matching filter requests and true empty results; retain viewport and selected ID in React context; select real listings through Leaflet callbacks and a compact React preview.
+
+#### Added
+- src/utils/searchRequest.js, docs/react-migration-confirmations.md
+  - searchRequest(state, listingType)
+    - Added: Map API query adapter and consolidated decisions for functionality requiring product/backend approval.
+
+## v.1.0.00.544 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Resume the approved prototype migration inside the existing dev-based React application.
+
+### Changes (detailed)
+
+#### Added
+- src/components/ui/{AppNavigation,BottomSheet,CitySelector,Controls,PropertyTile,Comparison,PropertyGallery,PropertyCosts,PropertyFormStep,SaveSearchButton}.js
+  - AppNavigation(), BottomSheet(), CitySelector(), SegmentedControl(), PropertyTile(), ComparisonProvider(), PropertyGallery(), PropertyCosts(), PropertyFormStep(), SaveSearchButton()
+    - Added: Reusable declarative UI foundations for the approved prototype, native modal focus containment and three-listing comparison.
+- src/styles/approved-ui.css, public/fonts/*, docs/react-migration-audit.md
+  - Design foundations and migration audit
+    - Added: Approved colours, locally served DM Sans fonts, 20px gutters, responsive rails and shared surface/field styles.
+
+#### Changed
+- public/index.html, src/App.js, src/components/MainLayout.js
+  - AppContent(), MainLayout()
+    - From: Sidebar/mobile five-item navigation, full-viewport scroll lock and legacy filter overlay.
+    - To: Approved desktop header/four-item bottom navigation and native filter sheet while retaining routes, SEO, contexts and filters.
+- src/pages/{HomePage,SearchPage}.js, src/components/SearchModule.js
+  - HomePage(), SearchPage(), SearchModule()
+    - From: Large inline city browser and essential-filter panel on Home.
+    - To: Compact city-first search with a separate picker, real listing rails and preserved search payloads.
+- src/components/{PropertyCard,FavoritesButton}.js, src/components/minimal/MinimalPropertyCard.js
+  - PropertyCard(), FavoritesButton(), MinimalPropertyCard()
+    - From: Multiple card hierarchies and generic heart markup.
+    - To: Shared approved property tile and accessible pressed-state favourite control.
 
 ## v.1.0.00.543 — Development
 Date: 2026-07-23
