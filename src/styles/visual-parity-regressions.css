@@ -4,4 +4,10 @@
   .bb-bottom-navigation {
     display: none;
   }
+
+  /* Public results already carry their own results header. The legacy
+     PageHeader duplicated it on desktop, unlike the approved prototype. */
+  .App:has(.results-portal-summary) > .page-header {
+    display: none;
+  }
 }
