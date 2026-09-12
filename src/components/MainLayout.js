@@ -12,7 +12,6 @@ import {
 } from '../utils/analytics';
 import ComparisonProvider from './ui/Comparison';
 import AppNavigation from './ui/AppNavigation';
-import '../styles/prototype-parity.css';
 
 export default function MainLayout() {
   const location = useLocation();
