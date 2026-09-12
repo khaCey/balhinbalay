@@ -110,7 +110,7 @@ function MenuPage() {
             onClick={() => navigate('/settings')}
           />
           <MenuItem
-            icon="close"
+            icon="logout"
             title={loggingOut ? 'Logging out…' : 'Log out'}
             description="Sign out of this account"
             danger
