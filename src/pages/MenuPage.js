@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useSearch } from '../context/SearchContext';
 import { baseUrl } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
 
 function MenuPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { hasSearched, lastSearchState } = useSearch();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -16,13 +14,7 @@ function MenuPage() {
     return <Navigate to="/" replace />;
   }
 
-  const handleOpenSavedSearches = () => {
-    if (hasSearched && lastSearchState?.listingType === 'rent') {
-      navigate('/rent');
-    } else {
-      navigate('/sale');
-    }
-  };
+  const handleOpenSavedSearches = () => navigate('/saved?tab=searches');
 
   const handleLogoutConfirm = () => {
     setShowLogoutConfirm(false);
@@ -37,18 +29,7 @@ function MenuPage() {
   return (
     <div className="menu-page minimal-page">
       <div className="menu-page-body profile-drawer-body">
-        <div className="prototype-home-topbar">
-          <div className="minimal-wordmark">BalhinBalay</div>
-          <button type="button" className="prototype-icon-button prototype-icon-button-clear" onClick={() => navigate('/settings')} aria-label="Settings">
-            <i className="fas fa-cog" aria-hidden />
-          </button>
-        </div>
-
-        <div className="saved-header">
-          <h2>My account</h2>
-          <p>Manage your searches, enquiries and preferences.</p>
-        </div>
-
+        <div className="bb-page-heading"><h1>Your corner.</h1><p>Manage your searches, enquiries and preferences.</p></div>
         <div className="account-card">
           <div className="avatar">
             {user.avatar_url ? (
@@ -71,6 +52,8 @@ function MenuPage() {
         </div>
 
         <div className="account-menu">
+          <button type="button" onClick={() => navigate('/profile')}><span>Edit profile</span><span>›</span></button>
+          <button type="button" onClick={() => navigate('/messages')}><span>Messages</span><span>›</span></button>
           <button type="button" onClick={() => navigate('/add-property')}>
             <span>Add property</span>
             <span>›</span>

@@ -85,6 +85,7 @@ export default function MessagesPage() {
         }
         onBack={handleBack}
       />
+      <div className="bb-page-heading"><h1>A little closer to moving.</h1><p>Your conversations, with every property in view.</p></div>
       <main className="page-content messages-page-content">
         {threadsWithListing.length === 0 ? (
           <p className="messages-panel-empty">
@@ -96,7 +97,7 @@ export default function MessagesPage() {
               const timestamp = lastMessage?.timestamp || thread.updatedAt;
               const timeLabel = timestamp ? (relativeTime(timestamp) === 'now' ? 'now' : `Sent ${relativeTime(timestamp)}`) : null;
               const previewText = lastMessage
-                ? (lastMessage.isFromUser ? timeLabel : lastMessage.text)
+                ? `${lastMessage.isFromUser ? 'You: ' : ''}${lastMessage.text}`
                 : timeLabel;
               return (
                 <li key={thread.id}>

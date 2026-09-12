@@ -11,7 +11,7 @@ function AddPropertyPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { openLogin } = useLoginModal();
-  const { listings } = useListings();
+  const { listings, loading } = useListings();
 
   const initialListing = id ? (listings || []).find((l) => l.id === id) : null;
   const isEdit = !!id;
@@ -21,7 +21,7 @@ function AddPropertyPage() {
   };
 
   const handleSuccess = () => {
-    navigate('/sale');
+    navigate('/my-properties');
   };
 
   if (!user) {
@@ -38,6 +38,10 @@ function AddPropertyPage() {
         </main>
       </div>
     );
+  }
+
+  if (isEdit && (loading || !initialListing || initialListing.ownerId !== user.id)) {
+    return <div className="bb-empty"><h1>{loading ? 'Loading your listing…' : 'Listing unavailable'}</h1><p>{loading ? 'Please wait.' : 'This listing could not be opened for editing.'}</p></div>;
   }
 
   return (

@@ -1,5 +1,39 @@
 # Changelog
 
+## v.1.0.00.545 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Connect the remaining approved UI to real property, saved, map, owner and messaging functionality.
+
+### Changes (detailed)
+
+#### Changed
+- src/components/PropertyDetailContent.js
+  - PropertyDetailContent(), share(), report()
+    - From: Legacy detail sections and duplicated action stacks.
+    - To: Shared gallery, property facts, explicit fee disclosure, responsive owner contact and native report sheet; retain real chat/report/share callbacks.
+- src/pages/{SavedPage,MenuPage,MessagesPage,ChatPage}.js
+  - SavedPage(), MenuPage(), MessagesPage(), ChatPage()
+    - From: Favourites-only Saved, saved-search links pointing at results, chat without a property preview.
+    - To: Three saved tabs, real resume/delete handlers, account menu links and property-linked chat with the existing send/error behaviour.
+- src/components/AddPropertyForm.js, src/pages/AddPropertyPage.js
+  - AddPropertyForm(), nextStep(), handleSubmit(), AddPropertyPage()
+    - From: One long form and potential add-form fallback when an edit listing had not loaded.
+    - To: Six steps retaining existing fields/validation/upload and API payload; prevent unavailable edit routes from creating a new listing; return to My properties after success.
+
+#### Fixed
+- src/pages/SearchMapPage.js, src/components/MapView.js, src/components/map/MapPropertyPreview.js, src/context/SearchContext.js
+  - SearchMapPage(), MapView(), MapPropertyPreview(), SearchProvider()
+    - From: Map ignored several active filters, fell back to unrelated listings for empty results, lost viewport state, and used a global HTML popup callback.
+    - To: Use matching filter requests and true empty results; retain viewport and selected ID in React context; select real listings through Leaflet callbacks and a compact React preview.
+
+#### Added
+- src/utils/searchRequest.js, docs/react-migration-confirmations.md
+  - searchRequest(state, listingType)
+    - Added: Map API query adapter and consolidated decisions for functionality requiring product/backend approval.
+
 ## v.1.0.00.544 — Development
 Date: 2026-09-11
 Type: Dev Change

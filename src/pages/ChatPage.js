@@ -173,10 +173,11 @@ export default function ChatPage() {
   return (
     <div className="chat-page page-with-header minimal-page">
       <PageHeader
-        title={property.title}
+        title={thread.otherParticipantName || property.contactInfo?.agentName || 'Messages'}
         onBack={handleBack}
         className="chat-page-header"
       />
+      <button type="button" className="bb-chat-property" onClick={() => navigate(`/property/${property.id}`, { state: { from: `/chat/${threadId}` } })}>{property.images?.[0] && <img src={property.images[0]} alt="" />}<span><strong>{property.title}</strong><small>View property</small></span></button>
       <main className="page-content chat-page-body">
         <div
           ref={messagesListRef}
@@ -223,11 +224,11 @@ export default function ChatPage() {
           onSubmit={handleSubmit}
           style={activeInset > 0 ? { transform: `translateY(-${activeInset}px)` } : undefined}
         >
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             className="chat-panel-input"
-            placeholder="Message..."
+            placeholder="Ask about this place…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onFocus={() => {
