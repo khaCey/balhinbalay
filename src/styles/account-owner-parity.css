@@ -1,0 +1,341 @@
+/* Account, profile, settings and owner-flow parity. */
+
+.bb-account-page,
+.menu-page,
+.profile-page,
+.settings-page,
+.add-property-page {
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.bb-account-page .bb-page-heading,
+.menu-page .bb-page-heading,
+.profile-page .bb-page-heading,
+.settings-page .bb-page-heading {
+  padding: 24px 0 20px;
+}
+
+.bb-account-page .bb-page-heading h1,
+.menu-page .bb-page-heading h1,
+.profile-page .bb-page-heading h1,
+.settings-page .bb-page-heading h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.16;
+  letter-spacing: -0.9px;
+}
+
+.bb-back-link {
+  margin-top: 18px;
+  color: var(--bb-muted);
+}
+
+/* Profile / menu summary */
+.bb-account-summary {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 10px 0 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.bb-account-summary .avatar {
+  width: 66px;
+  height: 66px;
+  flex: 0 0 66px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #deebff;
+  color: var(--bb-blue-hover);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.bb-account-summary .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bb-account-summary-copy {
+  min-width: 0;
+}
+
+.bb-account-summary-copy h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.bb-account-summary-copy p {
+  margin: 3px 0 0;
+  color: var(--bb-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.bb-account-summary-copy .bb-text-button {
+  padding: 6px 0 0;
+}
+
+.bb-account-menu-group {
+  padding: 0 !important;
+  overflow: hidden;
+  margin-bottom: 20px !important;
+  border: 1px solid var(--bb-line) !important;
+  border-radius: 17px !important;
+  background: white !important;
+}
+
+.bb-account-menu-item,
+.bb-account-menu-group > button {
+  width: 100%;
+  min-height: 65px;
+  padding: 18px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  color: var(--bb-ink) !important;
+  background: white;
+  border: 0 !important;
+  border-bottom: 1px solid #edf1f7 !important;
+  border-radius: 0;
+}
+
+.bb-account-menu-group > button:last-child {
+  border-bottom: 0 !important;
+}
+
+.bb-account-menu-item > svg:first-child {
+  width: 20px;
+  height: 20px;
+  color: var(--bb-blue-hover);
+}
+
+.bb-account-menu-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.bb-account-menu-copy strong {
+  display: block;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bb-account-menu-copy small {
+  display: block;
+  margin-top: 3px;
+  color: var(--bb-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.bb-account-chevron {
+  flex: 0 0 auto;
+  color: var(--bb-muted);
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.bb-account-menu-item.bb-danger-text,
+.bb-account-menu-item.bb-danger-text > svg:first-child {
+  color: var(--bb-red) !important;
+}
+
+/* Profile form */
+.bb-profile-form {
+  padding: 20px;
+  border: 1px solid var(--bb-line);
+  border-radius: 18px;
+  background: white;
+}
+
+.bb-upload-zone {
+  min-height: 130px;
+  padding: 24px 16px;
+  margin-bottom: 18px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px dashed #a8c0e0;
+  border-radius: 13px;
+  background: var(--bb-soft);
+}
+
+.bb-profile-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.bb-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.profile-section-password,
+.settings-block,
+.settings-card {
+  border-color: var(--bb-line) !important;
+  box-shadow: none !important;
+}
+
+.profile-section-password {
+  margin-top: 20px;
+}
+
+/* Settings */
+.settings-block {
+  padding: 20px;
+  border: 1px solid var(--bb-line);
+  border-radius: 18px;
+  background: white;
+}
+
+.settings-block-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.settings-card {
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-row {
+  min-height: 58px;
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--bb-line);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row-label {
+  color: var(--bb-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-row-meta,
+.settings-hint {
+  color: var(--bb-muted) !important;
+  font-size: 12px;
+}
+
+.bb-account-actions {
+  margin-top: 20px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bb-account-actions > button {
+  width: 100%;
+  min-height: 58px;
+  padding: 15px 18px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--bb-line);
+  background: white;
+  color: var(--bb-ink);
+}
+
+.bb-account-actions > button:last-child {
+  border-bottom: 0;
+}
+
+.bb-account-actions > button > span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bb-account-actions > button > svg:last-child {
+  width: 16px;
+  color: var(--bb-muted);
+}
+
+/* Owner listing form already uses React-backed fields. Match the prototype shell. */
+.add-property-page .page-header {
+  margin-bottom: 4px;
+}
+
+.add-property-page-form {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.bb-owner-form {
+  padding: 20px;
+  border: 1px solid var(--bb-line);
+  border-radius: 18px;
+  background: white;
+}
+
+.bb-step-progress {
+  gap: 5px;
+  margin: 18px 0 22px;
+}
+
+.bb-step-progress span {
+  height: 4px;
+  border-radius: 3px;
+  background: #dfe8f3;
+}
+
+.bb-step-progress span.active {
+  background: var(--bb-blue);
+}
+
+.bb-form-navigation {
+  margin-top: 24px;
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--bb-line);
+}
+
+@media (min-width: 760px) {
+  .bb-account-page .bb-page-heading h1,
+  .menu-page .bb-page-heading h1,
+  .profile-page .bb-page-heading h1,
+  .settings-page .bb-page-heading h1 {
+    font-size: 34px;
+  }
+
+  .bb-profile-form,
+  .settings-block,
+  .bb-owner-form {
+    padding: 24px;
+  }
+}
