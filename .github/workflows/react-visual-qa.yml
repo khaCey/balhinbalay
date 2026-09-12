@@ -9,6 +9,13 @@ on:
       - 'src/**'
       - 'scripts/capture-react-visual-qa.mjs'
       - '.github/workflows/react-visual-qa.yml'
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - 'src/**'
+      - 'scripts/capture-react-visual-qa.mjs'
+      - '.github/workflows/react-visual-qa.yml'
 
 jobs:
   capture:
