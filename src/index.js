@@ -9,6 +9,7 @@ import './styles/map-detail-parity.css';
 import './styles/account-owner-parity.css';
 import './styles/chat-owner-parity.css';
 import './styles/visual-parity-regressions.css';
+import './styles/home-final-parity.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
