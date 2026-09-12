@@ -1,5 +1,28 @@
 # Changelog
 
+## v.1.0.00.546 — Development
+Date: 2026-09-11
+Type: Dev Change
+
+### Summary
+- Verify the React migration and record a resumable implementation and review checkpoint.
+
+### Changes (detailed)
+
+#### Added
+- src/__tests__/{migration,app-migration}.test.js, src/setupTests.js
+  - Component and App integration tests
+    - Added: Thirteen checks covering search state, saved flows, fees, comparison, map filtering, owner validation/submission and chat failure handling using controlled data.
+- docs/react-migration-handoff.md
+  - Migration checkpoint
+    - Added: Completed scope, partial work, six confirmation topics, verification evidence and outstanding browser/live-service checks.
+
+#### Changed
+- package.json
+  - jest.moduleNameMapper
+    - From: CRA Jest resolution cannot resolve the installed Router 7 package exports.
+    - To: Explicit test-only mappings to the installed router modules; retain production tooling and dependencies.
+
 ## v.1.0.00.545 — Development
 Date: 2026-09-11
 Type: Dev Change
