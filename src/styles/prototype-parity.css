@@ -1,0 +1,475 @@
+/*
+ * Visual-parity corrections for the approved BalhinBalay static prototype.
+ * Keep this layer after approved-ui.css so migration-specific fixes remain
+ * explicit and easy to remove/merge once the React port is visually accepted.
+ */
+
+:root {
+  --bb-shadow: 0 6px 24px #2146730b;
+}
+
+.bb-main {
+  max-width: 1200px;
+  padding: 24px 20px calc(var(--bb-nav) + 28px + env(safe-area-inset-bottom));
+  min-height: calc(100dvh - 72px);
+}
+
+.bb-header {
+  min-height: 72px;
+  background: #f5f8fcf5;
+  backdrop-filter: blur(16px);
+}
+
+.bb-header-inner {
+  max-width: 1200px;
+  height: 72px;
+  min-height: 72px;
+  padding: 0 20px;
+  gap: 10px;
+}
+
+.bb-brand {
+  gap: 9px;
+  font-size: 20px;
+  letter-spacing: -0.7px;
+}
+
+.bb-brand > span {
+  width: 34px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.bb-icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+}
+
+.bb-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 14px;
+  background: #deebff;
+}
+
+.bb-unread {
+  top: 8px;
+  right: 9px;
+}
+
+.bb-bottom-navigation {
+  height: calc(var(--bb-nav) + env(safe-area-inset-bottom));
+  min-height: 0;
+  padding: 0 0 env(safe-area-inset-bottom);
+  background: #fffffffa;
+  backdrop-filter: blur(12px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.bb-bottom-navigation a {
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bb-bottom-navigation a svg {
+  width: 48px;
+  height: 29px;
+  padding: 4px 13px;
+  border-radius: 12px;
+}
+
+/* Home hero */
+.bb-home-hero {
+  margin: -24px -20px 0;
+  padding: 26px 20px 0;
+  background: linear-gradient(180deg, #ecf4ff 0, #f5f8fc 100%);
+}
+
+.bb-eyebrow {
+  color: var(--bb-blue-hover);
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.bb-eyebrow svg {
+  width: 15px;
+  height: 15px;
+}
+
+.bb-home-hero h1 {
+  font-size: 40px;
+  line-height: 1.06;
+  letter-spacing: -1.7px;
+  max-width: 390px;
+  margin: 0;
+}
+
+.bb-home-hero > div > p {
+  margin: 12px 0 0;
+  color: var(--bb-muted);
+  max-width: 370px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Search card */
+.bb-home-hero .bb-search-card {
+  margin-top: 24px;
+}
+
+.bb-search-card {
+  border-color: #dbe8f6;
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: var(--bb-shadow);
+}
+
+.bb-search-top {
+  margin-bottom: 14px;
+}
+
+.bb-search-top > span {
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.bb-segment {
+  background: #edf2f8;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 3px;
+}
+
+.bb-segment button {
+  border-radius: 9px;
+  padding: 8px 23px;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.bb-city-field {
+  gap: 10px;
+  border-color: #cbdced;
+  background: #fbfdff;
+  border-radius: 13px;
+  padding: 12px;
+  min-height: 60px;
+}
+
+.bb-city-field > span {
+  font-size: 15px;
+}
+
+.bb-city-field small {
+  font-size: 12px;
+}
+
+.bb-chips {
+  gap: 8px;
+  margin: 12px 0 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bb-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.bb-chip {
+  min-height: 40px;
+  padding: 8px 13px;
+  border-radius: 100px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.bb-search-submit {
+  margin-top: 12px;
+  min-height: 46px;
+}
+
+.bb-alternatives {
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top-color: #edf1f7;
+}
+
+.bb-alternatives button {
+  flex: 1;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 0;
+  gap: 7px;
+  font-size: 14px;
+  color: #3d5472;
+}
+
+.bb-alternatives svg {
+  width: 18px;
+  height: 18px;
+  color: var(--bb-blue-hover);
+}
+
+/* Home sections and rails */
+.bb-section {
+  margin-top: 30px;
+}
+
+.bb-section-heading {
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.bb-section-heading h2 {
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+
+.bb-section-heading p {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.bb-text-button {
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bb-blue-hover);
+}
+
+.bb-rail {
+  gap: 14px;
+  margin: 0 -20px;
+  padding: 0 20px 8px;
+  scroll-padding-inline: 20px;
+  scroll-snap-type: x proximity;
+}
+
+.bb-rail > * {
+  flex-basis: 275px;
+}
+
+.bb-city-rail > * {
+  flex-basis: 220px;
+}
+
+.bb-city-card {
+  min-height: 146px;
+  padding: 20px;
+  border-radius: 18px;
+  border-color: #d9e6f6;
+  background: #eaf2ff;
+}
+
+.bb-city-card:nth-child(3) {
+  background: #eaf4f6;
+}
+
+.bb-city-card:nth-child(4) {
+  background: #e7effb;
+}
+
+.bb-city-card strong {
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+
+.bb-city-card p {
+  font-size: 14px;
+  color: #546f91;
+  max-width: 145px;
+  margin-top: 7px;
+}
+
+.bb-city-card:first-child p {
+  color: #e1ebff;
+}
+
+.bb-city-card > span {
+  right: 16px;
+  bottom: 17px;
+  width: 30px;
+  height: 30px;
+  background: #fff9;
+}
+
+.bb-city-card:first-child > span {
+  background: #ffffff25;
+}
+
+/* Property cards on home/results rails */
+.bb-property {
+  border-radius: 18px;
+  box-shadow: 0 3px 12px #23406604;
+}
+
+.bb-property-media {
+  height: auto;
+  aspect-ratio: 1.55;
+}
+
+.bb-property-body {
+  padding: 16px;
+}
+
+.bb-property-price {
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+
+/* Owner CTA */
+.bb-owner-banner {
+  background: #e7effb;
+  border-radius: 18px;
+  padding: 22px;
+  align-items: center;
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.bb-owner-banner h2 {
+  font-size: 19px;
+  letter-spacing: -0.6px;
+}
+
+.bb-owner-banner p {
+  font-size: 14px;
+  margin: 6px 0 14px;
+}
+
+.bb-owner-icon {
+  display: none;
+}
+
+.bb-owner-content {
+  min-width: 0;
+}
+
+/* Search landing */
+.bb-page-heading .bb-eyebrow {
+  margin-bottom: 8px;
+}
+
+@media (min-width: 760px) {
+  :root {
+    --bb-nav: 0px;
+  }
+
+  .bb-header-inner {
+    height: 80px;
+    min-height: 80px;
+    padding: 0 30px;
+  }
+
+  .bb-desktop-navigation {
+    gap: 24px;
+    margin-right: 22px;
+  }
+
+  .bb-desktop-navigation a {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 0;
+  }
+
+  .bb-main {
+    padding: 32px 30px 50px;
+  }
+
+  .bb-home-hero {
+    margin: -32px -30px 0;
+    padding: 45px 30px 25px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .bb-home-hero h1 {
+    font-size: 52px;
+    max-width: 450px;
+  }
+
+  .bb-home-hero > div > p {
+    font-size: 16px;
+  }
+
+  .bb-home-hero .bb-search-card {
+    margin-top: 0;
+  }
+
+  .bb-section {
+    margin-top: 34px;
+  }
+
+  .bb-rail {
+    margin: 0;
+    padding: 0 0 8px;
+    scroll-padding-inline: 0;
+    gap: 20px;
+  }
+
+  .bb-rail > * {
+    flex-basis: calc((100% - 40px) / 3);
+  }
+
+  .bb-city-rail > * {
+    flex-basis: calc((100% - 60px) / 4);
+  }
+
+  .bb-city-card {
+    min-height: 156px;
+  }
+
+  .bb-city-card p {
+    max-width: 165px;
+  }
+
+  .bb-owner-banner {
+    justify-content: space-between;
+  }
+
+  .bb-owner-icon {
+    display: grid;
+    width: 64px;
+    height: 64px;
+    place-items: center;
+    border-radius: 16px;
+    background: #d5e4fb;
+    color: var(--bb-blue-hover);
+    flex: 0 0 auto;
+  }
+
+  .bb-owner-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .bb-owner-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .bb-owner-banner p {
+    margin-bottom: 0;
+  }
+
+  .bb-owner-content .bb-button {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+}
