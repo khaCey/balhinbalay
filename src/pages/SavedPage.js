@@ -23,19 +23,21 @@ export default function SavedPage() {
   const properties = ids
     .map((id) => listings.find((item) => String(item.id) === String(id)))
     .filter(Boolean);
+
   const resume = (id) => {
     const state = getSearch(id);
     if (!state) return;
     submitSearch({ ...state, view: state.searchQuery ? 'keyword' : 'city' });
     navigate(state.listingType === 'rent' ? '/rent' : '/sale');
   };
+
   return (
-    <div className="saved-page minimal-page">
+    <div className="saved-page minimal-page bb-saved-page">
       <div className="bb-page-heading">
         <h1>Your shortlist.</h1>
         <p>Keep the places and possibilities you love.</p>
       </div>
-      <div className="bb-methods" role="group" aria-label="Saved items">
+      <div className="bb-methods bb-saved-tabs" role="group" aria-label="Saved items">
         {[
           ['properties', 'Properties'],
           ['searches', 'Searches'],
@@ -48,7 +50,9 @@ export default function SavedPage() {
             onClick={() => setParams({ tab: value })}
           >
             {label}
-            {value === 'properties' && ` (${favorites.length})`}
+            {value === 'properties' && (
+              <span className="bb-count">{favorites.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -67,7 +71,7 @@ export default function SavedPage() {
                     aria-label={`Delete saved search ${search.name}`}
                     onClick={() => deleteSearch(search.id)}
                   >
-                    <Icon name="close" />
+                    <Icon name="trash" />
                   </button>
                 </div>
                 <h2>{search.name}</h2>
@@ -134,8 +138,8 @@ export default function SavedPage() {
           onAction={() => navigate('/search')}
         >
           {tab === 'recent'
-            ? 'The places you open will appear here.'
-            : 'Tap a heart to keep a place here.'}
+            ? 'Explore a few places. The places you open will appear here.'
+            : 'Explore a few places. Tap a heart to keep a place here.'}
         </EmptyState>
       )}
     </div>
