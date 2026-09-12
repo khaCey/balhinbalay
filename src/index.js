@@ -5,6 +5,7 @@ import App from './App';
 import './styles/prototype-parity.css';
 import './styles/search-results-parity.css';
 import './styles/saved-messages-parity.css';
+import './styles/map-detail-parity.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
