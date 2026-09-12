@@ -78,19 +78,6 @@ export default function PropertyTile({ property, onOpen, compact = false }) {
           <span>{property.type}</span>
           <CompareButton property={property} />
         </div>
-        {property.furnished && (
-          <p className="bb-property-location">{property.furnished}</p>
-        )}
-        {(property.floorLevel || property.buildingAge) && (
-          <p className="bb-property-location">
-            {[
-              property.floorLevel && `Floor ${property.floorLevel}`,
-              property.buildingAge && `${property.buildingAge} years old`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        )}
         {(property.status === 'pending' ||
           property.status === 'rejected' ||
           property.sold ||
