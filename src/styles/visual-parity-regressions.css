@@ -1,0 +1,7 @@
+/* Final visual-QA regression fixes. Keep this file last in the CSS load order. */
+
+@media (min-width: 760px) {
+  .bb-bottom-navigation {
+    display: none;
+  }
+}
