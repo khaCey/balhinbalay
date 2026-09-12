@@ -3,14 +3,13 @@ import { useSavedSearches } from '../../context/SavedSearchesContext';
 import { useAuth } from '../../context/AuthContext';
 import BottomSheet from './BottomSheet';
 
-export default function SaveSearchButton({ state }) {
+export default function SaveSearchButton({ state, iconOnly = false }) {
   const { saveSearch } = useSavedSearches();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  // The existing API omits these fields. Do not silently save a different search.
   const unsupported =
     (state.selectedCityIds?.length || 0) > 1 ||
     state.view === 'school' ||
@@ -32,16 +31,24 @@ export default function SaveSearchButton({ state }) {
     <>
       <button
         type="button"
-        className="bb-text-button"
+        className={iconOnly ? 'prototype-save-search-icon' : 'bb-text-button'}
+        aria-label={iconOnly ? 'Save this search' : undefined}
         onClick={() => {
           setMessage('');
           setOpen(true);
         }}
       >
-        Save search
+        {iconOnly ? (
+          <>
+            <i className="far fa-bookmark" aria-hidden />
+            <span className="visually-hidden">Save search</span>
+          </>
+        ) : (
+          'Save search'
+        )}
       </button>
       {message && (
-        <span className="bb-muted" role="status">
+        <span className={iconOnly ? 'prototype-save-search-status' : 'bb-muted'} role="status">
           {message}
         </span>
       )}
