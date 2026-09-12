@@ -1,0 +1,62 @@
+name: React visual QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - 'src/**'
+      - 'scripts/capture-react-visual-qa.mjs'
+      - '.github/workflows/react-visual-qa.yml'
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright for QA only
+        run: |
+          npm install --no-save --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start React preview
+        env:
+          BROWSER: none
+          PORT: '3000'
+        run: |
+          nohup npx craco start > /tmp/balhinbalay-react.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/balhinbalay-react.log
+          exit 1
+
+      - name: Capture reference-sized React screenshots
+        env:
+          BB_PREVIEW_URL: http://127.0.0.1:3000
+          BB_SCREENSHOT_DIR: visual-qa
+        run: node scripts/capture-react-visual-qa.mjs
+
+      - name: Upload visual QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-visual-qa-${{ github.sha }}
+          path: visual-qa/*.png
+          if-no-files-found: error
+          retention-days: 14
