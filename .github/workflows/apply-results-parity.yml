@@ -1,0 +1,33 @@
+name: Apply Results parity patch
+
+on:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - '.github/results-parity-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/react-prototype-ui
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply patch
+        run: node scripts/patch-results-parity.mjs
+      - name: Commit patched source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.js src/components/ui/SaveSearchButton.js src/styles/results-final-parity.css src/index.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Restore approved Results page hierarchy"
+          git push origin HEAD:feature/react-prototype-ui
