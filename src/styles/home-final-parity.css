@@ -3,7 +3,7 @@
    the approved static Home and should not become another global design layer. */
 
 .bb-home .bb-city-field > .icon:last-child {
-  color: var(--bb-primary);
+  color: #246bff;
 }
 
 /* The approved Home cards stop after the type/compare row. Richer listing
