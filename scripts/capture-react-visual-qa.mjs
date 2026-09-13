@@ -397,12 +397,8 @@ try {
     await page.waitForURL(/\/rent(?:\?|$)/, { timeout: 15000 });
     await capture(page, `react-results-${viewport.suffix}`);
 
-    const mapButton = page.locator('.minimal-results-map-btn');
-    if (await mapButton.count()) {
-      await mapButton.click();
-      await page.waitForURL(/\/search\/map/, { timeout: 15000 });
-      await capture(page, `react-map-${viewport.suffix}`);
-    }
+    await page.goto(`${baseUrl}/search/map?listingType=rent`);
+    await capture(page, `react-map-${viewport.suffix}`);
 
     await page.goto(`${baseUrl}/property/qa-rent-1`);
     await capture(page, `react-property-${viewport.suffix}`);
