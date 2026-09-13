@@ -1,6 +1,8 @@
 # BalhinBalay React migration handoff
 
-Checkpoint: 13 September 2026. Broad React conversion/parity work is complete and the branch is in final acceptance. Overall project status remains **PARTIAL** because live-service/account QA, one accepted-but-parameterised search change, backend location-privacy enforcement, final user acceptance, merge and deployment are still outstanding.
+Checkpoint: 13 September 2026. Broad React conversion/parity work is complete and the branch is in final acceptance. Overall migration status remains **PARTIAL** only because final user visual acceptance, PR readiness/review, merge to `dev` and deployment are still outstanding.
+
+Per **IDE0077**, the current BalhinBalay API is **not** part of this migration's acceptance gate. Live API integration, authenticated account-state QA and API-dependent backend verification are deferred until the API is reworked. Do not spend migration time certifying an API contract that is already scheduled for redesign.
 
 ## Continuity and location
 
@@ -15,13 +17,14 @@ This is the existing React migration, not a replacement application.
 
 ## Completed frontend/parity work
 
-The React application now covers the migrated user-facing flows while preserving the approved prototype appearance and existing supported application contracts.
+The React application now covers the migrated user-facing flows while preserving the approved prototype appearance and existing supported frontend behaviour.
 
 Completed and verified areas include:
 
 - shared foundations, responsive header/mobile navigation and common UI primitives;
 - Home, city-first search entry and listing rails;
-- City, Keyword, School and Map search modes and results presentation;
+- City, Keyword, School and Map search presentation;
+- Results presentation and supported filter UI;
 - Property Detail, Saved, Recently viewed, comparison and map property preview;
 - account/profile/settings and messaging views;
 - My properties owner cards and supported owner actions;
@@ -34,40 +37,37 @@ Completed and verified areas include:
 
 ## Verification completed
 
-On the owner-form/frontend QA baseline `6557357c5193f6b47074403f4cb1ba7164381507`:
+On the owner-form/frontend QA baseline `6557357c5193f6b47074403f4cb1ba7164381507` and subsequent documentation head:
 
 - React tests/build passed;
 - main visual QA passed at 320, 375, 390, 1280, 1440 and 1920 px;
 - dedicated Owner Form visual QA passed at mobile and desktop widths across all six steps;
 - owner photo empty/uploaded states were captured;
 - edit-existing and availability-edit states were captured;
-- all three GitHub checks were green:
-  - React conversion validation run `34747626165`;
-  - Owner form visual QA run `34747626193`;
-  - React visual QA run `34747626205`.
+- current-head React conversion validation, Owner Form visual QA and main React visual QA were green before this scope-only documentation update.
 
-The temporary one-shot workflow used during the 13 September live-service investigation was removed after use and is not part of the application.
+A one-shot read-only production probe previously found the public tunnel unavailable. That diagnostic is retained as historical evidence only. Per IDE0077, restoring or certifying the current API/tunnel is **not required to complete this React migration**.
 
-## Live service QA: blocked by production tunnel
+## API scope boundary: IDE0077
 
-A read-only production smoke check was attempted against `https://balhinbalay.com` on 13 September 2026. It did not mutate production data or create accounts.
+The user explicitly decided that the existing API should not be used or certified yet because it needs to be reworked.
 
-Both the root site and API endpoints returned **HTTP 530** from Cloudflare with **error code 1033**:
+Therefore, the following are **deferred from this migration**:
 
-- `https://balhinbalay.com/`
-- `https://balhinbalay.com/api/health`
-- `https://balhinbalay.com/api`
-- `https://www.balhinbalay.com/`
+- live API compatibility testing;
+- authenticated live/staging account-state QA against the current API;
+- persistence verification that depends on the current API contract;
+- backend work whose correct shape depends on the API redesign.
 
-Evidence: GitHub Actions diagnostic run `34753584283`.
+This deferral does **not** mark those behaviours implemented. It only removes them from the frontend migration acceptance criteria.
 
-Because the public Cloudflare Tunnel is not currently delivering traffic to the origin, live API compatibility and authenticated account-state QA cannot be completed yet. Do not mark those checks passed until the tunnel is healthy and the live flows are exercised with an authorised test account.
-
-## Remaining decisions and dependent work
+## Separate product/backend work
 
 ### School-radius slider
 
-`IDE0071` accepts a continuous distance slider for School search, but implementation remains **BLOCKED** by `IDE0076`, which is still **PROPOSED**. Minimum distance, maximum distance and increment/step must be accepted before implementation. The existing 10 km behaviour remains in place; do not invent replacement values.
+`IDE0071` accepts a continuous distance slider for School search, but implementation remains **BLOCKED** by `IDE0076`, which is still **PROPOSED**. Minimum distance, maximum distance and increment/step must be accepted before implementation. Because unsupported controls must not be simulated, the slider should not be exposed as functional until its parameters and eventual integration are settled.
+
+This work is tracked separately and does not block acceptance of the current React migration.
 
 ### Exact versus approximate property location
 
@@ -78,17 +78,17 @@ Frontend exposure has been reduced safely:
 - Property Detail no longer renders a stored exact-coordinate map as the public location;
 - the owner form does not expose a map-pin control that the current backend cannot protect correctly.
 
-However, the current API still stores/returns the legacy exact `coordinates` field and Map Search still consumes it. The accepted model requires exact coordinates to remain private by default, a separate safe public/approximate location, and an explicit Lister opt-in before public exact-location disclosure. That backend/API separation is not implemented in this migration and should not be faked in the frontend.
+The future API/data model still needs to separate private exact coordinates from a safe public approximate location and support explicit Lister reveal. This work belongs with the API/backend redesign and must not be faked in the frontend.
 
-## Still pending before React migration completion
+## Remaining before React migration completion
 
-1. Restore the production Cloudflare Tunnel/origin path and rerun public live API checks.
-2. Exercise login/session/account-backed states with an authorised live or staging test account.
-3. Accept the `IDE0076` school-radius minimum/maximum/step values, then implement and verify `IDE0071`.
-4. Implement the backend/API exact-private versus public-approximate location model for `IDE0068` when the database/API design is ready.
-5. Obtain final user visual acceptance.
-6. Review PR #1, merge to `dev`, and deploy through the normal deployment process.
+1. Obtain final user visual acceptance.
+2. Review PR #1 and move it out of Draft when accepted.
+3. Merge PR #1 to `dev`.
+4. Handle deployment separately through the normal deployment process.
+
+API redesign/integration, IDE0068 backend enforcement and IDE0071 functional integration remain separately tracked follow-up work.
 
 ## Do not redo
 
-Do not regenerate the React project, redo completed pages from the static export, restore unsupported controls merely for visual parity, or silently choose pending business-rule values. Continue from the current branch and only change areas supported by evidence or an accepted decision.
+Do not regenerate the React project, redo completed pages from the static export, restore unsupported controls merely for visual parity, test against or extend the current API unless the API redesign work is explicitly started, or silently choose pending business-rule values. Continue from the current branch and only change areas supported by evidence or an accepted decision.
