@@ -24,23 +24,11 @@ jobs:
           node-version: '20'
       - name: Regenerate package-lock.json from package.json
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Restore deterministic validation install
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('.github/workflows/react-conversion-validation.yml')
-          s = p.read_text()
-          old = 'run: npm install --no-audit --no-fund'
-          new = 'run: npm ci --no-audit --no-fund'
-          if old not in s and new not in s:
-              raise SystemExit('validation install command not found')
-          p.write_text(s.replace(old, new))
-          PY
       - name: Commit regenerated lockfile
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json .github/workflows/react-conversion-validation.yml
+          git add package-lock.json
           git diff --cached --quiet && exit 0
-          git commit -m "Regenerate lockfile and restore npm ci validation"
+          git commit -m "Regenerate package lockfile"
           git push origin HEAD:feature/react-prototype-ui
