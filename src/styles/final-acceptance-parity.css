@@ -1,0 +1,56 @@
+/* Final visual-acceptance corrections after six-width screenshot review. */
+
+/* Search already sits inside the shared page gutter. Avoid adding a second
+   top inset before the approved heading block. */
+.search-page-landing .bb-page-heading {
+  padding-top: 0;
+}
+
+/* The account summary is deliberately not a card in the approved Profile/menu
+   screen. Older profile-drawer styles are more specific, so clear them here. */
+.menu-page .profile-drawer-body {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.menu-page .bb-account-summary {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* My Properties reuses the legacy PageHeader behaviour, but visually it is an
+   in-page back link/title/action row. Remove any residual button chrome. */
+.App:has(.bb-owner-list) .page-header-back {
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.App:has(.bb-owner-list) .page-header-back:focus,
+.App:has(.bb-owner-list) .page-header-back:focus-visible,
+.App:has(.bb-owner-list) .page-header-back:hover {
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Mobile already has a 20 px shared gutter. The owner page was adding another
+   20 px inside it, unlike the approved prototype. Cancel that duplicate inset
+   while keeping the same content gutter. */
+@media (max-width: 759px) {
+  .App:has(.bb-owner-list) > .page-header,
+  .App:has(.bb-owner-list) .page-header,
+  .App:has(.bb-owner-list) .results-area {
+    width: calc(100% + 40px);
+    max-width: none;
+    margin-left: -20px;
+    margin-right: -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
