@@ -6,7 +6,7 @@ import ChatPage from '../pages/ChatPage';
 import SearchModule from '../components/SearchModule';
 import SavedPage from '../pages/SavedPage';
 import AddPropertyForm from '../components/AddPropertyForm';
-import PropertyCosts, { moveInFees } from '../components/ui/PropertyCosts';
+import PropertyCosts from '../components/ui/PropertyCosts';
 import ComparisonProvider, { CompareButton } from '../components/ui/Comparison';
 import SearchMapPage from '../pages/SearchMapPage';
 import { searchRequest } from '../utils/searchRequest';
@@ -274,7 +274,7 @@ test('saved tabs use existing favourites, recent IDs and saved-search deserialis
   );
 });
 
-test('fee display safely sums numeric API strings without adding rent twice', () => {
+test('rental fee display shows supplied amounts individually without a calculated total', () => {
   const property = {
     listingType: 'rent',
     price: 25000,
@@ -283,9 +283,11 @@ test('fee display safely sums numeric API strings without adding rent twice', ()
     associationFee: '1500',
     extraFees: 'Confirm cleaning fee',
   };
-  expect(moveInFees(property)).toBe(76500);
   render(<PropertyCosts property={property} />);
-  expect(container.textContent).toContain('₱76,500');
+  expect(container.textContent).toContain('₱50,000');
+  expect(container.textContent).toContain('₱25,000');
+  expect(container.textContent).toContain('₱1,500');
+  expect(container.textContent).not.toContain('₱76,500');
   expect(container.textContent).toContain('Not specified');
   expect(container.textContent).toContain('Confirm cleaning fee');
 });
