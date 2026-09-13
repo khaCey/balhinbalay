@@ -94,6 +94,27 @@
   padding-right: 0;
 }
 
+/* Restore the prototype's obvious affordance that the listing summary opens. */
+.bb-owner-summary-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--bb-ink);
+}
+
+/* When the API supplies a moderation reason, surface it instead of hiding the
+   only actionable explanation from the Lister. */
+.bb-owner-rejection {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #f1d2d8;
+  border-radius: 12px;
+  background: #fff2f4;
+  color: var(--bb-red);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (min-width: 760px) {
   .App:has(.bb-owner-list) > .page-header,
   .App:has(.bb-owner-list) .page-header {
