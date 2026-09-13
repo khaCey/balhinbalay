@@ -358,3 +358,74 @@
     flex-basis: 110px;
   }
 }
+
+
+/* Final chat property-context parity. */
+.bb-chat-property-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.bb-chat-property-price {
+  color: var(--bb-ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bb-chat-property-price small {
+  display: inline;
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.bb-chat-property > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--bb-ink);
+}
+
+.bb-neighbourhood-card {
+  margin-top: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--bb-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.bb-neighbourhood-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  color: var(--bb-blue-hover);
+}
+
+.bb-neighbourhood-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.bb-neighbourhood-card strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--bb-ink);
+  font-size: 14px;
+}
+
+.bb-neighbourhood-card p {
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}

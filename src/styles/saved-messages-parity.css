@@ -231,13 +231,22 @@
 }
 
 .bb-messages-page .messages-panel-row-unread {
-  position: absolute;
-  right: 0;
-  bottom: 20px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--bb-blue);
+  flex: 0 0 auto;
+  min-width: 24px;
+  min-height: 42px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--bb-soft);
+  color: var(--bb-blue-hover);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bb-messages-page .bb-inbox-heading .bb-count {
+  display: none;
 }
 
 .bb-message-empty {

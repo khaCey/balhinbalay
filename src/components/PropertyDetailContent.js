@@ -271,15 +271,15 @@ export default function PropertyDetailContent({
             )}
           </section>
           <PropertyCosts property={property} />
-          {property.coordinates && (
+          {(property.location || city) && (
             <section className="bb-detail-section">
               <h2>Get to know the neighbourhood</h2>
-              <p>{location}</p>
-              <div className="bb-property-map">
-                <PropertyMapPreview
-                  coordinates={property.coordinates}
-                  title={property.title}
-                />
+              <div className="bb-neighbourhood-card">
+                <span className="bb-neighbourhood-icon"><Icon name="pin" /></span>
+                <div>
+                  <strong>{location || city}</strong>
+                  <p>Approximate location · Exact address stays private unless the owner explicitly chooses to reveal it.</p>
+                </div>
               </div>
             </section>
           )}

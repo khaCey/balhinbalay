@@ -161,8 +161,10 @@ export default function MessagesPage() {
                     {thread.unreadCount > 0 && (
                       <span
                         className="messages-panel-row-unread"
-                        aria-label="Unread"
-                      />
+                        aria-label={`${thread.unreadCount} unread`}
+                      >
+                        {thread.unreadCount}
+                      </span>
                     )}
                   </button>
                 </li>

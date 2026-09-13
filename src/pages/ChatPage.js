@@ -182,6 +182,7 @@ export default function ChatPage() {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+  const propertyLocation = [property.location, property.city].filter(Boolean).join(', ');
 
   return (
     <div className="chat-page minimal-page">
@@ -204,10 +205,15 @@ export default function ChatPage() {
         onClick={() => navigate(`/property/${property.id}`, { state: { from: `/chat/${threadId}` } })}
       >
         {property.images?.[0] && <img src={property.images[0]} alt="" />}
-        <span>
+        <span className="bb-chat-property-copy">
+          <span className="bb-chat-property-price">
+            ₱{Number(property.price || 0).toLocaleString()}
+            {property.listingType === 'rent' && <small> / mo</small>}
+          </span>
           <strong>{property.title}</strong>
-          <small>View property</small>
+          {propertyLocation && <small>{propertyLocation}</small>}
         </span>
+        <Icon name="arrow" />
       </button>
       <main className="page-content chat-page-body">
         <div
