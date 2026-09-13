@@ -20,7 +20,6 @@ export default function MainLayout() {
   const [showConsentBanner, setShowConsentBanner] = useState(false);
   const hideBottomNav =
     path.startsWith('/chat/') ||
-    path.startsWith('/add-property') ||
     path === '/admin';
   useEffect(() => {
     initAnalytics();
