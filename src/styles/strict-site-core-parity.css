@@ -1,0 +1,547 @@
+/*
+ * Strict Site-to-React visual baseline for the core BalhinBalay journey.
+ *
+ * Source of truth: approved BalhinBalay-Prototype.html.
+ * React may preserve real behaviour/data underneath, but these screens must not
+ * be visually redesigned. Keep this layer deliberately narrow: Home, Search,
+ * Results and Property Detail, plus the shared shell they depend on.
+ */
+
+/* Shared shell: approved prototype geometry. */
+.bb-app .bb-main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px calc(var(--bb-nav) + 28px + env(safe-area-inset-bottom));
+}
+
+.bb-app .bb-header-inner {
+  max-width: 1200px;
+  min-height: 72px;
+  padding: 0 20px;
+}
+
+/* HOME --------------------------------------------------------------- */
+.bb-home .bb-home-hero {
+  margin: -24px -20px 0;
+  padding: 28px 20px 24px;
+  background: linear-gradient(180deg, #eaf2ff 0%, #f5f8fc 100%);
+}
+
+.bb-home .bb-home-hero h1 {
+  margin: 0 0 12px;
+  max-width: 360px;
+  font-size: 40px;
+  line-height: 1.02;
+  letter-spacing: -1.7px;
+}
+
+.bb-home .bb-home-hero > div > p {
+  margin: 0 0 22px;
+  color: var(--bb-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.bb-home .bb-search-card {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--bb-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px #1638570d;
+}
+
+.bb-home .bb-section {
+  margin-top: 30px;
+}
+
+.bb-home .bb-section-heading,
+.bb-home .bb-section-head {
+  margin-bottom: 14px;
+}
+
+.bb-home .bb-rail {
+  gap: 14px;
+  margin-inline: -20px;
+  padding-inline: 20px;
+  padding-bottom: 4px;
+  scroll-padding-inline: 20px;
+}
+
+.bb-home .bb-rail > * {
+  flex: 0 0 275px;
+}
+
+.bb-home .bb-city-rail > *,
+.bb-home .bb-city-card {
+  flex-basis: 205px;
+}
+
+.bb-home .bb-property,
+.bb-home .property-card {
+  border-radius: 18px;
+}
+
+.bb-home .bb-property-media,
+.bb-home .media {
+  height: auto;
+  aspect-ratio: 1.55;
+}
+
+/* SEARCH ------------------------------------------------------------- */
+.bb-app .search-page,
+.bb-app .bb-search-layout,
+.bb-app .search-layout {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.bb-app .search-page-landing .bb-page-heading,
+.bb-app .search-layout .bb-page-heading,
+.bb-app .search-layout .page-head {
+  padding: 0 0 24px;
+}
+
+.bb-app .search-page-landing .bb-page-heading h1,
+.bb-app .search-layout .bb-page-heading h1,
+.bb-app .search-layout .page-head h1 {
+  margin: 0 0 10px;
+  font-size: 30px;
+  line-height: 1.16;
+  letter-spacing: -0.8px;
+}
+
+.bb-app .search-page-landing .bb-page-heading p,
+.bb-app .search-layout .bb-page-heading p,
+.bb-app .search-layout .page-head p {
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 14px;
+}
+
+.bb-app .bb-methods,
+.bb-app .search-layout .tabs {
+  margin-bottom: 22px;
+}
+
+.bb-app .search-page .bb-search-card,
+.bb-app .search-layout .bb-search-card,
+.bb-app .search-layout .search-card {
+  margin-top: 20px;
+}
+
+/* RESULTS ------------------------------------------------------------ */
+/* The prototype starts the results content at the normal page inset. */
+.bb-app .prototype-results-summary {
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.bb-app .prototype-results-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+}
+
+.bb-app .prototype-results-location-heading {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bb-ink);
+  text-align: left;
+}
+
+.bb-app .prototype-results-location-heading strong {
+  display: block;
+  margin: 0;
+  font-size: 25px;
+  line-height: 1.15;
+  letter-spacing: -0.6px;
+  font-weight: 700;
+}
+
+.bb-app .prototype-results-location-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--bb-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.bb-app .prototype-save-search-icon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--bb-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--bb-ink);
+  box-shadow: none;
+}
+
+.bb-app .prototype-results-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0 0 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bb-app .prototype-results-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.bb-app .prototype-result-chip {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--bb-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--bb-muted);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bb-app .prototype-result-chip.active {
+  border-color: #cbdcff;
+  background: var(--bb-soft);
+  color: var(--bb-blue);
+}
+
+.bb-app .prototype-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 20px 0 15px;
+}
+
+.bb-app .prototype-results-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bb-app .prototype-results-toolbar .minimal-results-count {
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 13px;
+}
+
+.bb-app .prototype-results-toolbar .prototype-results-sort {
+  width: auto;
+  max-width: 185px;
+  min-height: 0;
+  padding: 8px 24px 8px 0;
+  border: 0;
+  background-color: transparent;
+  color: var(--bb-blue-hover);
+  font-size: 14px;
+}
+
+.bb-app .prototype-results-toolbar .minimal-results-map-btn {
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.bb-app .listing-grid,
+.bb-app .listing-grid.list-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+/* Cards use the approved prototype's scanning hierarchy. */
+.bb-app .listing-grid .bb-property,
+.bb-app .listing-grid .property-card {
+  border: 1px solid var(--bb-line);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 3px 12px #23406604;
+}
+
+.bb-app .listing-grid .bb-property-media,
+.bb-app .listing-grid .media {
+  height: auto;
+  aspect-ratio: 1.55;
+}
+
+.bb-app .listing-grid .bb-property-body,
+.bb-app .listing-grid .card-body {
+  padding: 16px;
+}
+
+/* PROPERTY DETAIL ---------------------------------------------------- */
+.bb-app .bb-detail {
+  padding-bottom: 80px;
+}
+
+.bb-app .bb-detail-top {
+  padding: 0 0 16px;
+}
+
+.bb-app .bb-gallery {
+  width: calc(100% + 40px);
+  height: auto;
+  aspect-ratio: 1.2;
+  margin: 0 -20px;
+  border-radius: 0;
+  overflow: hidden;
+  background: #e1eaf6;
+}
+
+.bb-app .bb-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bb-app .bb-gallery-controls {
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+}
+
+.bb-app .bb-gallery-controls .bb-badge {
+  padding: 6px 10px;
+  background: #102033b8;
+  color: #fff;
+}
+
+.bb-app .bb-gallery-controls .bb-icon-button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+}
+
+.bb-app .bb-detail-tools {
+  margin: 16px 0;
+}
+
+.bb-app .bb-detail-heading {
+  margin-top: 20px;
+}
+
+.bb-app .bb-detail-heading .bb-price {
+  margin-bottom: 0;
+  font-size: 29px;
+}
+
+.bb-app .bb-detail-heading h1 {
+  margin: 10px 0;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.bb-app .bb-detail-heading > p:last-child {
+  margin: 0;
+  font-size: 13px;
+}
+
+.bb-app .bb-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 20px 0;
+  margin: 0 0 22px;
+  border-top: 0;
+  border-bottom: 1px solid var(--bb-line);
+}
+
+.bb-app .bb-detail-facts > div {
+  gap: 5px;
+}
+
+.bb-app .bb-detail-facts strong {
+  font-size: 14px;
+}
+
+.bb-app .bb-detail-facts small {
+  font-size: 12px;
+}
+
+.bb-app .bb-detail-section {
+  margin: 26px 0;
+}
+
+.bb-app .bb-detail-section h2 {
+  margin-bottom: 13px;
+  font-size: 20px;
+}
+
+.bb-app .bb-detail-section p,
+.bb-app .bb-contact p {
+  color: #52657e;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.bb-app .bb-contact-desktop {
+  display: none;
+}
+
+.bb-app .bb-contact-bar {
+  bottom: calc(var(--bb-nav) + env(safe-area-inset-bottom));
+  gap: 10px;
+  padding: 12px 20px;
+}
+
+/* DESKTOP ------------------------------------------------------------ */
+@media (min-width: 760px) {
+  .bb-app .bb-main {
+    max-width: 1200px;
+    padding: 32px 30px 50px;
+  }
+
+  .bb-app .bb-header-inner {
+    max-width: 1200px;
+    min-height: 80px;
+    padding: 0 30px;
+  }
+
+  .bb-app .bb-desktop-navigation {
+    gap: 24px;
+    margin-right: 22px;
+  }
+
+  .bb-home .bb-home-hero {
+    margin: -32px -30px 0;
+    padding: 45px 30px 25px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .bb-home .bb-home-hero h1 {
+    max-width: 450px;
+    font-size: 52px;
+  }
+
+  .bb-home .bb-home-hero > div > p {
+    font-size: 16px;
+  }
+
+  .bb-home .bb-section {
+    margin-top: 34px;
+  }
+
+  .bb-home .bb-rail {
+    gap: 20px;
+    margin-inline: 0;
+    padding: 0 0 8px;
+    scroll-padding-inline: 0;
+  }
+
+  .bb-home .bb-rail > * {
+    flex-basis: calc((100% - 40px) / 3);
+  }
+
+  .bb-home .bb-city-rail > *,
+  .bb-home .bb-city-card {
+    flex-basis: calc((100% - 60px) / 4);
+    min-height: 156px;
+    height: 156px;
+  }
+
+  .bb-app .prototype-results-location-heading strong {
+    font-size: 30px;
+  }
+
+  .bb-app .prototype-results-toolbar {
+    margin-top: 24px;
+  }
+
+  .bb-app .listing-grid,
+  .bb-app .listing-grid.list-view {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+  }
+
+  .bb-app .bb-gallery {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1.65;
+    margin: 0;
+    border-radius: 20px;
+  }
+
+  .bb-app .bb-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+    gap: 34px;
+    align-items: start;
+  }
+
+  .bb-app .bb-detail-heading h1 {
+    font-size: 32px;
+  }
+
+  .bb-app .bb-detail-facts {
+    max-width: 500px;
+  }
+
+  .bb-app .bb-detail-section {
+    margin: 30px 0;
+  }
+
+  .bb-app .bb-contact-desktop {
+    display: block;
+    position: sticky;
+    top: 108px;
+    margin-top: 22px;
+    align-self: start;
+  }
+
+  .bb-app .bb-contact-mobile,
+  .bb-app .bb-contact-bar {
+    display: none;
+  }
+
+  .bb-app .bb-detail {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 359px) {
+  .bb-home .bb-home-hero h1 {
+    font-size: 36px;
+  }
+
+  .bb-app .prototype-result-chip {
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+
+  .bb-app .prototype-results-toolbar-actions {
+    gap: 6px;
+  }
+
+  .bb-app .prototype-results-toolbar .prototype-results-sort {
+    max-width: 124px;
+    font-size: 12px;
+  }
+}
