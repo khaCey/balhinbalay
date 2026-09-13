@@ -4,11 +4,10 @@ import React from 'react';
  * Unified page header: back (left) + title (center) + optional actions (right).
  * @param {string|React.ReactNode} title - Header title text or node
  * @param {function} [onBack] - If provided, shows back button and calls on Back click
- * @param {string} [backLabel] - Optional visible label beside the back arrow
  * @param {React.ReactNode} [right] - Optional node for right-side actions
  * @param {string} [className] - Optional extra class(es) for the header element
  */
-function PageHeader({ title, onBack, backLabel, right, className }) {
+function PageHeader({ title, onBack, right, className }) {
   return (
     <header className={`page-header ${className || ''}`.trim()}>
       {onBack != null ? (
@@ -16,10 +15,9 @@ function PageHeader({ title, onBack, backLabel, right, className }) {
           type="button"
           className="page-header-back"
           onClick={onBack}
-          aria-label={backLabel ? `Back to ${backLabel}` : 'Back'}
+          aria-label="Back"
         >
           <i className="fas fa-arrow-left" aria-hidden />
-          {backLabel && <span className="page-header-back-label">{backLabel}</span>}
         </button>
       ) : (
         <span className="page-header-back-placeholder" aria-hidden />
