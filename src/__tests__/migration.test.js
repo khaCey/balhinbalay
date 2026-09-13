@@ -370,12 +370,12 @@ test('owner wizard retains edits across steps and sends the original listing pay
   render(<AddPropertyForm initialListing={initial} />);
   change(
     container.querySelector(
-      'input[placeholder="e.g. Modern 2BR House in Cebu City"]',
+      'input[placeholder="A bright home in Lahug"]',
     ),
     'Edited Cebu home',
   );
   for (let i = 0; i < 5; i++) await submit(container.querySelector('form'));
-  expect(container.textContent).toContain('Step 6 of 6');
+  expect(container.textContent).toContain('6 of 6');
   expect(mockUpdateListing).not.toHaveBeenCalled();
   await submit(container.querySelector('form'));
   expect(mockUpdateListing).toHaveBeenCalledWith(
@@ -424,7 +424,7 @@ test('an incomplete owner form cannot advance or create a listing', async () => 
   render(<AddPropertyForm />);
   await submit(container.querySelector('form'));
   expect(container.querySelector('.bb-step-heading').textContent).toContain(
-    'Step 1 of 6',
+    '1 of 6',
   );
   expect(mockAddListing).not.toHaveBeenCalled();
 });

@@ -180,8 +180,11 @@ function AppContent() {
     () => priceRanges[listingType][priceRangeIndex] || priceRanges[listingType][0],
     [listingType, priceRangeIndex]
   );
+  const hasExplicitPriceFilter = priceRangeIndex > 0 || priceMin != null || priceMax != null;
   const effectivePriceMin = priceMin != null ? priceMin : (currentPriceRange?.min ?? 0);
   const effectivePriceMax = priceMax != null ? priceMax : (currentPriceRange?.max === Infinity ? (priceSliderConfig[listingType]?.max ?? 10000000) : (currentPriceRange?.max ?? (priceSliderConfig[listingType]?.max ?? 10000000)));
+  const requestedPriceMin = hasExplicitPriceFilter ? effectivePriceMin : undefined;
+  const requestedPriceMax = hasExplicitPriceFilter ? effectivePriceMax : undefined;
   const requestedCityParams = useMemo(() => {
     const explicitCityIds = Array.from(new Set(
       (Array.isArray(selectedCityIds) ? selectedCityIds : [])
@@ -201,8 +204,8 @@ function AppContent() {
     if (!hasSearched || showMyPropertiesOnly) return;
     fetchSearchListings({
       listingType,
-      priceMin: effectivePriceMin,
-      priceMax: effectivePriceMax,
+      priceMin: requestedPriceMin,
+      priceMax: requestedPriceMax,
       ...requestedCityParams,
       type: propertyType || undefined,
       furnished: furnishedFilter || undefined,
@@ -213,14 +216,14 @@ function AppContent() {
       q: searchQuery.trim() || undefined,
       sort: mapSortByToApiSort(sortBy)
     });
-  }, [hasSearched, showMyPropertiesOnly, fetchSearchListings, listingType, effectivePriceMin, effectivePriceMax, requestedCityParams, propertyType, furnishedFilter, minBeds, minBaths, sizeRange.min, sizeRange.max, searchQuery, sortBy]);
+  }, [hasSearched, showMyPropertiesOnly, fetchSearchListings, listingType, requestedPriceMin, requestedPriceMax, requestedCityParams, propertyType, furnishedFilter, minBeds, minBaths, sizeRange.min, sizeRange.max, searchQuery, sortBy]);
 
   useEffect(() => {
     if (!hasSearched || showMyPropertiesOnly) return;
     fetchSearchListings({
       listingType,
-      priceMin: effectivePriceMin,
-      priceMax: effectivePriceMax,
+      priceMin: requestedPriceMin,
+      priceMax: requestedPriceMax,
       ...requestedCityParams,
       type: propertyType || undefined,
       furnished: furnishedFilter || undefined,
@@ -231,7 +234,7 @@ function AppContent() {
       q: searchQuery.trim() || undefined,
       sort: mapSortByToApiSort(sortBy)
     });
-  }, [hasSearched, showMyPropertiesOnly, fetchSearchListings, listingType, effectivePriceMin, effectivePriceMax, requestedCityParams, searchQuery, sortBy]);
+  }, [hasSearched, showMyPropertiesOnly, fetchSearchListings, listingType, requestedPriceMin, requestedPriceMax, requestedCityParams, searchQuery, sortBy]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -476,8 +479,10 @@ function AppContent() {
   const sliderMaxForCriteria = priceSliderConfig[listingType]?.max ?? 10000000;
 
   const criteriaPriceLabel = useMemo(
-    () => formatSearchPriceRangeLine(effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria),
-    [effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria]
+    () => hasExplicitPriceFilter
+      ? formatSearchPriceRangeLine(effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria)
+      : 'Any price',
+    [hasExplicitPriceFilter, effectivePriceMin, effectivePriceMax, listingType, sliderMaxForCriteria]
   );
 
   const isPublicResultsRoute = !showMyPropertiesOnly && (location.pathname === '/sale' || location.pathname === '/rent');
@@ -502,7 +507,7 @@ function AppContent() {
   const activeResultsFilterCount = useMemo(() => {
     let count = 0;
     if (propertyType) count += 1;
-    if (effectivePriceMin != null || effectivePriceMax != null) count += 1;
+    if (hasExplicitPriceFilter) count += 1;
     if (minBeds > 0) count += 1;
     if (minBaths > 0) count += 1;
     if (furnishedFilter) count += 1;
@@ -510,7 +515,7 @@ function AppContent() {
     if (searchQuery.trim()) count += 1;
     if (selectedSchoolId) count += 1;
     return count;
-  }, [propertyType, effectivePriceMin, effectivePriceMax, minBeds, minBaths, furnishedFilter, sizeRange.min, sizeRange.max, searchQuery, selectedSchoolId]);
+  }, [propertyType, hasExplicitPriceFilter, minBeds, minBaths, furnishedFilter, sizeRange.min, sizeRange.max, searchQuery, selectedSchoolId]);
   const resultsDescription = useMemo(() => {
     const modeLabel = listingType === 'rent' ? 'rental' : 'for-sale';
     const countPart = hasSearched ? `${listingsForView.length} ${modeLabel} listing${listingsForView.length === 1 ? '' : 's'} found.` : '';
@@ -667,7 +672,7 @@ function AppContent() {
             {hasSearched && !showMyPropertiesOnly && !searchLoading && searchError && (
               <div className="listings-error-banner">
                 <span>{searchError}{baseUrl ? ` — API: ${baseUrl}` : ' — API: same origin'}</span>
-                <button type="button" className="listings-error-banner-btn" onClick={() => fetchSearchListings({ listingType, priceMin: effectivePriceMin, priceMax: effectivePriceMax, ...requestedCityParams, type: propertyType || undefined, furnished: furnishedFilter || undefined, minBeds: minBeds > 0 ? minBeds : undefined, minBaths: minBaths > 0 ? minBaths : undefined, sizeMin: sizeRange.min > 0 ? sizeRange.min : undefined, sizeMax: sizeRange.max !== Infinity && sizeRange.max > 0 ? sizeRange.max : undefined, q: searchQuery.trim() || undefined, sort: mapSortByToApiSort(sortBy) })}>
+                <button type="button" className="listings-error-banner-btn" onClick={() => fetchSearchListings({ listingType, priceMin: requestedPriceMin, priceMax: requestedPriceMax, ...requestedCityParams, type: propertyType || undefined, furnished: furnishedFilter || undefined, minBeds: minBeds > 0 ? minBeds : undefined, minBaths: minBaths > 0 ? minBaths : undefined, sizeMin: sizeRange.min > 0 ? sizeRange.min : undefined, sizeMax: sizeRange.max !== Infinity && sizeRange.max > 0 ? sizeRange.max : undefined, q: searchQuery.trim() || undefined, sort: mapSortByToApiSort(sortBy) })}>
                   Retry
                 </button>
               </div>
@@ -736,7 +741,7 @@ function AppContent() {
                     {listingType === 'rent' ? 'Rent' : 'Buy'} <i className="fas fa-chevron-down" aria-hidden />
                   </button>
                   <button type="button" className="prototype-result-chip" onClick={() => setShowAdvancedFilters(true)}>
-                    {(effectivePriceMin != null || effectivePriceMax != null) ? criteriaPriceLabel : 'Price'} <i className="fas fa-chevron-down" aria-hidden />
+                    {hasExplicitPriceFilter ? criteriaPriceLabel : 'Price'} <i className="fas fa-chevron-down" aria-hidden />
                   </button>
                   <button type="button" className="prototype-result-chip" onClick={() => setShowAdvancedFilters(true)}>
                     {minBeds > 0 ? `${minBeds}+ beds` : 'Bedrooms'} <i className="fas fa-chevron-down" aria-hidden />

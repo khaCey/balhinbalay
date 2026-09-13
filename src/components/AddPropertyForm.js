@@ -13,7 +13,7 @@ import PropertyFormStep from './ui/PropertyFormStep';
 import MapPicker from './MapPicker';
 import ConfirmModal from './ConfirmModal';
 
-const PROPERTY_TYPES = ['House', 'Apartment', 'Condo', 'Land', 'Boarding House', 'Room'];
+const PROPERTY_TYPES = ['Condo', 'Apartment', 'House', 'Room', 'Boarding House', 'Land'];
 const MAX_IMAGE_DIM = 1200;
 const JPEG_QUALITY = 0.8;
 const MAX_IMAGE_PAYLOAD_BYTES = 12 * 1024 * 1024;
@@ -123,7 +123,7 @@ const REGIONS_OPTIONS = philippineRegions.filter((r) => r.id !== 'all');
 const REGIONS_WITH_CITIES = getRegionIdsWithCities();
 const DEFAULT_REGION = REGIONS_WITH_CITIES[0] || 'region-vii';
 
-function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
+function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 }) {
   const { user } = useAuth();
   const { addListing, updateListing } = useUserListings();
   const isEdit = !!initialListing;
@@ -134,8 +134,8 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
     if (formRef.current?.reportValidity()) setStep(value => Math.min(value + 1, 5));
   };
   const [title, setTitle] = useState('');
-  const [listingType, setListingType] = useState('sale');
-  const [propertyType, setPropertyType] = useState('House');
+  const [listingType, setListingType] = useState('rent');
+  const [propertyType, setPropertyType] = useState('Condo');
   const [price, setPrice] = useState('');
   const [regionId, setRegionId] = useState(DEFAULT_REGION);
   const [province, setProvince] = useState(() => {
@@ -398,16 +398,23 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
           </button>
         </div>
       ) : (
-        <form ref={formRef} onSubmit={handleSubmit} className="bb-owner-form">
-          <div className="bb-step-heading"><span>Step {step + 1} of 6</span><strong>{stepNames[step]}</strong></div>
+        <div className="bb-owner-editor">
+          <div className="bb-step-heading">
+            <div className="bb-step-heading-meta">
+              <span className="bb-owner-eyebrow">{isEdit ? 'EDIT' : 'LIST'} YOUR PROPERTY</span>
+              <span>{step + 1} of 6</span>
+            </div>
+            <strong>{stepNames[step]}</strong>
+          </div>
           <div className="bb-step-progress" aria-hidden="true">{stepNames.map((name, index) => <span key={name} className={index <= step ? 'active' : ''} />)}</div>
+          <form ref={formRef} onSubmit={handleSubmit} className="bb-owner-form">
           <PropertyFormStep active={step === 0} title={stepNames[0]}>
             <div className="mb-3">
-              <label className="form-label" htmlFor="listing-field-1">Title *</label>
+              <label className="form-label" htmlFor="listing-field-1">Give your place a name</label>
               <input id="listing-field-1"
                 type="text"
                 className="form-control"
-                placeholder="e.g. Modern 2BR House in Cebu City"
+                placeholder="A bright home in Lahug"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -415,10 +422,10 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
             </div>
             <div className="row g-2 mb-3">
               <div className="col-6">
-                <label className="form-label" htmlFor="listing-field-2">Listing type</label>
+                <label className="form-label" htmlFor="listing-field-2">Listing for</label>
                 <select id="listing-field-2" className="form-select" value={listingType} onChange={(e) => setListingType(e.target.value)}>
-                  <option value="sale">For Sale</option>
-                  <option value="rent">For Rent</option>
+                  <option value="rent">Rent</option>
+                  <option value="sale">Buy</option>
                 </select>
               </div>
               <div className="col-6">
@@ -431,7 +438,7 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label" htmlFor="listing-field-4">Price (₱) *</label>
+              <label className="form-label" htmlFor="listing-field-4">{listingType === 'rent' ? 'Monthly rent (₱)' : 'Asking price (₱)'}</label>
               <input id="listing-field-4"
                 type="number"
                 className="form-control"
@@ -472,11 +479,11 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label" htmlFor="listing-field-8">Location / Barangay</label>
+              <label className="form-label" htmlFor="listing-field-8">Barangay / neighbourhood</label>
               <input id="listing-field-8"
                 type="text"
                 className="form-control"
-                placeholder="e.g. Barangay Lahug"
+                placeholder="e.g. Lahug"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
@@ -528,13 +535,13 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
               <div className="col-4">
                 <label className="form-label">
                   <i className="fas fa-ruler-combined me-1" aria-hidden />
-                  Size (sqm)
+                  Floor area (m²)
                 </label>
                 <input type="number" className="form-control" min="0" aria-label="Floor area in square metres" value={sizeSqm} onChange={(e) => setSizeSqm(e.target.value)} />
               </div>
             </div>
             <div className="mb-3">
-              <label className="form-label" htmlFor="listing-field-9">Furnished</label>
+              <label className="form-label" htmlFor="listing-field-9">Furnishing</label>
               <select id="listing-field-9" className="form-select" value={furnished} onChange={(e) => setFurnished(e.target.value)}>
                 <option value="">—</option>
                 <option value="furnished">Furnished</option>
@@ -547,7 +554,7 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
               <textarea id="listing-field-11"
                 className="form-control"
                 rows={3}
-                placeholder="Describe the property..."
+                placeholder="Tell someone what living here feels like…"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -666,9 +673,18 @@ function AddPropertyForm({ initialListing, onSuccess, initialStep = 0 }) {
             </div>
           <div className="bb-panel bb-listing-review"><h2>Ready for a fresh start?</h2><p><strong>{title}</strong></p><p>{listingType === 'rent' ? 'For rent' : 'For sale'} · {propertyType} · ₱{Number(price).toLocaleString()}</p><p>{location}, {getCityById(validCityId)?.displayName}</p><p>{uploadedImages.length + (imageUrl ? 1 : 0)} photos · {contactName || user?.name}</p><small>New listings are reviewed before appearing in search.</small></div></PropertyFormStep>
 
-          <div className="bb-form-navigation">{step > 0 && <button type="button" className="bb-button bb-secondary" onClick={() => setStep(value => value - 1)} disabled={submitting}>Back</button>}
-          <button type="submit" className="bb-button" disabled={submitting}>{step < 5 ? 'Continue' : submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Submit listing'}</button></div>
+          <div className="bb-form-navigation">
+            {step > 0 ? (
+              <button type="button" className="bb-button bb-secondary" onClick={() => setStep(value => value - 1)} disabled={submitting}>Back</button>
+            ) : (
+              <button type="button" className="bb-button bb-secondary" onClick={() => onCancel?.()} disabled={submitting}>Cancel</button>
+            )}
+            <button type="submit" className="bb-button" disabled={submitting}>
+              {step < 5 ? 'Continue →' : submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Submit for review'}
+            </button>
+          </div>
         </form>
+        </div>
       )}
       <ConfirmModal
         show={!!submitError}
