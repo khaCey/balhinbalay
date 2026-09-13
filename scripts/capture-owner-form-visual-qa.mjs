@@ -118,10 +118,10 @@ async function fillNewListingAndCapture(page, suffix) {
   await capture(page, `owner-new-step-2-location-${suffix}`);
 
   await page.getByLabel('Barangay / neighbourhood').fill('Lahug');
-  await page.getByRole('button', { name: /Pick location on map/i }).click();
-  await page.waitForTimeout(900);
-  await capture(page, `owner-new-step-2-map-state-${suffix}`);
-  await page.getByRole('button', { name: /Hide map/i }).click();
+  const exactMapControls = await page.getByRole('button', { name: /Pick location on map|Hide map/i }).count();
+  if (exactMapControls !== 0) {
+    throw new Error('Exact map-pin input must stay hidden until IDE0068 has backend privacy enforcement.');
+  }
   await page.getByRole('button', { name: 'Continue →' }).click();
   await capture(page, `owner-new-step-3-space-${suffix}`);
 

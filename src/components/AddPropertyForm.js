@@ -10,7 +10,6 @@ import {
 } from '../data/cities';
 import { getBarangayCoordinates } from '../data/barangayCentroids';
 import PropertyFormStep from './ui/PropertyFormStep';
-import MapPicker from './MapPicker';
 import ConfirmModal from './ConfirmModal';
 
 const PROPERTY_TYPES = ['Condo', 'Apartment', 'House', 'Room', 'Boarding House', 'Land'];
@@ -149,7 +148,6 @@ function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 
   const [location, setLocation] = useState('');
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
-  const [showMapPicker, setShowMapPicker] = useState(false);
   const [beds, setBeds] = useState('');
   const [baths, setBaths] = useState('');
   const [sizeSqm, setSizeSqm] = useState('');
@@ -208,7 +206,6 @@ function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 
       const coords = initialListing.coordinates;
       setManualLat(coords && typeof coords.lat === 'number' ? String(coords.lat) : '');
       setManualLng(coords && typeof coords.lng === 'number' ? String(coords.lng) : '');
-      setShowMapPicker(false);
       setBeds(initialListing.beds ? String(initialListing.beds) : '');
       setBaths(initialListing.baths ? String(initialListing.baths) : '');
       setSizeSqm(initialListing.sizeSqm ? String(initialListing.sizeSqm) : (initialListing.size ? String(parseInt(initialListing.size, 10) || '') : ''));
@@ -293,7 +290,7 @@ function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 
     const lngNum = parseFloat(manualLng);
     const hasValidManual = !Number.isNaN(latNum) && !Number.isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
     if (!locationTrimmed && !hasValidManual) {
-      setSubmitError('Add a location/barangay or pin the exact spot on the map.');
+      setSubmitError('Add a barangay or neighbourhood.');
       setSubmitting(false);
       return;
     }
@@ -491,33 +488,6 @@ function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
-            <div className="mb-2">
-              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setShowMapPicker((p) => !p)}>
-                <i className="fas fa-map-marker-alt me-1" aria-hidden />
-                {showMapPicker ? 'Hide map' : 'Pick location on map'}
-              </button>
-            </div>
-            {showMapPicker && (
-              <div className="mb-3">
-                <MapPicker
-                  center={
-                    (location.trim() && getBarangayCoordinates(location.trim(), getCityById(validCityId)?.displayName || 'Cebu City'))
-                    || getCityById(validCityId)?.coordinates
-                    || { lat: 10.3157, lng: 123.8854 }
-                  }
-                  markerPosition={
-                    manualLat && manualLng && !Number.isNaN(parseFloat(manualLat)) && !Number.isNaN(parseFloat(manualLng))
-                      ? { lat: parseFloat(manualLat), lng: parseFloat(manualLng) }
-                      : null
-                  }
-                  onPick={({ lat, lng }) => {
-                    setManualLat(lat.toFixed(6));
-                    setManualLng(lng.toFixed(6));
-                  }}
-                  height={240}
-                />
-              </div>
-            )}
           </PropertyFormStep>
 <PropertyFormStep active={step === 2} title={stepNames[2]}>
             <div className="row g-2 mb-3">
