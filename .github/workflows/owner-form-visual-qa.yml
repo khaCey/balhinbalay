@@ -1,0 +1,75 @@
+name: Owner form visual QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - 'src/components/AddPropertyForm.js'
+      - 'src/pages/AddPropertyPage.js'
+      - 'src/components/MapPicker.js'
+      - 'src/styles/**'
+      - 'scripts/capture-owner-form-visual-qa.mjs'
+      - '.github/workflows/owner-form-visual-qa.yml'
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - 'src/components/AddPropertyForm.js'
+      - 'src/pages/AddPropertyPage.js'
+      - 'src/components/MapPicker.js'
+      - 'src/styles/**'
+      - 'scripts/capture-owner-form-visual-qa.mjs'
+      - '.github/workflows/owner-form-visual-qa.yml'
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright for QA only
+        run: |
+          npm install --no-save --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start React preview
+        env:
+          BROWSER: none
+          PORT: '3000'
+        run: |
+          nohup npx craco start > /tmp/balhinbalay-owner-form.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/balhinbalay-owner-form.log
+          exit 1
+
+      - name: Capture owner form states
+        env:
+          BB_PREVIEW_URL: http://127.0.0.1:3000
+          BB_OWNER_QA_DIR: owner-form-visual-qa
+        run: node scripts/capture-owner-form-visual-qa.mjs
+
+      - name: Upload owner form QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-form-visual-qa-${{ github.sha }}
+          path: owner-form-visual-qa/*.png
+          if-no-files-found: error
+          retention-days: 14
