@@ -12,6 +12,7 @@ import './styles/visual-parity-regressions.css';
 import './styles/home-final-parity.css';
 import './styles/results-final-parity.css';
 import './styles/search-final-parity.css';
+import './styles/detail-owner-final-parity.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
