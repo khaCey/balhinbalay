@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-shot migration patch. Remove after the branch change is committed.
 const formFile = 'src/components/AddPropertyForm.js';
 let form = fs.readFileSync(formFile, 'utf8');
 
