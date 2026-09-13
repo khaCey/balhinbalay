@@ -15,6 +15,7 @@ import './styles/search-final-parity.css';
 import './styles/detail-owner-final-parity.css';
 import './styles/owner-page-final-parity.css';
 import './styles/final-acceptance-parity.css';
+import './styles/strict-site-core-parity.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
