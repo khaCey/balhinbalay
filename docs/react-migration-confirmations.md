@@ -80,7 +80,7 @@ Implementation: DEFERRED.
 
 ## 6. Unsupported filters and settings
 
-Area: Settings, filters and amenities.
+Area: Settings, filters, amenities and owner-form controls.
 
 Decision: Hide controls that do not actually work or persist.
 
@@ -88,25 +88,27 @@ Current migration rule:
 - working controls remain visible;
 - unsupported amenity filters and notification preferences remain hidden;
 - keyword suggestions may remain where they feed the real keyword query;
+- the owner exact-map-pin control remains hidden while exact/public coordinate privacy is not enforced by the backend;
 - add controls only when the underlying data/API behaviour exists.
 
 Idea: IDE0075
-Implementation: IMPLEMENTED in PR #1. The final Search/Settings audit found only controls backed by current search/account behaviour; unsupported web-notification and amenity controls are not presented as working UI.
+Implementation: IMPLEMENTED in PR #1. The final Search/Settings audit found only controls backed by current search/account behaviour, and the owner form no longer exposes the deliberately disabled exact-map control.
 
 ## 7. Public property location privacy
 
-Area: Maps and listing detail.
+Area: Maps, listing detail and owner listing creation.
 
 Decision: Exact dropped pins are private by default. Public listing/map views use an approximate location unless the Lister explicitly chooses to reveal the exact location for that listing.
 
 Current migration rule:
 - the public Property Detail UI no longer renders the stored exact-coordinate map and instead describes the approximate neighbourhood;
-- the existing Map Search still consumes the legacy `coordinates` field, so it must not be treated as privacy-complete until the API separates private exact coordinates from a safe public map location;
-- owner exact-location reveal control also requires real API/data support;
+- the owner form does not expose an exact-map-pin control while server-side privacy separation is unavailable;
+- existing edited listings may still carry legacy exact coordinates internally, and Map Search still consumes the legacy `coordinates` field;
+- owner exact-location reveal control requires real API/data support;
 - do not mark the privacy model implemented until exact coordinates are protected server-side and Map Search consumes only public-safe location data.
 
 Idea: IDE0068
-Implementation: PARTIAL in PR #1; API/data enforcement and safe public map coordinates remain pending.
+Implementation: PARTIAL in PR #1; frontend exposure has been reduced, but API/data enforcement, safe public map coordinates and owner reveal remain pending.
 
 ## 8. Privacy Choices banner
 
@@ -121,3 +123,16 @@ Current implementation rule:
 
 Idea: IDE0070
 Implementation: IMPLEMENTED in PR #1. Dedicated consent-state screenshots pass at 320 / 375 / 390 / 1280 / 1440 / 1920, and the compact banner no longer covers the primary search button.
+
+## 9. Owner Add/Edit visual acceptance
+
+Area: Lister property creation and editing.
+
+Current migration state:
+- all six owner-form steps have dedicated 390 px and 1440 px visual QA;
+- photo-empty and photo-uploaded states are exercised;
+- edit-existing and direct availability-edit states are exercised;
+- new listings now default consistently to Region VII / Cebu / Cebu City instead of mixing a Cebu City ID with another province;
+- the unsupported exact-map button is asserted absent until IDE0068 can be completed safely.
+
+Implementation: CODE/QA complete for the current frontend-backed states in PR #1. Backend exact-location privacy remains separately PARTIAL under IDE0068.
