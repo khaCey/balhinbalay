@@ -8,6 +8,7 @@ import PropertyGallery from './ui/PropertyGallery';
 import PropertyCosts from './ui/PropertyCosts';
 import BottomSheet from './ui/BottomSheet';
 import { Icon } from './ui/Controls';
+import { CompareButton } from './ui/Comparison';
 
 export default function PropertyDetailContent({
   property,
@@ -20,6 +21,7 @@ export default function PropertyDetailContent({
   showCloseButton = true,
   showBackButton = false,
   onBack,
+  backLabel = 'Back',
 }) {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -35,6 +37,11 @@ export default function PropertyDetailContent({
   const location = [property.location, city].filter(Boolean).join(', ');
   const rent = property.listingType === 'rent';
   const owner = user && property.ownerId === user.id;
+  const featureLabels = Array.isArray(property.features)
+    ? property.features
+    : Array.isArray(property.tags)
+      ? property.tags
+      : [];
   const handleChat = () => {
     trackEvent('contact_agent', {
       property_id: property.id,
@@ -150,7 +157,7 @@ export default function PropertyDetailContent({
         {showBackButton && onBack && (
           <button type="button" className="bb-text-button" onClick={onBack}>
             <Icon name="arrow" style={{ transform: 'rotate(180deg)' }} />
-            Back
+            {backLabel}
           </button>
         )}
         {showCloseButton && (
@@ -246,6 +253,16 @@ export default function PropertyDetailContent({
             <p className="bb-description">
               {property.description || 'No description provided.'}
             </p>
+            {featureLabels.length > 0 && (
+              <div className="bb-detail-chips" aria-label="Property features">
+                {featureLabels.map((feature) => (
+                  <span className="bb-detail-chip" key={feature}>
+                    <Icon name="check" />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            )}
             {(property.floorLevel || property.buildingAge) && (
               <p>
                 {property.floorLevel && `Floor ${property.floorLevel}. `}
@@ -290,22 +307,30 @@ export default function PropertyDetailContent({
                 </button>
               </>
             ) : (
-              <button
-                className="bb-text-button"
-                type="button"
-                onClick={() => {
-                  if (!user) {
-                    onLoginForChat?.();
-                    return;
-                  }
-                  setReportSubmitted(false);
-                  setReportReason('');
-                  setReportError('');
-                  setShowReport(true);
-                }}
-              >
-                Report listing
-              </button>
+              <>
+                <CompareButton
+                  property={property}
+                  label="Add to comparison"
+                  selectedLabel="Added to comparison"
+                  className="bb-detail-compare"
+                />
+                <button
+                  className="bb-text-button bb-detail-report"
+                  type="button"
+                  onClick={() => {
+                    if (!user) {
+                      onLoginForChat?.();
+                      return;
+                    }
+                    setReportSubmitted(false);
+                    setReportReason('');
+                    setReportError('');
+                    setShowReport(true);
+                  }}
+                >
+                  Report listing
+                </button>
+              </>
             )}
           </div>
         </div>
