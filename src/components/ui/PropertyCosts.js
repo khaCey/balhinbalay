@@ -1,15 +1,5 @@
 import React from 'react';
 
-export const moveInFees = (property) =>
-  [
-    'keyMoney',
-    'securityDeposit',
-    'advancePay',
-    'brokerFee',
-    'associationFee',
-    'reservationFee',
-  ].reduce((total, key) => total + (Number(property[key]) || 0), 0);
-
 const amount = (value) =>
   value == null || value === ''
     ? 'Not specified'
