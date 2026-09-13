@@ -47,7 +47,7 @@ Current implementation state:
 - once specified, the same radius must be used by Search, Results and Map Search.
 
 Idea: IDE0071
-Implementation: NOT STARTED pending the remaining slider range/step decision.
+Implementation: BLOCKED pending IDE0076, which defines the remaining slider range/step decision.
 
 ## 4. Rental move-in costs
 
@@ -91,7 +91,7 @@ Current migration rule:
 - add controls only when the underlying data/API behaviour exists.
 
 Idea: IDE0075
-Implementation: PARTIAL. Unsupported web notification controls are hidden; the final search/settings audit remains part of visual acceptance.
+Implementation: IMPLEMENTED in PR #1. The final Search/Settings audit found only controls backed by current search/account behaviour; unsupported web-notification and amenity controls are not presented as working UI.
 
 ## 7. Public property location privacy
 
@@ -101,12 +101,12 @@ Decision: Exact dropped pins are private by default. Public listing/map views us
 
 Current migration rule:
 - the public Property Detail UI no longer renders the stored exact-coordinate map and instead describes the approximate neighbourhood;
-- this frontend change is only partial protection because the API contract still needs to separate private exact coordinates from public derived location data;
+- the existing Map Search still consumes the legacy `coordinates` field, so it must not be treated as privacy-complete until the API separates private exact coordinates from a safe public map location;
 - owner exact-location reveal control also requires real API/data support;
-- do not mark the privacy model implemented until exact coordinates are protected server-side.
+- do not mark the privacy model implemented until exact coordinates are protected server-side and Map Search consumes only public-safe location data.
 
 Idea: IDE0068
-Implementation: PARTIAL in PR #1; API/data enforcement remains pending.
+Implementation: PARTIAL in PR #1; API/data enforcement and safe public map coordinates remain pending.
 
 ## 8. Privacy Choices banner
 
@@ -114,9 +114,10 @@ Area: Privacy/compliance UI.
 
 Decision: Keep the existing Privacy Choices banner visible in the React product.
 
-Current migration rule:
+Current implementation rule:
 - retain the banner;
-- final mobile/desktop placement must be checked so it does not obstruct the primary viewport.
+- keep it compact and above mobile navigation so the primary search control remains usable;
+- verify placement across the standard visual-QA viewport set.
 
 Idea: IDE0070
-Implementation: PARTIAL; dedicated banner obstruction QA remains pending.
+Implementation: IMPLEMENTED in PR #1. Dedicated consent-state screenshots pass at 320 / 375 / 390 / 1280 / 1440 / 1920, and the compact banner no longer covers the primary search button.
