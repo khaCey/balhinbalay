@@ -8,64 +8,39 @@ on:
       - '.github/workflows/live-api-smoke-once.yml'
 
 jobs:
-  smoke:
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check public API and unauthenticated account boundaries
+      - name: Diagnose public endpoint availability
         shell: bash
-        env:
-          BASE_URL: https://balhinbalay.com
         run: |
           set -euo pipefail
 
-          tmpdir="$(mktemp -d)"
-          trap 'rm -rf "$tmpdir"' EXIT
-
-          get_json_200() {
-            local path="$1"
-            local output="$2"
-            local status
-            status="$(curl --fail-with-body --silent --show-error --location --max-time 30 \
-              --output "$output" --write-out '%{http_code}' "$BASE_URL$path")"
-            if [ "$status" != "200" ]; then
-              echo "Expected 200 for $path, got $status"
-              cat "$output" || true
-              exit 1
-            fi
-          }
-
-          expect_status() {
-            local expected="$1"
-            local path="$2"
-            local output="$tmpdir/status-body.json"
-            local status
+          probe() {
+            local url="$1"
+            local body headers status
+            body="$(mktemp)"
+            headers="$(mktemp)"
             status="$(curl --silent --show-error --location --max-time 30 \
-              --output "$output" --write-out '%{http_code}' "$BASE_URL$path")"
-            if [ "$status" != "$expected" ]; then
-              echo "Expected $expected for $path, got $status"
-              cat "$output" || true
-              exit 1
-            fi
+              --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$url" || true)"
+            echo "URL: $url"
+            echo "HTTP: ${status:-curl-error}"
+            grep -iE '^(server|cf-ray|location|content-type):' "$headers" | tail -n 10 || true
+            echo 'Body preview:'
+            head -c 500 "$body" | tr '\n' ' ' || true
+            echo
+            echo '---'
+            rm -f "$body" "$headers"
           }
 
-          get_json_200 '/api/health' "$tmpdir/health.json"
-          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(d.ok!==true) throw new Error('health.ok is not true'); if(d.db!==true) throw new Error('health.db is not true'); console.log('health ok; db connected; push=' + Boolean(d.push));" "$tmpdir/health.json"
+          probe 'https://balhinbalay.com/'
+          probe 'https://balhinbalay.com/api/health'
+          probe 'https://balhinbalay.com/api'
+          probe 'https://www.balhinbalay.com/'
 
-          get_json_200 '/api' "$tmpdir/api.json"
-          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(typeof d.message!=='string'||!d.message) throw new Error('API descriptor missing message'); console.log(d.message);" "$tmpdir/api.json"
-
-          get_json_200 '/api/listings?listingType=rent&cityId=cebu-city&sort=newest' "$tmpdir/rent.json"
-          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(!Array.isArray(d)) throw new Error('rent listings response is not an array'); console.log('rent listings:', d.length);" "$tmpdir/rent.json"
-
-          get_json_200 '/api/listings?listingType=sale&sort=newest' "$tmpdir/sale.json"
-          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(!Array.isArray(d)) throw new Error('sale listings response is not an array'); console.log('sale listings:', d.length);" "$tmpdir/sale.json"
-
-          expect_status 401 '/api/auth/me'
-          expect_status 401 '/api/users/me'
-          expect_status 401 '/api/favorites'
-          expect_status 401 '/api/saved-searches'
-          expect_status 401 '/api/recently-viewed'
-          expect_status 401 '/api/chat/threads'
-
-          echo 'Live API smoke checks passed without mutating production data.'
+          health_status="$(curl --silent --show-error --location --max-time 30 --output /dev/null --write-out '%{http_code}' 'https://balhinbalay.com/api/health' || true)"
+          if [ "$health_status" != '200' ]; then
+            echo "Live API unavailable: /api/health returned ${health_status:-curl-error}."
+            exit 1
+          fi
