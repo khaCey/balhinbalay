@@ -231,7 +231,7 @@ export default function HomePage() {
         </section>
         <section className="bb-section">
           <SectionHeading
-            title="Places to explore"
+            title="Popular right now"
             action="See more"
             onAction={() => {
               submitSearch({
