@@ -1,0 +1,34 @@
+name: Fix owner form default location
+
+on:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - 'scripts/fix-owner-form-default-location.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/react-prototype-ui
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Patch owner form default location
+        run: node scripts/fix-owner-form-default-location.mjs
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/AddPropertyForm.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Default new listings to Cebu City"
+          git push origin HEAD:feature/react-prototype-ui
