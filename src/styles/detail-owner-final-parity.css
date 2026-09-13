@@ -71,11 +71,15 @@
   width: 100%;
 }
 
+/* Older owner-form styles made this heading a horizontal flex row. The approved
+   prototype uses a metadata row followed by the step title on its own line. */
 .bb-step-heading {
+  display: block;
   margin: 0 0 10px;
 }
 
 .bb-step-heading-meta {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -92,6 +96,7 @@
 
 .bb-step-heading > strong {
   display: block;
+  width: 100%;
   margin-top: 7px;
   color: var(--bb-ink);
   font-size: 30px;
@@ -129,11 +134,26 @@
   min-height: 46px;
   border: 1px solid #ccd9e7;
   border-radius: 10px;
-  background: #fff;
+  background-color: #fff;
+}
+
+/* Preserve a real select affordance. Earlier shared styles removed the native
+   chevron, which made Rent/Condo look like inert text fields. */
+.bb-owner-form .form-select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  background-image: none;
+  padding-right: 30px;
 }
 
 .bb-owner-form textarea.form-control {
   min-height: 112px;
+}
+
+/* The approved first step labels the rent as monthly already; the duplicate
+   helper line only adds vertical drift. */
+.bb-owner-form #listing-field-4 + .text-muted {
+  display: none;
 }
 
 .bb-form-navigation {
