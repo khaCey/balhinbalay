@@ -20,10 +20,10 @@ const qaUser = {
 const fixtures = [
   {
     id: 'qa-rent-1',
-    title: 'Bright 2BR Condo near IT Park',
-    price: 24000,
-    size: '58 sqm',
-    sizeSqm: 58,
+    title: 'A bright little home near IT Park',
+    price: 25000,
+    size: '42 sqm',
+    sizeSqm: 42,
     location: 'Lahug',
     city: 'Cebu City',
     cityId: 'cebu-city',
@@ -42,8 +42,8 @@ const fixtures = [
     status: 'approved',
     sold: false,
     currentlyRented: false,
-    securityDeposit: 24000,
-    advancePay: 24000,
+    securityDeposit: 25000,
+    advancePay: 25000,
     keyMoney: 0,
     brokerFee: 0,
     associationFee: 1800,
@@ -129,22 +129,24 @@ const fixtures = [
   },
   {
     id: 'qa-rent-5',
-    title: 'Sunny 1BR Condo in Lahug',
-    price: 18000,
-    size: '36 sqm',
-    sizeSqm: 36,
-    location: 'Lahug',
+    title: 'Calm 2BR near Fuente Osmeña',
+    price: 22000,
+    size: '49 sqm',
+    sizeSqm: 49,
+    location: 'Capitol Site',
     city: 'Cebu City',
     cityId: 'cebu-city',
-    beds: 1,
+    beds: 2,
     baths: 1,
-    type: 'Condo',
-    images: [svg('Lahug condo', '#e6edf8')],
+    type: 'Apartment',
+    images: [svg('Cebu apartment', '#e8edf6')],
     listingType: 'rent',
-    description: 'A compact one-bedroom home close to everyday essentials.',
-    coordinates: { lat: 10.329, lng: 123.904 },
-    contactInfo: { agentName: 'Nina Santos', phone: '+63 917 000 0006', email: 'nina@example.com' },
-    ownerName: 'Nina Santos',
+    furnishing: 'Semi-furnished',
+    furnished: 'Semi-furnished',
+    description: 'A calm two-bedroom home close to central Cebu conveniences.',
+    coordinates: { lat: 10.315, lng: 123.893 },
+    contactInfo: { agentName: 'Jo Santos', phone: '+63 917 000 0006', email: 'jo@example.com' },
+    ownerName: 'Jo Santos',
     ownerId: 'qa-owner-6',
     status: 'approved',
     sold: false,
@@ -152,69 +154,25 @@ const fixtures = [
   },
   {
     id: 'qa-rent-6',
-    title: '2BR Apartment near Fuente',
-    price: 22000,
-    size: '55 sqm',
-    sizeSqm: 55,
-    location: 'Capitol Site',
-    city: 'Cebu City',
-    cityId: 'cebu-city',
-    beds: 2,
-    baths: 1,
-    type: 'Apartment',
-    images: [svg('Fuente apartment', '#e8eef5')],
-    listingType: 'rent',
-    description: 'A practical two-bedroom apartment with easy city access.',
-    coordinates: { lat: 10.317, lng: 123.893 },
-    contactInfo: { agentName: 'Leo Yu', phone: '+63 917 000 0007', email: 'leo@example.com' },
-    ownerName: 'Leo Yu',
-    ownerId: 'qa-owner-7',
-    status: 'approved',
-    sold: false,
-    currentlyRented: false,
-  },
-  {
-    id: 'qa-rent-7',
-    title: 'Studio near Cebu Business Park',
-    price: 15000,
-    size: '28 sqm',
-    sizeSqm: 28,
+    title: 'Compact Studio near Ayala Center',
+    price: 14000,
+    size: '26 sqm',
+    sizeSqm: 26,
     location: 'Luz',
     city: 'Cebu City',
     cityId: 'cebu-city',
-    beds: 1,
+    beds: 0,
     baths: 1,
     type: 'Condo',
-    images: [svg('Business Park studio', '#edf0f5')],
+    images: [svg('Cebu studio', '#ede7df')],
     listingType: 'rent',
-    description: 'A simple studio for city living near major offices.',
-    coordinates: { lat: 10.323, lng: 123.906 },
-    contactInfo: { agentName: 'Bea Go', phone: '+63 917 000 0008', email: 'bea@example.com' },
-    ownerName: 'Bea Go',
-    ownerId: 'qa-owner-8',
-    status: 'approved',
-    sold: false,
-    currentlyRented: false,
-  },
-  {
-    id: 'qa-rent-8',
-    title: 'Family Apartment in Talamban',
-    price: 28000,
-    size: '72 sqm',
-    sizeSqm: 72,
-    location: 'Talamban',
-    city: 'Cebu City',
-    cityId: 'cebu-city',
-    beds: 3,
-    baths: 2,
-    type: 'Apartment',
-    images: [svg('Talamban apartment', '#e2eaf4')],
-    listingType: 'rent',
-    description: 'A larger apartment with room for a family or home office.',
-    coordinates: { lat: 10.37, lng: 123.91 },
-    contactInfo: { agentName: 'Carlo Tan', phone: '+63 917 000 0009', email: 'carlo@example.com' },
-    ownerName: 'Carlo Tan',
-    ownerId: 'qa-owner-9',
+    furnishing: 'Furnished',
+    furnished: 'Furnished',
+    description: 'A compact studio for someone who wants to stay close to the city centre.',
+    coordinates: { lat: 10.318, lng: 123.904 },
+    contactInfo: { agentName: 'Lea Tan', phone: '+63 917 000 0007', email: 'lea@example.com' },
+    ownerName: 'Lea Tan',
+    ownerId: 'qa-owner-7',
     status: 'approved',
     sold: false,
     currentlyRented: false,
@@ -272,7 +230,7 @@ const chatThreads = [
   {
     id: 'qa-thread-1',
     listingId: 'qa-rent-1',
-    listingTitle: 'Bright 2BR Condo near IT Park',
+    listingTitle: 'A bright little home near IT Park',
     userId: qaUser.id,
     listingOwnerId: 'qa-owner-2',
     otherParticipantName: 'Ana Reyes',
@@ -384,13 +342,17 @@ async function capture(page, label) {
   await page.screenshot({ path: path.join(outputDir, `${label}.png`), fullPage: true });
 }
 
-async function createContext(browser, viewport, authenticated = false) {
+async function createContext(browser, viewport, authenticated = false, suppressConsent = true) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
   });
-  await context.addInitScript(({ user, authenticated }) => {
-    window.localStorage.setItem('bb_consent_v1', JSON.stringify({ analytics: false }));
+  await context.addInitScript(({ user, authenticated, suppressConsent }) => {
+    if (suppressConsent) {
+      window.localStorage.setItem('bb_consent_v1', JSON.stringify({ analytics: false }));
+    } else {
+      window.localStorage.removeItem('bb_consent_v1');
+    }
     if (authenticated) {
       window.localStorage.setItem(
         'balhinbalay_auth',
@@ -399,7 +361,7 @@ async function createContext(browser, viewport, authenticated = false) {
     } else {
       window.localStorage.removeItem('balhinbalay_auth');
     }
-  }, { user: qaUser, authenticated });
+  }, { user: qaUser, authenticated, suppressConsent });
   return context;
 }
 
@@ -408,12 +370,18 @@ await fs.mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 
+const viewports = [
+  { suffix: '320', width: 320, height: 760 },
+  { suffix: '375', width: 375, height: 812 },
+  { suffix: '390', width: 390, height: 844 },
+  { suffix: '1280', width: 1280, height: 900 },
+  { suffix: '1440', width: 1440, height: 1000 },
+  { suffix: '1920', width: 1920, height: 1080 },
+];
+
 try {
-  for (const viewport of [
-    { suffix: '390', width: 390, height: 844 },
-    { suffix: '1440', width: 1440, height: 1000 },
-  ]) {
-    const guestContext = await createContext(browser, viewport, false);
+  for (const viewport of viewports) {
+    const guestContext = await createContext(browser, viewport, false, true);
     const page = await stablePage(guestContext, viewport.width, viewport.height);
 
     await page.goto(`${baseUrl}/`);
@@ -440,7 +408,7 @@ try {
     await capture(page, `react-property-${viewport.suffix}`);
     await guestContext.close();
 
-    const authContext = await createContext(browser, viewport, true);
+    const authContext = await createContext(browser, viewport, true, true);
     const authPage = await stablePage(authContext, viewport.width, viewport.height);
 
     for (const [label, route] of [
@@ -458,6 +426,14 @@ try {
     }
 
     await authContext.close();
+
+    // The normal parity captures suppress the consent UI so it does not cover
+    // reference screenshots. Keep a dedicated capture so IDE0070 is verified.
+    const consentContext = await createContext(browser, viewport, false, false);
+    const consentPage = await stablePage(consentContext, viewport.width, viewport.height);
+    await consentPage.goto(`${baseUrl}/`);
+    await capture(consentPage, `react-home-consent-${viewport.suffix}`);
+    await consentContext.close();
   }
 } finally {
   await browser.close();
