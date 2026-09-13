@@ -16,7 +16,7 @@ Current implementation rule:
 - the heading may still use the approved wording.
 
 Idea: IDE0069
-Implementation: in progress on PR #1.
+Implementation: IMPLEMENTED in PR #1. The ranking service itself remains a separate recommendation task.
 
 ## 2. Saved-search fidelity
 
@@ -43,10 +43,11 @@ Decision: Replace the fixed 10 km school-search radius with a continuous distanc
 Current implementation state:
 - the current React search still uses the fixed 10 km client-side radius;
 - slider state/filtering still needs implementation;
-- exact slider bounds/step should be kept consistent across Search, Results and Map Search once implemented.
+- the slider minimum, maximum and step are not yet specified, so those values must not be invented during the migration;
+- once specified, the same radius must be used by Search, Results and Map Search.
 
 Idea: IDE0071
-Implementation: NOT STARTED.
+Implementation: NOT STARTED pending the remaining slider range/step decision.
 
 ## 4. Rental move-in costs
 
@@ -60,7 +61,7 @@ Current implementation rule:
 - do not infer missing values, recurring terms, credits or refund rules.
 
 Idea: IDE0074
-Implementation: in progress on PR #1.
+Implementation: IMPLEMENTED in PR #1 for Property Detail and comparison presentation.
 
 ## 5. Structured viewing requests
 
@@ -90,7 +91,7 @@ Current migration rule:
 - add controls only when the underlying data/API behaviour exists.
 
 Idea: IDE0075
-Implementation: PARTIAL; audit remains.
+Implementation: PARTIAL. Unsupported web notification controls are hidden; the final search/settings audit remains part of visual acceptance.
 
 ## 7. Public property location privacy
 
@@ -99,12 +100,13 @@ Area: Maps and listing detail.
 Decision: Exact dropped pins are private by default. Public listing/map views use an approximate location unless the Lister explicitly chooses to reveal the exact location for that listing.
 
 Current migration rule:
-- do not introduce a frontend-only promise of privacy if the API still exposes exact coordinates;
-- public-location derivation and owner reveal control require real API/data support;
-- do not mark this implemented until exact coordinates are protected server-side.
+- the public Property Detail UI no longer renders the stored exact-coordinate map and instead describes the approximate neighbourhood;
+- this frontend change is only partial protection because the API contract still needs to separate private exact coordinates from public derived location data;
+- owner exact-location reveal control also requires real API/data support;
+- do not mark the privacy model implemented until exact coordinates are protected server-side.
 
 Idea: IDE0068
-Implementation: NOT STARTED.
+Implementation: PARTIAL in PR #1; API/data enforcement remains pending.
 
 ## 8. Privacy Choices banner
 
@@ -117,4 +119,4 @@ Current migration rule:
 - final mobile/desktop placement must be checked so it does not obstruct the primary viewport.
 
 Idea: IDE0070
-Implementation: PARTIAL.
+Implementation: PARTIAL; dedicated banner obstruction QA remains pending.
