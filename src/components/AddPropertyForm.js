@@ -121,7 +121,13 @@ function estimateDataUrlBytes(dataUrl) {
 
 const REGIONS_OPTIONS = philippineRegions.filter((r) => r.id !== 'all');
 const REGIONS_WITH_CITIES = getRegionIdsWithCities();
-const DEFAULT_REGION = REGIONS_WITH_CITIES[0] || 'region-vii';
+const DEFAULT_CITY_ID = 'cebu-city';
+const DEFAULT_CITY = getCityById(DEFAULT_CITY_ID);
+const DEFAULT_REGION =
+  DEFAULT_CITY?.regionId ||
+  (REGIONS_WITH_CITIES.includes('region-vii') ? 'region-vii' : (REGIONS_WITH_CITIES[0] || 'region-vii'));
+const DEFAULT_PROVINCE =
+  DEFAULT_CITY?.province || getProvincesByRegion(DEFAULT_REGION)[0] || '';
 
 function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 }) {
   const { user } = useAuth();
@@ -138,11 +144,8 @@ function AddPropertyForm({ initialListing, onSuccess, onCancel, initialStep = 0 
   const [propertyType, setPropertyType] = useState('Condo');
   const [price, setPrice] = useState('');
   const [regionId, setRegionId] = useState(DEFAULT_REGION);
-  const [province, setProvince] = useState(() => {
-    const p = getProvincesByRegion(DEFAULT_REGION);
-    return p[0] || '';
-  });
-  const [cityId, setCityId] = useState('cebu-city');
+  const [province, setProvince] = useState(DEFAULT_PROVINCE);
+  const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [location, setLocation] = useState('');
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
