@@ -5,7 +5,6 @@ import { useLocation } from 'react-router-dom';
 import { useListings } from '../../context/ListingsContext';
 import BottomSheet from './BottomSheet';
 import { Icon } from './Controls';
-import { moveInFees } from './PropertyCosts';
 
 const Context = createContext(null);
 export function CompareButton({
@@ -58,6 +57,12 @@ export default function ComparisonProvider({ children }) {
   const selected = ids
     .map((id) => [...listings, ...searchResults].find((item) => item.id === id))
     .filter(Boolean);
+  const rentalAmount = (item, key) =>
+    item.listingType === 'rent'
+      ? item[key] == null || item[key] === ''
+        ? 'Not specified'
+        : `₱${Number(item[key]).toLocaleString()}`
+      : 'Not applicable';
   const rows = [
     [
       'Price',
@@ -77,13 +82,8 @@ export default function ComparisonProvider({ children }) {
         item.size || (item.sizeSqm ? `${item.sizeSqm} m²` : 'Not specified'),
     ],
     ['Furnishing', (item) => item.furnished || 'Not specified'],
-    [
-      'Listed move-in fees',
-      (item) =>
-        item.listingType === 'rent'
-          ? `₱${moveInFees(item).toLocaleString()}`
-          : 'Not applicable',
-    ],
+    ['Security deposit', (item) => rentalAmount(item, 'securityDeposit')],
+    ['Advance payment', (item) => rentalAmount(item, 'advancePay')],
   ];
   return (
     <Context.Provider value={{ ids, toggle }}>
