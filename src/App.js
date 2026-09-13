@@ -253,8 +253,7 @@ function AppContent() {
 
   const filteredListingsForMyProperties = useMemo(() => {
     if (!showMyPropertiesOnly) return [];
-    const filtered = listingsToFilter.filter((item) => item.listingType === myPropertiesListingType);
-    return [...filtered].sort((a, b) => {
+    return [...listingsToFilter].sort((a, b) => {
       switch (sortBy) {
         case 'price-low': return a.price - b.price;
         case 'price-high': return b.price - a.price;
@@ -265,7 +264,7 @@ function AppContent() {
         default: return new Date(b.datePosted || 0) - new Date(a.datePosted || 0);
       }
     });
-  }, [showMyPropertiesOnly, listingsToFilter, myPropertiesListingType, sortBy]);
+  }, [showMyPropertiesOnly, listingsToFilter, sortBy]);
 
   const baseListForSchool = showMyPropertiesOnly ? filteredListingsForMyProperties : searchResults;
   const schoolFilteredListings = useMemo(() => {
@@ -686,15 +685,7 @@ function AppContent() {
               </div>
             )}
             {showMyPropertiesOnly && user && (
-              <div className="my-properties-bar">
-                <p className="bb-owner-intro">A clear view of every listing.</p>
-                <div className="my-properties-bar-toggle-wrap">
-                  <ListingTypeToggle
-                    value={myPropertiesListingType}
-                    onChange={setMyPropertiesListingType}
-                  />
-                </div>
-              </div>
+              <p className="bb-owner-intro bb-owner-intro--standalone">A clear view of every listing.</p>
             )}
             {(!hasSearched && !showMyPropertiesOnly) ? (
               <div className="search-now-empty">
@@ -957,12 +948,12 @@ function AppContent() {
                           </div>
               </BottomSheet>
               </>
-            ) : (
+            ) : showMyPropertiesOnly ? null : (
               <SortBar
                 sortBy={sortBy}
                 onSortChange={setSortBy}
                 totalResults={listingsForView.length}
-                isMyProperties={showMyPropertiesOnly && !!user}
+                isMyProperties={false}
               />
             )}
 
@@ -1016,8 +1007,8 @@ function AppContent() {
                 {listingsForView.length === 0 && !(hasSearched && !showMyPropertiesOnly && searchLoading) && showMyPropertiesOnly && (
                   <div className="text-center py-5">
                     <i className="fas fa-house fa-3x text-muted mb-3" aria-hidden />
-                    <h4>No {myPropertiesListingType === 'rent' ? 'rental' : 'sale'} listings</h4>
-                    <p className="text-muted">You have no properties listed for {myPropertiesListingType === 'rent' ? 'rent' : 'sale'} yet. Add one to get started.</p>
+                    <h4>No properties yet</h4>
+                    <p className="text-muted">You have no listings yet. Add one to get started.</p>
                     <button type="button" className="btn btn-primary mt-2" onClick={() => navigate('/add-property')}>
                       Add property
                     </button>

@@ -429,3 +429,15 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+
+/* The approved owner overview is one mixed status list, not a separate rent/sale dashboard. */
+.bb-owner-intro--standalone {
+  margin: 0 0 16px;
+}
+
+@media (min-width: 760px) {
+  .bb-owner-intro--standalone {
+    margin-bottom: 18px;
+  }
+}
