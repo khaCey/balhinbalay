@@ -18,7 +18,7 @@ function AddPropertyPage() {
   const isEdit = !!id;
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/my-properties');
   };
 
   const handleSuccess = () => {
@@ -66,11 +66,10 @@ function AddPropertyPage() {
 
   return (
     <div className="add-property-page page-with-header minimal-page">
-      <PageHeader
-        title={isEdit ? 'Edit property' : 'Add property'}
-        onBack={handleBack}
-      />
       <main className="page-content">
+        <button type="button" className="bb-text-button bb-owner-back" onClick={handleBack}>
+          <span aria-hidden="true">←</span> My properties
+        </button>
         <div className="page-section add-property-page-form">
           <AddPropertyForm
             key={id || 'new'}
@@ -79,6 +78,7 @@ function AddPropertyPage() {
               isEdit && searchParams.get('section') === 'availability' ? 3 : 0
             }
             onSuccess={handleSuccess}
+            onCancel={handleBack}
           />
         </div>
       </main>
