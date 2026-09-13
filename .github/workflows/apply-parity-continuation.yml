@@ -1,0 +1,33 @@
+name: Apply parity continuation
+
+on:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - '.github/parity-continuation-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/react-prototype-ui
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply parity continuation
+        run: node scripts/apply-parity-continuation.mjs
+      - name: Commit patched source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.js src/components/ui/Comparison.js src/components/PropertyDetailContent.js src/pages/PropertyPage.js src/components/MainLayout.js src/pages/AddPropertyPage.js src/components/AddPropertyForm.js scripts/capture-react-visual-qa.mjs src/styles/detail-owner-final-parity.css src/index.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Continue React visual parity across results detail and owner flow"
+          git push origin HEAD:feature/react-prototype-ui
