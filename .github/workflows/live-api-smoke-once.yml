@@ -1,0 +1,71 @@
+name: Live API smoke once
+
+on:
+  push:
+    branches:
+      - feature/react-prototype-ui
+    paths:
+      - '.github/workflows/live-api-smoke-once.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check public API and unauthenticated account boundaries
+        shell: bash
+        env:
+          BASE_URL: https://balhinbalay.com
+        run: |
+          set -euo pipefail
+
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+
+          get_json_200() {
+            local path="$1"
+            local output="$2"
+            local status
+            status="$(curl --fail-with-body --silent --show-error --location --max-time 30 \
+              --output "$output" --write-out '%{http_code}' "$BASE_URL$path")"
+            if [ "$status" != "200" ]; then
+              echo "Expected 200 for $path, got $status"
+              cat "$output" || true
+              exit 1
+            fi
+          }
+
+          expect_status() {
+            local expected="$1"
+            local path="$2"
+            local output="$tmpdir/status-body.json"
+            local status
+            status="$(curl --silent --show-error --location --max-time 30 \
+              --output "$output" --write-out '%{http_code}' "$BASE_URL$path")"
+            if [ "$status" != "$expected" ]; then
+              echo "Expected $expected for $path, got $status"
+              cat "$output" || true
+              exit 1
+            fi
+          }
+
+          get_json_200 '/api/health' "$tmpdir/health.json"
+          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(d.ok!==true) throw new Error('health.ok is not true'); if(d.db!==true) throw new Error('health.db is not true'); console.log('health ok; db connected; push=' + Boolean(d.push));" "$tmpdir/health.json"
+
+          get_json_200 '/api' "$tmpdir/api.json"
+          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(typeof d.message!=='string'||!d.message) throw new Error('API descriptor missing message'); console.log(d.message);" "$tmpdir/api.json"
+
+          get_json_200 '/api/listings?listingType=rent&cityId=cebu-city&sort=newest' "$tmpdir/rent.json"
+          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(!Array.isArray(d)) throw new Error('rent listings response is not an array'); console.log('rent listings:', d.length);" "$tmpdir/rent.json"
+
+          get_json_200 '/api/listings?listingType=sale&sort=newest' "$tmpdir/sale.json"
+          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(!Array.isArray(d)) throw new Error('sale listings response is not an array'); console.log('sale listings:', d.length);" "$tmpdir/sale.json"
+
+          expect_status 401 '/api/auth/me'
+          expect_status 401 '/api/users/me'
+          expect_status 401 '/api/favorites'
+          expect_status 401 '/api/saved-searches'
+          expect_status 401 '/api/recently-viewed'
+          expect_status 401 '/api/chat/threads'
+
+          echo 'Live API smoke checks passed without mutating production data.'
