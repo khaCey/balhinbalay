@@ -8,19 +8,24 @@ import { Icon } from './Controls';
 import { moveInFees } from './PropertyCosts';
 
 const Context = createContext(null);
-export function CompareButton({ property }) {
+export function CompareButton({
+  property,
+  label = 'Compare',
+  selectedLabel = label,
+  className = '',
+}) {
   const comparison = useContext(Context);
   if (!comparison) return null;
   const selected = comparison.ids.includes(property.id);
   return (
     <button
       type="button"
-      className="bb-compare-button"
+      className={`bb-compare-button ${className}`.trim()}
       aria-pressed={selected}
       onClick={() => comparison.toggle(property.id)}
     >
       <Icon name={selected ? 'check' : 'plus'} />
-      Compare
+      {selected ? selectedLabel : label}
     </button>
   );
 }
@@ -132,9 +137,9 @@ export default function ComparisonProvider({ children }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(([label, value]) => (
-                <tr key={label}>
-                  <th scope="row">{label}</th>
+              {rows.map(([labelText, value]) => (
+                <tr key={labelText}>
+                  <th scope="row">{labelText}</th>
                   {selected.map((item) => (
                     <td key={item.id}>{value(item)}</td>
                   ))}
