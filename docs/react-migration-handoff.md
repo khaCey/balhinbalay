@@ -1,76 +1,94 @@
 # BalhinBalay React migration handoff
 
-Checkpoint: 12 September 2026. Implementation is ready for code review; browser visual acceptance and live service checks remain pending.
+Checkpoint: 13 September 2026. Broad React conversion/parity work is complete and the branch is in final acceptance. Overall project status remains **PARTIAL** because live-service/account QA, one accepted-but-parameterised search change, backend location-privacy enforcement, final user acceptance, merge and deployment are still outstanding.
 
 ## Continuity and location
 
-The work continues the existing React application from `dev` commit `b0ffe745ca1171bd13bcb576a446180877699324`. It does not create a replacement application or change the build stack. The approved static Site at prototype commit `6e6311da0303ea22f5b5647db70ecbd3c98fc044` remains the visual reference and has not been changed or deployed by this migration.
+This is the existing React migration, not a replacement application.
 
 - Repository: https://github.com/khaCey/balhinbalay
-- Working branch: `feature/react-prototype-ui`, based on `dev`.
-- Working directory: `/workspace/balhinbalay-react`.
-- Implementation commits: `197ae02` (foundations/navigation/search), `588be81` (property/saved/map/owner/chat); `399c7e3` contains the first test/handoff checkpoint; the subsequent account/owner commit continues it.
-- Production output generated locally in `build/`; generated dependencies/build output are not committed.
-- No merge or production deployment has been performed.
+- Pull request: PR #1, draft, targeting `dev`
+- Working branch: `feature/react-prototype-ui`
+- Approved static Site remains the visual reference.
+- Owner-form/frontend QA baseline: `6557357c5193f6b47074403f4cb1ba7164381507`
+- No merge to `dev` or production deployment has been performed.
 
-## Completed frontend implementation
+## Completed frontend/parity work
 
-| Area | Implemented scope |
-| --- | --- |
-| Shared foundations | Local DM Sans fonts, approved colours/surfaces/gutters, document scrolling, responsive header and four-item mobile navigation, controls, native sheets, property tiles, gallery, costs and comparison components. |
-| Home | Compact city-first hero/search, city picker and rails, real listing/recent rails, resume search and owner call to action. Neutral listing heading avoids claiming an unavailable popularity ranking. |
-| Search and results | Existing city, keyword, school and map methods connected to the new UI; advanced criteria retained; results filter sheet, card presentation and supported saved-search action. |
-| Property detail | Gallery, property facts, description, listed fee total, map and responsive contact actions. Existing favourite, chat, report, share and owner callbacks retained. |
-| Saved | Properties, Searches and Recently viewed tabs using existing contexts and resume/delete behaviour. |
-| Maps | Shared filter request adapter, genuine empty results, React property preview, context-backed viewport/selection restoration and existing Leaflet infrastructure. |
-| Comparison | Up to three real listings in a shared sheet; session state only, cleared on account change. |
-| Owner entry/edit | Six-step form retaining existing fields, image handling and API payload; step validation and an edit-loading/ownership guard. Success returns to My properties. |
-| Account and messaging | Account menu/navigation, thread previews, property-linked conversation strip and composer using existing send/error behaviour. Profile photo/name/email form, labelled password-reset flow, Settings action rows and password-verified account deletion sheet. |
-| My properties | Compact owner cards with actual status, Edit/Availability/Unlist actions, an Add shortcut, and retryable unlist confirmation using the existing service. Availability opens the existing edit wizard at its costs/availability step. |
+The React application now covers the migrated user-facing flows while preserving the approved prototype appearance and existing supported application contracts.
 
-## Partially completed and pending work
+Completed and verified areas include:
 
-- Profile, Settings and My properties now have explicit approved-layout React implementations. Their browser visual parity remains unverified. Account operations retain the existing handlers and security requirements; they have not been exercised against live accounts.
-- Existing authentication, account security/deletion, My properties status/availability actions and administrator functionality remain in place. Their full end-to-end behaviour has not been verified against live services in this environment.
-- Visual preservation is implemented through shared design tokens and responsive rules, but is **not visually accepted**: browser navigation to the local preview was blocked with `net::ERR_BLOCKED_BY_CLIENT`.
-- The requested 320, 375, 390, 1280, 1440 and 1920 px checks remain pending. No React screenshots were produced. Check rail padding, horizontal overflow, navigation/contact bars, dialogs, map preview and keyboard behaviour at these widths.
-- Real browser focus trapping, touch/swipe, map tiles/gestures, camera/upload behaviour and keyboard resize still need browser/device checks. Test dialog polyfills do not validate browser focus behaviour.
-- Account-backed persistence, authentication and real chat delivery need staging checks with authorised test accounts. Automated tests use controlled data and mocked HTTP responses.
+- shared foundations, responsive header/mobile navigation and common UI primitives;
+- Home, city-first search entry and listing rails;
+- City, Keyword, School and Map search modes and results presentation;
+- Property Detail, Saved, Recently viewed, comparison and map property preview;
+- account/profile/settings and messaging views;
+- My properties owner cards and supported owner actions;
+- Owner Add/Edit Property six-step flow;
+- owner photo empty/uploaded states;
+- edit-existing and availability-edit owner states;
+- new owner listings defaulting to Region VII → Cebu → Cebu City;
+- accepted Privacy Choices banner behaviour;
+- unsupported controls hidden rather than simulated, including the owner exact-map-pin control while the privacy/backend model is incomplete.
 
-## Product/backend confirmations
+## Verification completed
 
-The full options, recommendations, affected files and impact are recorded in [react-migration-confirmations.md](react-migration-confirmations.md). These sections retain existing behaviour or remain pending while independent frontend work is implemented:
+On the owner-form/frontend QA baseline `6557357c5193f6b47074403f4cb1ba7164381507`:
 
-1. Popularity/personalised ranking policy and data.
-2. Backwards-compatible saved-search storage for complete criteria. The current UI only offers saving combinations the existing storage can preserve.
-3. School radius and combined keyword/location semantics. Existing 10 km school search is retained.
-4. Structured fee units, recurrence, credits and refund rules for a complete move-in estimate. Current UI shows the existing listed fee sum.
-5. Structured viewing requests and delivery/confirmation. Current action opens property-linked chat.
-6. Real notification preferences and structured amenity fields. No simulated services or unsupported filters have been introduced.
+- React tests/build passed;
+- main visual QA passed at 320, 375, 390, 1280, 1440 and 1920 px;
+- dedicated Owner Form visual QA passed at mobile and desktop widths across all six steps;
+- owner photo empty/uploaded states were captured;
+- edit-existing and availability-edit states were captured;
+- all three GitHub checks were green:
+  - React conversion validation run `34747626165`;
+  - Owner form visual QA run `34747626193`;
+  - React visual QA run `34747626205`.
 
-No backend, schema, API contract or dependency-lock changes were made.
+The temporary one-shot workflow used during the 13 September live-service investigation was removed after use and is not part of the application.
 
-## Verification
+## Live service QA: blocked by production tunnel
 
-- `npm ci --ignore-scripts --no-audit --no-fund`: completed using the existing lockfile.
-- `npm run build`: passed, with nine remaining warnings in legacy `src/App.js` (three hook dependency warnings and six unused handlers/values). No new component warnings remain in the final build log.
-- `CI=true npm test -- --watchAll=false --runInBand`: **3 suites, 18 tests passed**.
-- Coverage includes city selection/cancellation, preserving advanced criteria, independent keyword/school searches, saved tab/resume behaviour, numeric fee totals, comparison limit, map filter/empty results, owner form progression/payload/required validation, chat draft retention on failure, and an actual App provider/router flow from Home to results to favourites to Saved using mocked HTTP.
-- Five additional checks cover profile save failure/success, the email-code password reset, deletion cancellation and failure, and owner availability routing/unlist retry. No real accounts or listings were deleted by these tests.
-- `package.json` adds Jest resolution mappings for the installed Router 7 exports because CRA's Jest resolver cannot resolve them automatically. No dependency or production build-stack change is involved.
+A read-only production smoke check was attempted against `https://balhinbalay.com` on 13 September 2026. It did not mutate production data or create accounts.
 
-## Next continuation
+Both the root site and API endpoints returned **HTTP 530** from Cloudflare with **error code 1033**:
 
-1. Check out this branch and inspect this handoff, the audit and confirmation queue before editing. Preserve the completed React components; do not regenerate the project from the static export.
-2. Run the build and tests above after any functional changes.
-3. Use an authorised staging/browser environment for all six requested viewport checks and the pending live workflows. Correct evidenced visual issues against the unchanged approved Site.
-4. Resolve individual confirmation items before modifying their business rules or backend contracts; independent work can continue.
-5. Update the handoff and development changelog, then review the feature branch before any merge or deployment.
+- `https://balhinbalay.com/`
+- `https://balhinbalay.com/api/health`
+- `https://balhinbalay.com/api`
+- `https://www.balhinbalay.com/`
 
-## 12 September continuation context
+Evidence: GitHub Actions diagnostic run `34753584283`.
 
-The latest user request explicitly resumed React conversion. Project Instructions, the supplied Agent Rules, dbdesign.md and the relevant Idea Register rows were inspected before further implementation. The register still records the earlier React deferral (IDE0037), while the current user request explicitly resumes this branch. The user then instructed this task to skip the register; no Idea Register changes or new IDs were made.
+Because the public Cloudflare Tunnel is not currently delivering traffic to the origin, live API compatibility and authenticated account-state QA cannot be completed yet. Do not mark those checks passed until the tunnel is healthy and the live flows are exercised with an authorised test account.
 
-The newer database design describes future Seeker/Lister onboarding, a Building/Unit/Listing hierarchy, structured amenities and expanded property types. This migration does not claim to implement that future data model. Existing application contracts remain authoritative for this branch; database/API design and implementation remain separate work. In particular, the owner form deliberately retains the existing fields rather than presenting unsupported new storage fields.
+## Remaining decisions and dependent work
 
-Continued work in this pass: completed the previously partial Profile/Settings UI and owner listing cards; preserved the existing two implementation commits; saved the outstanding test checkpoint; added account/owner behavioural checks. The six product/backend-dependent sections in the confirmation queue remain pending. Visual acceptance is still required before marking the full migration complete.
+### School-radius slider
+
+`IDE0071` accepts a continuous distance slider for School search, but implementation remains **BLOCKED** by `IDE0076`, which is still **PROPOSED**. Minimum distance, maximum distance and increment/step must be accepted before implementation. The existing 10 km behaviour remains in place; do not invent replacement values.
+
+### Exact versus approximate property location
+
+`IDE0068` remains **PARTIAL**.
+
+Frontend exposure has been reduced safely:
+
+- Property Detail no longer renders a stored exact-coordinate map as the public location;
+- the owner form does not expose a map-pin control that the current backend cannot protect correctly.
+
+However, the current API still stores/returns the legacy exact `coordinates` field and Map Search still consumes it. The accepted model requires exact coordinates to remain private by default, a separate safe public/approximate location, and an explicit Lister opt-in before public exact-location disclosure. That backend/API separation is not implemented in this migration and should not be faked in the frontend.
+
+## Still pending before React migration completion
+
+1. Restore the production Cloudflare Tunnel/origin path and rerun public live API checks.
+2. Exercise login/session/account-backed states with an authorised live or staging test account.
+3. Accept the `IDE0076` school-radius minimum/maximum/step values, then implement and verify `IDE0071`.
+4. Implement the backend/API exact-private versus public-approximate location model for `IDE0068` when the database/API design is ready.
+5. Obtain final user visual acceptance.
+6. Review PR #1, merge to `dev`, and deploy through the normal deployment process.
+
+## Do not redo
+
+Do not regenerate the React project, redo completed pages from the static export, restore unsupported controls merely for visual parity, or silently choose pending business-rule values. Continue from the current branch and only change areas supported by evidence or an accepted decision.
