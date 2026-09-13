@@ -9,6 +9,7 @@ export const moveInFees = (property) =>
     'associationFee',
     'reservationFee',
   ].reduce((total, key) => total + (Number(property[key]) || 0), 0);
+
 const amount = (value) =>
   value == null || value === ''
     ? 'Not specified'
@@ -29,14 +30,14 @@ export default function PropertyCosts({ property }) {
         </p>
       </section>
     );
+
   return (
     <section className="bb-detail-section bb-panel">
       <h2>Know the costs before you move.</h2>
-      <p className="bb-muted">The listing’s stated move-in fees</p>
-      <div className="bb-cost-total">
-        <small>Listed fee total</small>
-        <strong>₱{moveInFees(property).toLocaleString()}</strong>
-      </div>
+      <p className="bb-muted">
+        These are the individual amounts provided by the owner. BalhinBalay does
+        not calculate an estimated move-in total.
+      </p>
       {[
         ['Monthly rent', 'price'],
         ['Security deposit', 'securityDeposit'],
@@ -69,8 +70,8 @@ export default function PropertyCosts({ property }) {
         <p>{property.extraFees || 'Other fees not specified.'}</p>
       </details>
       <p className="bb-fine-print">
-        This total uses the fees provided in the listing. Confirm the amount
-        due, recurring charges and refund terms with the owner.
+        Confirm every amount, recurring charge, credit and refund term with the
+        owner before paying.
       </p>
     </section>
   );
