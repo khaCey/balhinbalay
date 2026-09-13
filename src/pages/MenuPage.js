@@ -47,6 +47,13 @@ function MenuPage() {
       ? user.avatar_url
       : (baseUrl || '') + user.avatar_url
     : null;
+  const accountInitials = (user.name || user.email || 'U')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0))
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   return (
     <div className="menu-page minimal-page bb-account-page">
@@ -59,7 +66,7 @@ function MenuPage() {
             {avatarUrl ? (
               <img src={avatarUrl} alt="" />
             ) : (
-              (user.name || user.email || 'U').charAt(0).toUpperCase()
+              accountInitials
             )}
           </div>
           <div className="bb-account-summary-copy">
