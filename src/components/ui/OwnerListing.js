@@ -89,7 +89,11 @@ export default function OwnerListing({ property, onOpen }) {
               : ''}
           </small>
         </span>
+        <Icon name="arrow" className="bb-owner-summary-chevron" />
       </button>
+      {status === 'Rejected' && property.rejectionReason && (
+        <p className="bb-owner-rejection">{property.rejectionReason}</p>
+      )}
       <div className="bb-owner-actions">
         <button
           type="button"
