@@ -22,7 +22,15 @@ jobs:
         with:
           node-version: '20'
       - name: Apply parity continuation
-        run: node scripts/apply-parity-continuation.mjs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-parity-continuation.mjs')
+          s = p.read_text()
+          s = s.replace('${className}\\`.trim()}`', '\\${className}\\`.trim()}`')
+          p.write_text(s)
+          PY
+          node scripts/apply-parity-continuation.mjs
       - name: Commit patched source
         run: |
           git config user.name "github-actions[bot]"
