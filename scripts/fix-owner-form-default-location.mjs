@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-shot migration patch. Delete this helper after the branch commit is applied.
 const file = 'src/components/AddPropertyForm.js';
 let source = fs.readFileSync(file, 'utf8');
 
