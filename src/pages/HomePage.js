@@ -99,7 +99,7 @@ export default function HomePage() {
             !item.currentlyRented &&
             (!item.status || item.status === 'approved'),
         )
-        .slice(0, 6),
+        .slice(0, 3),
     [listings, listingType],
   );
 
@@ -118,7 +118,7 @@ export default function HomePage() {
     return recentIds
       .map((id) => byId.get(String(id)))
       .filter(Boolean)
-      .slice(0, 6);
+      .slice(0, 3);
   }, [listings, recentIds]);
 
   const continueSearch = () => {
