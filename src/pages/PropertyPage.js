@@ -195,6 +195,13 @@ export default function PropertyPage() {
     navigate(fallback, { replace: true, state: {} });
   };
 
+  const backLabel =
+    typeof location.state?.from === 'string' && location.state.from.startsWith('/saved')
+      ? 'Back to saved places'
+      : typeof location.state?.from === 'string' && location.state.from.startsWith('/search/map')
+        ? 'Back to map'
+        : 'Back to results';
+
   const handleOpenChat = async (p) => {
     const threadId = await createOrGetThread(p.id);
     if (threadId) navigate(`/chat/${threadId}`);
@@ -266,6 +273,7 @@ export default function PropertyPage() {
             showCloseButton={false}
             showBackButton
             onBack={handleBack}
+            backLabel={backLabel}
             isPropertyPageLayout
           />
         </main>

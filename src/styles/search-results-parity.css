@@ -1,0 +1,393 @@
+/*
+ * Search + results visual-parity layer.
+ * The approved static prototype owns visual/interaction treatment here;
+ * existing React contexts, API calls, auth and saved-search behaviour remain intact.
+ */
+
+/* Search landing */
+.bb-search-layout {
+  max-width: 720px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+.search-page .bb-page-heading {
+  padding: 22px 0 18px;
+  margin: 0;
+}
+
+.search-page .bb-page-heading h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.16;
+  letter-spacing: -0.9px;
+}
+
+.search-page .bb-page-heading > p:last-child {
+  margin: 8px 0 0;
+  color: var(--bb-muted);
+  font-size: 14px;
+}
+
+.search-page .bb-methods {
+  display: flex;
+  gap: 22px;
+  margin: 0 0 22px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--bb-line);
+  scrollbar-width: none;
+}
+
+.search-page .bb-methods::-webkit-scrollbar {
+  display: none;
+}
+
+.search-page .bb-methods button {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 12px 0;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--bb-muted);
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.search-page .bb-methods button[aria-pressed='true'] {
+  color: var(--bb-blue-hover);
+  border-bottom-color: var(--bb-blue);
+  font-weight: 600;
+}
+
+.search-page .bb-methods svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-page .bb-search-card {
+  margin-top: 0;
+  padding: 20px;
+  border-radius: 18px;
+}
+
+.search-page .bb-search-essentials {
+  border-top: 1px solid var(--bb-line);
+  padding-top: 14px;
+}
+
+.bb-search-guidance {
+  margin-top: 30px;
+  padding: 0 0 24px;
+}
+
+.bb-search-guidance h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+
+.bb-search-guidance p {
+  margin: 8px 0 0;
+  color: var(--bb-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Results shell. The React implementation keeps real API/state behaviour, but
+   should read like the approved prototype instead of the older green minimal UI. */
+.bb-app .minimal-results-shell,
+.bb-app .results-portal-summary,
+.bb-app .results-area.minimal-results-shell {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.bb-app .minimal-results-header {
+  position: static;
+  z-index: auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.bb-app .minimal-results-topline {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.bb-app .minimal-results-topline > strong {
+  min-width: 0;
+  color: var(--bb-ink);
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+}
+
+.bb-app .minimal-results-back {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--bb-muted);
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+}
+
+.bb-app .minimal-results-map-btn {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--bb-line);
+  border-radius: 10px;
+  background: white;
+  color: var(--bb-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bb-app .prototype-results-search {
+  width: 100%;
+  min-height: 62px;
+  padding: 9px 12px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid #ccd9e7;
+  border-radius: 12px;
+  background: white;
+  color: var(--bb-ink);
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bb-app .prototype-results-search > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-app .prototype-results-search i:first-child {
+  color: var(--bb-blue);
+}
+
+.bb-app .prototype-results-search i:last-child {
+  color: var(--bb-muted);
+}
+
+.bb-app .minimal-filter-chips {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bb-app .minimal-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.bb-app .minimal-chip,
+.bb-app .minimal-filter-chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--bb-line);
+  border-radius: 10px;
+  background: white;
+  color: var(--bb-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bb-app .minimal-chip.is-active,
+.bb-app .minimal-filter-chip.is-active,
+.bb-app .minimal-filter-chip.active {
+  border-color: #c8d9ef;
+  background: #edf4ff;
+  color: var(--bb-blue-hover);
+}
+
+.bb-app .minimal-results-body {
+  padding: 0;
+}
+
+.bb-app .minimal-results-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 15px;
+}
+
+.bb-app .minimal-results-count {
+  margin: 0;
+  color: var(--bb-muted);
+  font-size: 13px;
+}
+
+.bb-app .prototype-results-sort {
+  max-width: 185px;
+  min-height: 36px;
+  padding: 8px 24px 8px 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--bb-blue-hover);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+  box-shadow: none;
+}
+
+.bb-app .listing-grid,
+.bb-app .listing-grid.list-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 0;
+  margin: 0;
+}
+
+.bb-app .listings-error-banner {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #efc6cd;
+  border-radius: 12px;
+  background: #fff7f8;
+  color: #84263a;
+  font-size: 13px;
+}
+
+.bb-app .listings-error-banner-btn {
+  border: 0;
+  background: transparent;
+  color: var(--bb-blue-hover);
+  font-weight: 600;
+}
+
+.bb-app .search-now-empty,
+.bb-app .text-center.py-5 {
+  padding: 42px 20px !important;
+  text-align: center;
+  border: 1px dashed var(--bb-line);
+  border-radius: 18px;
+  background: white;
+}
+
+.bb-app .search-now-empty h4,
+.bb-app .text-center.py-5 h4 {
+  margin: 0;
+  color: var(--bb-ink);
+  font-size: 19px;
+}
+
+.bb-app .search-now-empty p,
+.bb-app .text-center.py-5 p {
+  max-width: 330px;
+  margin: 8px auto 20px !important;
+  color: var(--bb-muted) !important;
+  font-size: 14px;
+}
+
+/* The advanced filter sheet should visually belong to the same system. */
+.bb-sheet .results-filters-wrap--modal {
+  padding: 0;
+}
+
+.bb-sheet .results-advanced-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.bb-sheet .results-advanced-filters-label {
+  margin: 6px 0 0;
+  color: var(--bb-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bb-sheet .results-advanced-filters-select,
+.bb-sheet .school-selector-select {
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #ccd9e7;
+  border-radius: 10px;
+  background: white;
+  color: var(--bb-ink);
+}
+
+.bb-sheet .results-advanced-filters-apply-wrap {
+  margin-top: 12px;
+}
+
+.bb-sheet .results-advanced-filters-apply {
+  width: 100%;
+  min-height: 46px;
+}
+
+@media (min-width: 760px) {
+  .search-page .bb-page-heading {
+    padding-top: 28px;
+  }
+
+  .search-page .bb-page-heading h1 {
+    font-size: 34px;
+  }
+
+  .search-page .bb-search-card {
+    padding: 22px;
+  }
+
+  .bb-search-guidance {
+    margin-top: 36px;
+  }
+
+  .bb-app .minimal-results-topline > strong {
+    font-size: 21px;
+  }
+
+  .bb-app .listing-grid,
+  .bb-app .listing-grid.list-view {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 359px) {
+  .search-page .bb-methods {
+    gap: 16px;
+  }
+
+  .search-page .bb-methods button {
+    font-size: 12px;
+  }
+
+  .bb-app .minimal-results-topline {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
+  .bb-app .minimal-results-topline > strong {
+    font-size: 17px;
+  }
+
+  .bb-app .minimal-results-map-btn {
+    display: none;
+  }
+}

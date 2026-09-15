@@ -51,5 +51,11 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/node_modules/react-router-dom/dist/index.js",
+      "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js"
+    }
   }
 }

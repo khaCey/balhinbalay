@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLoginModal } from '../context/LoginModalContext';
-import PageHeader from '../components/PageHeader';
+import { Icon } from '../components/ui/Controls';
 import { api, baseUrl } from '../api/client';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -45,14 +45,21 @@ function resizeImageToDataUrl(dataUrl, maxDim) {
 
 function ProfilePage() {
   const navigate = useNavigate();
-  const { user, updateProfile, refreshUser, requestPasswordReset, resetPassword } = useAuth();
+  const location = useLocation();
+  const passwordSectionRef = useRef(null);
+  const {
+    user,
+    updateProfile,
+    refreshUser,
+    requestPasswordReset,
+    resetPassword,
+  } = useAuth();
   const { openLogin } = useLoginModal();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingProfileField, setEditingProfileField] = useState(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const avatarInputRef = useRef(null);
@@ -64,7 +71,8 @@ function ProfilePage() {
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] =
+    useState(false);
 
   useEffect(() => {
     if (user) {
@@ -73,23 +81,23 @@ function ProfilePage() {
     }
   }, [user]);
 
-  const handleBack = () => {
-    navigate(-1);
-  };
+  useEffect(() => {
+    if (location.hash === '#password' && user)
+      passwordSectionRef.current?.scrollIntoView({ block: 'start' });
+  }, [location.hash, user]);
 
-  const handleSaveName = async (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
     setLoading(true);
     try {
-      const result = await updateProfile({ name: name.trim(), email: user?.email || '' });
-      if (result.ok) {
-        setSuccess(true);
-        setEditingProfileField(null);
-      } else {
-        setError(result.message || 'Update failed.');
-      }
+      const result = await updateProfile({
+        name: name.trim(),
+        email: email.trim(),
+      });
+      if (result.ok) setSuccess(true);
+      else setError(result.message || 'Update failed.');
     } catch (err) {
       setError(err?.message || 'Update failed.');
     } finally {
@@ -97,29 +105,11 @@ function ProfilePage() {
     }
   };
 
-  const handleSaveEmail = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess(false);
-    const newEmail = email.trim();
-    if (!newEmail) return;
-    setLoading(true);
-    try {
-      const result = await updateProfile({ name: user?.name || '', email: newEmail });
-      if (result.ok) {
-        setSuccess(true);
-        setEditingProfileField(null);
-      } else {
-        setError(result.message || 'Update failed.');
-      }
-    } catch (err) {
-      setError(err?.message || 'Update failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const avatarUrl = user?.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : (baseUrl || '') + user.avatar_url) : null;
+  const avatarUrl = user?.avatar_url
+    ? user.avatar_url.startsWith('http')
+      ? user.avatar_url
+      : (baseUrl || '') + user.avatar_url
+    : null;
 
   const handleAvatarChange = async (e) => {
     const file = e.target?.files?.[0];
@@ -130,7 +120,10 @@ function ProfilePage() {
     try {
       const dataUrl = await fileToDataUrl(file);
       const resized = await resizeImageToDataUrl(dataUrl, AVATAR_MAX_DIM);
-      const { avatar_url: newUrl } = await api.post('/api/users/me/avatar', { image: resized });
+      if (!resized) throw new Error('Image could not be processed.');
+      const { avatar_url: newUrl } = await api.post('/api/users/me/avatar', {
+        image: resized,
+      });
       await refreshUser();
       if (!newUrl) setAvatarError('Image could not be processed.');
     } catch (err) {
@@ -166,7 +159,9 @@ function ProfilePage() {
     try {
       const result = await requestPasswordReset(emailToUse);
       if (result.ok) {
-        setResetSuccess(result.message || 'Check your email for the reset code.');
+        setResetSuccess(
+          result.message || 'Check your email for the reset code.',
+        );
         setResetStep('code');
       } else {
         setResetError(result.message || 'Failed to send code.');
@@ -184,12 +179,18 @@ function ProfilePage() {
       return;
     }
     if (resetNewPassword.length < MIN_PASSWORD_LENGTH) {
-      setResetError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setResetError(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+      );
       return;
     }
     setResetLoading(true);
     try {
-      const result = await resetPassword(user?.email || '', resetCode, resetNewPassword);
+      const result = await resetPassword(
+        user?.email || '',
+        resetCode,
+        resetNewPassword,
+      );
       if (result.ok) {
         setResetSuccess(result.message || 'Password updated.');
         setResetStep(null);
@@ -207,11 +208,17 @@ function ProfilePage() {
   if (!user) {
     return (
       <div className="profile-page page-with-header minimal-page">
-        <PageHeader title="Account" onBack={() => navigate('/sale')} />
+        <div className="bb-page-heading">
+          <h1>Your profile</h1>
+        </div>
         <main className="page-content">
           <div className="page-section page-section-gate">
             <p className="page-gate-text">Log in to view your profile.</p>
-            <button type="button" className="btn btn-primary" onClick={openLogin}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openLogin}
+            >
               Log in
             </button>
           </div>
@@ -222,114 +229,128 @@ function ProfilePage() {
 
   return (
     <>
-      <div className="profile-page page-with-header minimal-page">
-        <PageHeader title="Account" onBack={handleBack} />
+      <div className="profile-page bb-account-page">
+        <button
+          type="button"
+          className="bb-text-button bb-back-link"
+          onClick={() => navigate('/menu')}
+        >
+          ← Your profile
+        </button>
+        <div className="bb-page-heading">
+          <h1>Make yourself at home.</h1>
+        </div>
         <main className="page-content">
-          <section className="page-section profile-page-section">
-            <h6 className="profile-section-title">Profile photo</h6>
-            <div className="profile-avatar-block d-flex align-items-center gap-3 mb-4">
-              <div className="profile-avatar-preview">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" />
-                ) : (
-                  <i className="fas fa-user" aria-hidden />
-                )}
-              </div>
-              <div className="d-flex flex-column gap-2">
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="d-none"
-                  onChange={handleAvatarChange}
-                  disabled={avatarLoading}
+          <form
+            className="bb-panel bb-profile-form"
+            onSubmit={handleSaveProfile}
+          >
+            <div className="bb-upload-zone">
+              {avatarUrl ? (
+                <img
+                  className="bb-profile-photo"
+                  src={avatarUrl}
+                  alt="Your profile"
                 />
-                <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => avatarInputRef.current?.click()} disabled={avatarLoading}>
-                  {avatarLoading ? (
-                    <><i className="fas fa-spinner fa-spin me-1" aria-hidden /> Updating...</>
-                  ) : (
-                    'Change photo'
-                  )}
+              ) : (
+                <Icon name="user" />
+              )}
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="bb-visually-hidden"
+                aria-label="Profile photo"
+                onChange={handleAvatarChange}
+                disabled={avatarLoading}
+              />
+              <button
+                type="button"
+                className="bb-text-button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarLoading}
+              >
+                {avatarLoading ? 'Updating…' : 'Change profile photo'}
+              </button>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  className="bb-text-button"
+                  onClick={handleAvatarRemove}
+                  disabled={avatarLoading}
+                >
+                  Remove photo
                 </button>
-                {avatarUrl && (
-                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleAvatarRemove} disabled={avatarLoading}>
-                    Remove photo
-                  </button>
-                )}
-              </div>
+              )}
             </div>
-            {avatarError && <p className="text-danger small mb-2">{avatarError}</p>}
-          </section>
-          <section className="page-section profile-page-section">
-            <h6 className="profile-section-title">Profile</h6>
-            <p className="profile-section-hint">Tap the pencil next to a field to edit it.</p>
-            <div className="profile-readonly-fields">
-              <div className={`profile-info-row profile-info-row-single ${editingProfileField === 'name' ? 'profile-info-row-editing' : 'profile-info-row-readonly'}`}>
-                <div className="profile-info-row-label">Name</div>
-                <div className="profile-info-row-slot">
-                  {editingProfileField === 'name' ? (
-                    <form onSubmit={handleSaveName} className="profile-info-row-form profile-info-row-form-inline">
-                      <input
-                        type="text"
-                        className="form-control form-control-sm profile-inline-input"
-                        placeholder="Your name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                      />
-                      <button type="button" className="profile-cancel-edit-btn" onClick={() => { setEditingProfileField(null); setError(''); setName(user?.name || ''); }}>Cancel</button>
-                      <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>{loading ? '...' : 'Save'}</button>
-                    </form>
-                  ) : (
-                    <>
-                      <span className="profile-readonly-value">{name || '—'}</span>
-                      <button type="button" className="profile-edit-btn profile-edit-btn-inline" onClick={() => setEditingProfileField('name')} aria-label="Edit name">
-                        <i className="fas fa-pencil-alt" aria-hidden />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className={`profile-info-row profile-info-row-single ${editingProfileField === 'email' ? 'profile-info-row-editing' : 'profile-info-row-readonly'}`}>
-                <div className="profile-info-row-label">Email</div>
-                <div className="profile-info-row-slot">
-                  {editingProfileField === 'email' ? (
-                    <form onSubmit={handleSaveEmail} className="profile-info-row-form profile-info-row-form-inline">
-                      <input
-                        type="email"
-                        className="form-control form-control-sm profile-inline-input"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        autoComplete="email"
-                      />
-                      <button type="button" className="profile-cancel-edit-btn" onClick={() => { setEditingProfileField(null); setError(''); setEmail(user?.email || ''); }}>Cancel</button>
-                      <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>{loading ? '...' : 'Save'}</button>
-                    </form>
-                  ) : (
-                    <>
-                      <span className="profile-readonly-value">{email || '—'}</span>
-                      <button type="button" className="profile-edit-btn profile-edit-btn-inline" onClick={() => setEditingProfileField('email')} aria-label="Edit email">
-                        <i className="fas fa-pencil-alt" aria-hidden />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            {editingProfileField !== 'email' && error && <p className="text-danger small mt-2">{error}</p>}
-            {success && editingProfileField === null && <p className="text-success small mt-2">Profile updated.</p>}
-          </section>
+            {avatarError && (
+              <p role="alert" className="bb-form-error">
+                {avatarError}
+              </p>
+            )}
+            <label className="bb-field">
+              <span>Name</span>
+              <input
+                name="name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setSuccess(false);
+                }}
+                autoComplete="name"
+              />
+            </label>
+            <label className="bb-field">
+              <span>Email</span>
+              <input
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setSuccess(false);
+                }}
+                required
+                autoComplete="email"
+              />
+            </label>
+            {error && (
+              <p role="alert" className="bb-form-error">
+                {error}
+              </p>
+            )}
+            {success && <p role="status">Profile updated.</p>}
+            <button
+              type="submit"
+              className="bb-button bb-full"
+              disabled={loading}
+            >
+              {loading ? 'Saving…' : 'Save profile'}
+            </button>
+          </form>
 
-          <section className="page-section profile-page-section profile-section-password">
-            <h6 className="profile-section-title">Change password</h6>
-            <p className="profile-section-hint">We’ll send a 5-digit code to your email. Enter the code and choose a new password (at least 8 characters).</p>
+          <section
+            ref={passwordSectionRef}
+            id="password"
+            className="page-section profile-page-section profile-section-password"
+          >
+            <h2 className="profile-section-title">Change password</h2>
+            <p className="profile-section-hint">
+              We’ll send a 5-digit code to your email. Enter the code and choose
+              a new password (at least 8 characters).
+            </p>
+            {resetStep === null && resetSuccess && (
+              <p role="status">{resetSuccess}</p>
+            )}
             {resetStep === null && (
               <button
                 type="button"
-                className="btn btn-danger"
-                onClick={() => { setResetStep('email'); setResetError(''); setResetSuccess(''); }}
+                className="bb-button bb-secondary"
+                onClick={() => {
+                  setResetStep('email');
+                  setResetError('');
+                  setResetSuccess('');
+                }}
               >
                 Send reset code to my email
               </button>
@@ -337,15 +358,41 @@ function ProfilePage() {
             {resetStep === 'email' && (
               <form onSubmit={handleRequestResetCode}>
                 <div className="mb-3">
-                  <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={user?.email || ''} readOnly disabled aria-readonly />
+                  <label className="form-label" htmlFor="reset-email">
+                    Email
+                  </label>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    className="form-control"
+                    value={user?.email || ''}
+                    readOnly
+                    disabled
+                    aria-readonly
+                  />
                 </div>
-                {resetSuccess && <p className="text-success small mb-2">{resetSuccess}</p>}
-                {resetError && <p className="text-danger small mb-2">{resetError}</p>}
-                <button type="submit" className="btn btn-outline-primary" disabled={resetLoading}>
+                {resetSuccess && (
+                  <p className="text-success small mb-2">{resetSuccess}</p>
+                )}
+                {resetError && (
+                  <p className="text-danger small mb-2">{resetError}</p>
+                )}
+                <button
+                  type="submit"
+                  className="btn btn-outline-primary"
+                  disabled={resetLoading}
+                >
                   {resetLoading ? 'Sending...' : 'Send code'}
                 </button>
-                <button type="button" className="btn btn-link btn-sm ms-2" onClick={() => { setResetStep(null); setResetError(''); setResetSuccess(''); }}>
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm ms-2"
+                  onClick={() => {
+                    setResetStep(null);
+                    setResetError('');
+                    setResetSuccess('');
+                  }}
+                >
                   Cancel
                 </button>
               </form>
@@ -353,26 +400,46 @@ function ProfilePage() {
             {resetStep === 'code' && (
               <form onSubmit={handleResetPasswordSubmit}>
                 <div className="mb-3">
-                  <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={user?.email || ''} readOnly disabled aria-readonly />
+                  <label className="form-label" htmlFor="reset-email">
+                    Email
+                  </label>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    className="form-control"
+                    value={user?.email || ''}
+                    readOnly
+                    disabled
+                    aria-readonly
+                  />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">5-digit code</label>
+                  <label className="form-label" htmlFor="reset-code">
+                    5-digit code
+                  </label>
                   <input
+                    id="reset-code"
                     type="text"
                     className="form-control"
                     placeholder="12345"
                     value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    onChange={(e) =>
+                      setResetCode(
+                        e.target.value.replace(/\D/g, '').slice(0, 5),
+                      )
+                    }
                     maxLength={5}
                     inputMode="numeric"
                     autoComplete="one-time-code"
                   />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">New password</label>
+                  <label className="form-label" htmlFor="reset-password">
+                    New password
+                  </label>
                   <div className="password-input-wrap">
                     <input
+                      id="reset-password"
                       type={showResetPassword ? 'text' : 'password'}
                       className="form-control"
                       placeholder="••••••••"
@@ -382,16 +449,33 @@ function ProfilePage() {
                       minLength={MIN_PASSWORD_LENGTH}
                       autoComplete="new-password"
                     />
-                    <button type="button" className="password-toggle-btn" onClick={() => setShowResetPassword((v) => !v)} aria-label={showResetPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
-                      <i className={showResetPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} aria-hidden />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowResetPassword((v) => !v)}
+                      aria-label={
+                        showResetPassword ? 'Hide password' : 'Show password'
+                      }
+                    >
+                      <i
+                        className={
+                          showResetPassword ? 'fas fa-eye-slash' : 'fas fa-eye'
+                        }
+                        aria-hidden
+                      />
                     </button>
                   </div>
-                  <p className="form-text small text-muted mb-0">At least 8 characters.</p>
+                  <p className="form-text small text-muted mb-0">
+                    At least 8 characters.
+                  </p>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Confirm password</label>
+                  <label className="form-label" htmlFor="reset-confirm">
+                    Confirm password
+                  </label>
                   <div className="password-input-wrap">
                     <input
+                      id="reset-confirm"
                       type={showResetConfirmPassword ? 'text' : 'password'}
                       className="form-control"
                       placeholder="••••••••"
@@ -401,17 +485,52 @@ function ProfilePage() {
                       minLength={MIN_PASSWORD_LENGTH}
                       autoComplete="new-password"
                     />
-                    <button type="button" className="password-toggle-btn" onClick={() => setShowResetConfirmPassword((v) => !v)} aria-label={showResetConfirmPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
-                      <i className={showResetConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} aria-hidden />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowResetConfirmPassword((v) => !v)}
+                      aria-label={
+                        showResetConfirmPassword
+                          ? 'Hide password'
+                          : 'Show password'
+                      }
+                    >
+                      <i
+                        className={
+                          showResetConfirmPassword
+                            ? 'fas fa-eye-slash'
+                            : 'fas fa-eye'
+                        }
+                        aria-hidden
+                      />
                     </button>
                   </div>
                 </div>
-                {resetSuccess && <p className="text-success small mb-2">{resetSuccess}</p>}
-                {resetError && <p className="text-danger small mb-2">{resetError}</p>}
-                <button type="submit" className="btn btn-outline-primary" disabled={resetLoading}>
+                {resetSuccess && (
+                  <p className="text-success small mb-2">{resetSuccess}</p>
+                )}
+                {resetError && (
+                  <p className="text-danger small mb-2">{resetError}</p>
+                )}
+                <button
+                  type="submit"
+                  className="btn btn-outline-primary"
+                  disabled={resetLoading}
+                >
                   {resetLoading ? 'Resetting...' : 'Reset password'}
                 </button>
-                <button type="button" className="btn btn-link btn-sm ms-2" onClick={() => { setResetStep('email'); setResetCode(''); setResetNewPassword(''); setResetConfirmPassword(''); setResetError(''); setResetSuccess(''); }}>
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm ms-2"
+                  onClick={() => {
+                    setResetStep('email');
+                    setResetCode('');
+                    setResetNewPassword('');
+                    setResetConfirmPassword('');
+                    setResetError('');
+                    setResetSuccess('');
+                  }}
+                >
                   Back
                 </button>
               </form>
