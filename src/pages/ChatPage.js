@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { useListings } from '../context/ListingsContext';
 import PageHeader from '../components/PageHeader';
+import { Icon } from '../components/ui/Controls';
 
 export default function ChatPage() {
   const { threadId } = useParams();
@@ -170,19 +171,57 @@ export default function ChatPage() {
     );
   }
 
+  const participantName =
+    thread.otherParticipantName ||
+    property.contactInfo?.agentName ||
+    'Property owner';
+  const participantInitials = participantName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0))
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  const propertyLocation = [property.location, property.city].filter(Boolean).join(', ');
+
   return (
-    <div className="chat-page page-with-header minimal-page">
-      <PageHeader
-        title={property.title}
-        onBack={handleBack}
-        className="chat-page-header"
-      />
+    <div className="chat-page minimal-page">
+      <div className="bb-chat-heading">
+        <button type="button" className="bb-text-button bb-chat-back" onClick={handleBack}>
+          <Icon name="arrow" style={{ transform: 'rotate(180deg)' }} />
+          Messages
+        </button>
+        <div className="bb-chat-person">
+          <span className="bb-avatar" aria-hidden>{participantInitials}</span>
+          <div className="bb-chat-person-copy">
+            <h2>{participantName}</h2>
+            <span>Property owner</span>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="bb-chat-property"
+        onClick={() => navigate(`/property/${property.id}`, { state: { from: `/chat/${threadId}` } })}
+      >
+        {property.images?.[0] && <img src={property.images[0]} alt="" />}
+        <span className="bb-chat-property-copy">
+          <span className="bb-chat-property-price">
+            ₱{Number(property.price || 0).toLocaleString()}
+            {property.listingType === 'rent' && <small> / mo</small>}
+          </span>
+          <strong>{property.title}</strong>
+          {propertyLocation && <small>{propertyLocation}</small>}
+        </span>
+        <Icon name="arrow" />
+      </button>
       <main className="page-content chat-page-body">
         <div
           ref={messagesListRef}
           className="chat-panel-messages chat-page-messages"
           style={activeInset > 0 ? { paddingBottom: 12 + activeInset } : undefined}
         >
+          {messages.length > 0 && <p className="bb-chat-day">Today</p>}
           {messages.length === 0 && (
             <p className="chat-panel-placeholder">
               Start the conversation. Messages are stored in this app.
@@ -223,11 +262,11 @@ export default function ChatPage() {
           onSubmit={handleSubmit}
           style={activeInset > 0 ? { transform: `translateY(-${activeInset}px)` } : undefined}
         >
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             className="chat-panel-input"
-            placeholder="Message..."
+            placeholder="Ask about this place…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onFocus={() => {

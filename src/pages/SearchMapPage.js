@@ -1,183 +1,155 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
 import { useListings } from '../context/ListingsContext';
 import { getCityById } from '../data/cities';
+import { getSchoolById } from '../data/schools';
+import { haversineKm } from '../utils/distance';
+import { searchRequest } from '../utils/searchRequest';
 import MapView from '../components/MapView';
-import MapSearchHeader from '../components/map/MapSearchHeader';
-import MapFilterChips from '../components/map/MapFilterChips';
 import MapPropertyPreview from '../components/map/MapPropertyPreview';
 import Seo from '../components/Seo';
-
-const defaultSearchState = {
-  selectedRegion: 'all',
-  selectedProvince: '',
-  selectedCity: 'cebu-province',
-  selectedCityIds: [],
-  searchQuery: '',
-  propertyType: '',
-  priceRangeIndex: 0,
-  minBeds: 0,
-  minBaths: 0,
-  sizeRange: { min: 0, max: Infinity },
-  sortBy: 'newest',
-  selectedSchoolId: ''
-};
-
-function toApiSort(sortByValue) {
-  switch (sortByValue) {
-    case 'price-low': return 'price-asc';
-    case 'price-high': return 'price-desc';
-    case 'size-large': return 'size-desc';
-    case 'size-small': return 'size-asc';
-    case 'newest':
-    case 'recommended':
-    default: return 'newest';
-  }
-}
+import { Icon } from '../components/ui/Controls';
 
 export default function SearchMapPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const listingType = searchParams.get('listingType') || 'sale';
-  const { submitSearch, hasSearched, lastSearchState, currentResultsState } = useSearch();
-  const { listings, searchResults, fetchSearchListings } = useListings();
-  const [selectedPropertyId, setSelectedPropertyId] = useState('');
-  const lastViewportRef = useRef(null);
-
-  const sourceState = useMemo(() => {
-    const fromCurrent = currentResultsState?.[listingType];
-    if (fromCurrent?.listingType === listingType) return fromCurrent;
-    if (lastSearchState?.listingType === listingType) return lastSearchState;
-    return null;
-  }, [currentResultsState, lastSearchState, listingType]);
-
+  const [params] = useSearchParams();
+  const listingType = params.get('listingType') === 'rent' ? 'rent' : 'sale';
+  const {
+    submitSearch,
+    lastSearchState,
+    currentResultsState,
+    defaultSearchState,
+    mapStates,
+    updateMapState,
+  } = useSearch();
+  const { searchResults, searchLoading, searchError, fetchSearchListings } =
+    useListings();
+  const source =
+    currentResultsState[listingType] ||
+    (lastSearchState?.listingType === listingType
+      ? lastSearchState
+      : defaultSearchState);
+  const initialViewport = useRef(mapStates[listingType]?.viewport || null);
+  const selectedId = mapStates[listingType]?.selectedId;
   useEffect(() => {
-    if (sourceState?.listingType === listingType && sourceState?.view === 'map') return;
-    const nextState = sourceState
-      ? { ...sourceState, listingType, view: 'map' }
-      : { listingType, view: 'map', ...defaultSearchState };
-    submitSearch(nextState);
-  }, [sourceState, submitSearch, listingType]);
-
+    if (!currentResultsState[listingType])
+      submitSearch({ ...source, listingType, view: 'map' });
+  }, [currentResultsState, listingType, source, submitSearch]);
   useEffect(() => {
-    const state = sourceState || defaultSearchState;
-    const selectedCityIds = Array.from(new Set(
-      (Array.isArray(state.selectedCityIds) ? state.selectedCityIds : [])
-        .filter((cityId) => cityId && cityId !== 'cebu-province')
-    ));
-    fetchSearchListings({
-      listingType,
-      cityId: selectedCityIds.length === 1
-        ? selectedCityIds[0]
-        : (selectedCityIds.length === 0 && state.selectedCity && state.selectedCity !== 'cebu-province'
-          ? state.selectedCity
-          : undefined),
-      cityIds: selectedCityIds.length > 1 ? selectedCityIds : undefined,
-      type: state.propertyType || undefined,
-      minBeds: state.minBeds > 0 ? state.minBeds : undefined,
-      minBaths: state.minBaths > 0 ? state.minBaths : undefined,
-      q: state.searchQuery?.trim() || undefined,
-      sort: toApiSort(state.sortBy)
-    });
-  }, [sourceState, listingType, fetchSearchListings]);
-
-  const activeProperties = useMemo(() => {
-    if (Array.isArray(searchResults) && searchResults.length > 0) return searchResults;
-    return (Array.isArray(listings) ? listings : []).filter((item) => item.listingType === listingType);
-  }, [searchResults, listings, listingType]);
-
-  const selectedProperty = useMemo(() => {
-    if (!selectedPropertyId) return null;
-    return activeProperties.find((item) => item.id === selectedPropertyId) || null;
-  }, [activeProperties, selectedPropertyId]);
-
-  useEffect(() => {
-    if (!selectedPropertyId) return;
-    const stillExists = activeProperties.some((item) => item.id === selectedPropertyId);
-    if (!stillExists) setSelectedPropertyId('');
-  }, [activeProperties, selectedPropertyId]);
-
-  const selectedCityData = useMemo(() => {
-    const firstSelectedCityId = Array.isArray(sourceState?.selectedCityIds)
-      ? sourceState.selectedCityIds[0]
-      : '';
-    return firstSelectedCityId
-      ? getCityById(firstSelectedCityId)
-      : (sourceState?.selectedCity ? getCityById(sourceState.selectedCity) : null);
-  }, [sourceState?.selectedCityIds, sourceState?.selectedCity]);
-
-  const chips = [
-    { id: 'rent', label: 'Rent' },
-    { id: 'sale', label: 'Buy' },
-    { id: 'price', label: 'Price' },
-    { id: 'beds', label: 'Beds' },
-    { id: 'more', label: 'More' }
-  ];
-
-  const handleViewportChange = useCallback((viewport) => {
-    if (!viewport?.center || !Number.isFinite(viewport?.zoom)) return;
-    lastViewportRef.current = viewport;
-  }, []);
-
-  useEffect(() => {
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousBodyOverscroll = document.body.style.overscrollBehavior;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
-    document.body.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.overscrollBehavior = 'none';
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.body.style.overscrollBehavior = previousBodyOverscroll;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
-    };
-  }, []);
-
+    fetchSearchListings(searchRequest(source, listingType));
+  }, [source, listingType, fetchSearchListings]);
+  const properties = useMemo(() => {
+    const school =
+      source.view === 'school' && getSchoolById(source.selectedSchoolId);
+    return searchResults.filter(
+      (item) =>
+        item.coordinates &&
+        (!school ||
+          haversineKm(
+            school.coordinates.lat,
+            school.coordinates.lng,
+            item.coordinates.lat,
+            item.coordinates.lng,
+          ) <= 10),
+    );
+  }, [searchResults, source.view, source.selectedSchoolId]);
+  const selected = properties.find((item) => item.id === selectedId);
+  const city = getCityById(source.selectedCityIds?.[0] || source.selectedCity);
+  const viewportChange = useCallback(
+    (viewport) => updateMapState(listingType, { viewport }),
+    [listingType, updateMapState],
+  );
   return (
-    <div className="map-search-page minimal-page" data-route={location.pathname}>
+    <div className="bb-map-page">
       <Seo
-        title={`Map Search — ${listingType === 'rent' ? 'Rent' : 'Sale'} Listings`}
-        description="Explore listings on the map and open details from a live preview card."
+        title="Explore the map"
+        description="Explore matching listings on the map."
         canonicalPath="/search/map"
-        noindex={!hasSearched}
+        noindex
       />
-      <div className="map-search-floating">
-        <MapSearchHeader
-          title="Search this area"
-          onFilter={() => navigate(`/${listingType}`)}
-        />
-        <MapFilterChips
-          chips={chips}
-          activeId={listingType}
-          onSelect={(chip) => {
-            if (chip.id === 'rent') navigate('/search/map?listingType=rent');
-            if (chip.id === 'sale') navigate('/search/map?listingType=sale');
-            if (chip.id === 'price' || chip.id === 'beds' || chip.id === 'more') navigate(`/${listingType}`);
-          }}
-        />
+      <div className="bb-page-heading bb-results-heading">
+        <div>
+          <h1>
+            {city && city.id !== 'cebu-province'
+              ? city.displayName
+              : 'Explore the map'}
+          </h1>
+          <p>Places to {listingType === 'rent' ? 'rent' : 'buy'}</p>
+        </div>
+        <button
+          type="button"
+          className="bb-button bb-secondary"
+          onClick={() => navigate(`/${listingType}`)}
+        >
+          List
+        </button>
       </div>
-      <MapView
-        properties={activeProperties}
-        selectedCity={selectedCityData}
-        selectedPropertyId={selectedProperty?.id || ''}
-        onSelectProperty={(property) => setSelectedPropertyId(property?.id || '')}
-        initialViewport={lastViewportRef.current}
-        onViewportChange={handleViewportChange}
-      />
-      {selectedProperty ? (
-        <MapPropertyPreview
-          property={selectedProperty}
-          onOpen={() => navigate(`/property/${selectedProperty.id}`, { state: { from: `/search/map?listingType=${listingType}` } })}
-          onClose={() => setSelectedPropertyId('')}
+      <div className="bb-map-tools">
+        <button
+          type="button"
+          className="bb-chip"
+          onClick={() => navigate(`/${listingType}?filters=1`)}
+        >
+          Filters <Icon name="down" />
+        </button>
+        <button
+          type="button"
+          className="bb-chip"
+          onClick={() => navigate(`/search?listingType=${listingType}&edit=1`)}
+        >
+          Edit search
+        </button>
+        <span className="bb-muted" role="status">
+          {searchLoading
+            ? 'Loading places…'
+            : `${properties.length} mapped places`}
+        </span>
+      </div>
+      <div className="bb-map-wrap">
+        <MapView
+          properties={properties}
+          selectedCity={city}
+          selectedPropertyId={selected?.id || ''}
+          onSelectProperty={(property) =>
+            updateMapState(listingType, { selectedId: property.id })
+          }
+          initialViewport={initialViewport.current}
+          onViewportChange={viewportChange}
         />
-      ) : (
-        <div className="map-search-empty">No mapped listings found for this criteria.</div>
-      )}
+        {selected && (
+          <MapPropertyPreview
+            property={selected}
+            onClose={() => updateMapState(listingType, { selectedId: null })}
+            onOpen={() =>
+              navigate(`/property/${selected.id}`, {
+                state: { from: `/search/map?listingType=${listingType}` },
+              })
+            }
+          />
+        )}
+        {searchError ? (
+          <div className="bb-map-error" role="alert">
+            {searchError}
+            <button
+              type="button"
+              className="bb-text-button"
+              onClick={() =>
+                fetchSearchListings(searchRequest(source, listingType))
+              }
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          !searchLoading &&
+          !properties.length && (
+            <div className="bb-map-error">
+              No mapped listings match this search.
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }

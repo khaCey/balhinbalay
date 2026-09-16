@@ -17,6 +17,7 @@
   },
   "scripts": {
     "start": "concurrently \"craco start\" \"npm run server\"",
+    "preview:ui": "concurrently \"cross-env BROWSER=none PORT=3000 craco start\" \"node scripts/ui-preview-api.mjs\"",
     "build": "craco build",
     "build:tunnel": "env-cmd -f .env.production craco build",
     "build:tunnel:clean": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && npm run build:tunnel",
@@ -51,5 +52,11 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/node_modules/react-router-dom/dist/index.js",
+      "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js"
+    }
   }
 }

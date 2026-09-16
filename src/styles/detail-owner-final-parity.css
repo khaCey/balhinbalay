@@ -1,0 +1,180 @@
+/* Final property-detail and owner-editor parity corrections. */
+
+.bb-detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.bb-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--bb-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bb-muted);
+  font-size: 12px;
+}
+
+.bb-detail-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--bb-blue);
+}
+
+.bb-detail .bb-detail-tools:last-of-type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bb-detail-compare {
+  border: 0;
+  background: transparent;
+  color: var(--bb-blue-hover);
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bb-detail-compare svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bb-detail-report {
+  color: var(--bb-muted) !important;
+}
+
+.add-property-page {
+  max-width: 700px;
+}
+
+.add-property-page .page-content {
+  padding-top: 0;
+}
+
+.bb-owner-back {
+  margin: 14px 0 16px;
+  color: var(--bb-muted);
+}
+
+.bb-owner-editor {
+  width: 100%;
+}
+
+/* Older owner-form styles made this heading a horizontal flex row. The approved
+   prototype uses a metadata row followed by the step title on its own line. */
+.bb-step-heading {
+  display: block;
+  margin: 0 0 10px;
+}
+
+.bb-step-heading-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--bb-muted);
+  font-size: 12px;
+}
+
+.bb-owner-eyebrow {
+  color: var(--bb-blue-hover);
+  font-weight: 700;
+  letter-spacing: 1.3px;
+}
+
+.bb-step-heading > strong {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  color: var(--bb-ink);
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+}
+
+.bb-step-progress {
+  margin: 0 0 18px;
+}
+
+.bb-owner-form {
+  padding: 20px;
+}
+
+.bb-form-step {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.bb-form-step > legend {
+  display: none;
+}
+
+.bb-owner-form .form-label {
+  color: var(--bb-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bb-owner-form .form-control,
+.bb-owner-form .form-select {
+  min-height: 46px;
+  border: 1px solid #ccd9e7;
+  border-radius: 10px;
+  background-color: #fff;
+}
+
+/* Preserve a real select affordance. Earlier shared styles removed the native
+   chevron, which made Rent/Condo look like inert text fields. */
+.bb-owner-form .form-select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  background-image: none;
+  padding-right: 30px;
+}
+
+.bb-owner-form textarea.form-control {
+  min-height: 112px;
+}
+
+/* The approved first step labels the rent as monthly already; the duplicate
+   helper line only adds vertical drift. */
+.bb-owner-form #listing-field-4 + .text-muted {
+  display: none;
+}
+
+.bb-form-navigation {
+  margin-top: 22px;
+  padding-top: 18px;
+}
+
+.bb-form-navigation .bb-button {
+  min-width: 112px;
+}
+
+.bb-form-navigation .bb-button:last-child {
+  margin-left: auto;
+}
+
+@media (min-width: 760px) {
+  .bb-step-heading > strong {
+    font-size: 34px;
+  }
+
+  .bb-owner-form {
+    padding: 24px;
+  }
+}

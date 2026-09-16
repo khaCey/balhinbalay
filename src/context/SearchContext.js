@@ -104,6 +104,8 @@ export function useSearch() {
 }
 
 export function SearchProvider({ children }) {
+  const [mapStates, setMapStates] = useState({});
+  const updateMapState = useCallback((listingType, next) => setMapStates(value => ({ ...value, [listingType]: { ...value[listingType], ...next } })), []);
   const persisted = loadPersisted();
   const [lastSearchState, setLastSearchState] = useState(persisted?.lastSearchState ?? null);
   const [hasSearched, setHasSearched] = useState(Boolean(persisted?.hasSearched && persisted?.lastSearchState));
@@ -137,6 +139,7 @@ export function SearchProvider({ children }) {
       sortBy: state.sortBy ?? 'newest'
     });
     setLastSearchState(normalized);
+    setMapStates(value => ({ ...value, [normalized.listingType]: null }));
     // New searches should start from the submitted state for that listing type.
     // This prevents stale in-page filter tweaks from overriding the new search payload.
     setCurrentResultsState((prev) => ({ ...prev, [normalized.listingType]: normalized }));
@@ -148,6 +151,8 @@ export function SearchProvider({ children }) {
   }, []);
 
   const value = {
+    mapStates,
+    updateMapState,
     lastSearchState,
     hasSearched,
     submitSearch,

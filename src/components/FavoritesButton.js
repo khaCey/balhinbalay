@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from './ui/Controls';
 import { useFavorites } from '../context/FavoritesContext';
 
 const FavoritesButton = ({ propertyId, className = '' }) => {
@@ -7,6 +8,8 @@ const FavoritesButton = ({ propertyId, className = '' }) => {
 
   return (
     <button
+      type="button"
+      aria-pressed={favorite}
       className={`btn-favorite ${className}`}
       onClick={(e) => {
         e.stopPropagation();
@@ -14,7 +17,7 @@ const FavoritesButton = ({ propertyId, className = '' }) => {
       }}
       aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
     >
-      <i className={`fas fa-heart ${favorite ? 'favorite-active' : ''}`}></i>
+      <Icon name="heart" className={favorite ? 'favorite-active' : ''} fill={favorite ? 'currentColor' : 'none'} />
     </button>
   );
 };
