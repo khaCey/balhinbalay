@@ -17,6 +17,7 @@
   },
   "scripts": {
     "start": "concurrently \"craco start\" \"npm run server\"",
+    "preview:ui": "concurrently \"cross-env BROWSER=none PORT=3000 craco start\" \"node scripts/ui-preview-api.mjs\"",
     "build": "craco build",
     "build:tunnel": "env-cmd -f .env.production craco build",
     "build:tunnel:clean": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && npm run build:tunnel",
