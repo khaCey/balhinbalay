@@ -38,11 +38,11 @@ export function restoreDemo(value, initial) {
   result.recent = (Array.isArray(value.recent) ? value.recent : []).map(validId).filter(Boolean).slice(0,12);
   result.recentCities = uniqueStrings(value.recentCities).slice(0,6);
   result.signals = value.signals && typeof value.signals === 'object' && !Array.isArray(value.signals) ? Object.fromEntries(Object.entries(value.signals).filter(([,v])=>Number.isFinite(Number(v))).map(([k,v])=>[k,Number(v)])) : result.signals;
-  if (value.profile && typeof value.profile === 'object') result.profile = {...result.profile,name:text(value.profile.name,result.profile.name),email:text(value.profile.email,result.profile.email),photo:text(value.profile.photo)};
+  // Authentication identity is authoritative server state. Never restore the old
+  // browser-only profile or demo signed-in flag from localStorage.
   if (value.settings && typeof value.settings === 'object') for (const key of Object.keys(result.settings)) if (typeof value.settings[key] === 'boolean') result.settings[key]=value.settings[key];
   if (Array.isArray(value.owner)) result.owner = value.owner.filter(row => row && typeof row === 'object' && validId(row.id)).map(row => ({...row,id:validId(row.id),title:text(row.title,'Untitled sample listing'),status:text(row.status,'Unlisted'),tags:uniqueStrings(row.tags),images:Array.isArray(row.images)?row.images.filter(image=>typeof image==='string'):row.images}));
   if (Array.isArray(value.convos)) result.convos = value.convos.filter(row => row && typeof row === 'object' && validId(row.id) && validId(row.property)).map(row => ({...row,id:validId(row.id),property:validId(row.property),unread:Boolean(row.unread),messages:Array.isArray(row.messages)?row.messages.filter(message=>message&&typeof message.text==='string').map(message=>({...message,mine:Boolean(message.mine)})):[]}));
-  result.signedIn = typeof value.signedIn === 'boolean' ? value.signedIn : result.signedIn;
   if (value.lastSearch && typeof value.lastSearch === 'object') result.lastSearch = normaliseQuery(value.lastSearch);
   return result;
 }
