@@ -4,13 +4,13 @@ This is the **account-only extraction and hardening** of the historical Express/
 
 ## Design and historical reuse
 
-Retained: Express route family, PostgreSQL persistence, pending-account/verification/resend/login/password-recovery flow concepts, and Nodemailer SMTP transport/email copy. Replaced: bcrypt with Argon2id; plain verification/reset tokens with 256-bit random tokens whose SHA-256 digests alone are stored; five-digit reset code with one-use expiring action link; JWT/localStorage with database-authoritative revocable sessions and Secure HttpOnly SameSite=Lax host-only cookie; database-unavailable synthetic user fallback with fail-closed responses; SMTP absence and token logging with fatal startup configuration; unthrottled resend with persisted email/IP buckets and one-minute cooldown. No Lister/admin/listings APIs or tables are included.
+Retained: Express route family, PostgreSQL persistence, pending-account/verification/resend/login/password-recovery flow concepts, and Nodemailer SMTP transport/email copy. Replaced: bcrypt with Argon2id; plain verification/reset tokens with 256-bit random tokens whose SHA-256 digests alone are stored; five-digit reset code with one-use expiring action link; JWT/localStorage with database-authoritative revocable sessions and Secure HttpOnly SameSite=Lax host-only cookie; database-unavailable synthetic user fallback with fail-closed responses; SMTP absence and token logging with fatal startup configuration; unthrottled resend with persisted email/IP buckets and one-minute cooldown. No Lister or listings APIs/tables are included. A minimal **local-only owner admin surface** now exists for account inspection, pre-verified account creation and account deletion; it is intentionally not routed through the public Site.
 
 `migrations/001_accounts.sql` defines UUID-backed `users`, `account_actions`, `auth_sessions` and `auth_rate_limits`. Application-generated UUIDv7 identifies users/actions/sessions. `src/migrate.js` tracks migrations in `schema_migrations` and applies each within a transaction. Do not point it at the separate historical database without a specific migration assessment; this migration creates a fresh account slice and does not import old bcrypt users.
 
 ## Route contract
 
-All routes are under `/api/auth/`. POST: `register`, `verify-email`, `resend-verification`, `login`, `logout`, `forgot-password`, `reset-password`. GET: `session`. The Site's `app/api/auth/[...path]/route.js` forwards only these actions to this service. Verification and reset links use the Site's URL fragment, and the browser POSTs the token in a JSON body; token values are absent from server request paths. The service requires the server-only proxy key and the exact Site origin on POST requests. Browsers never receive the proxy key.
+All public account routes are under `/api/auth/`. POST: `register`, `verify-email`, `resend-verification`, `login`, `logout`, `forgot-password`, `reset-password`. GET: `session`. The Site's `app/api/auth/[...path]/route.js` forwards only these actions to this service. Verification and reset links use the Site's URL fragment, and the browser POSTs the token in a JSON body; token values are absent from server request paths. The service requires the server-only proxy key and the exact Site origin on POST requests. Browsers never receive the proxy key.
 
 Password rule: 12–128 characters, with no mandatory character classes. Argon2id uses memoryCost 19456 KiB, timeCost 2, parallelism 1; benchmark these settings on the intended owner PC before production. Verification links expire after 24 hours; reset links after 15 minutes. Sessions expire after 14 days, remain valid across refresh, are independently revocable on logout and all revoke on password reset. Sessions are checked against an active, verified user row on every authenticated read. Verification/login rejects pending accounts. Duplicate registration and unknown-account reset requests receive conditional responses to reduce account enumeration. Stored request buckets enforce per-address and shared IP limits; resends have an additional 60-second cooldown. For a single PC-hosted API, global IP limits are deliberately generous because the Site proxy may be its only visible peer.
 
@@ -49,8 +49,28 @@ Under IDE0157, Cloudflare Tunnel publishes only the Vinext Site (`http://127.0.0
 
 The historical archive contains populated SMTP fields in an `.env`. Do not commit, copy or assume that archived credential is valid; the owner should rotate and provision the intended production sender securely.
 
+## Local owner account admin
+
+When the account service is running with its normal private binding (`HOST=127.0.0.1`, `PORT=5000`), open this **on the owner PC only**:
+
+```text
+http://127.0.0.1:5000/admin
+```
+
+The page lists all account rows and provides only the deliberately small owner workflow required for the current beta work:
+
+- create a normal BalhinBalay account with an email and password, immediately setting `status='active'` and `email_verified_at=now()` so the account can sign in without an email-verification step;
+- delete an account after browser confirmation; the existing foreign-key cascades also remove that account's verification/reset actions and auth sessions;
+- refresh the account list.
+
+This is **not** a public admin panel and is not proxied by the Site. Both the page and its `/admin/api/*` routes reject non-loopback connections. The page receives a random per-process admin token and sends it back in a private request header for admin API calls, which also prevents another browser origin from blindly submitting destructive admin requests. Restarting the account service changes that token automatically.
+
+Do not add `/admin` or port `5000` to the Cloudflare Tunnel. If remote administration is ever required, implement real admin identity/authorisation separately rather than exposing this local owner tool.
+
+Fast deletion here is an owner/testing operation. It is not the future end-user account-deletion/anonymisation policy described in `dbdesign.md`.
+
 ## Verification evidence and remaining gate
 
-`npm test` uses file-backed PGlite to execute the same PostgreSQL schema and account queries. It verifies persistence across reopen, hashing, duplicate handling, pending/verified login, single-use/expiry/replacement, resend limits, sessions, reset and revocation, missing configuration and fail-closed outages. A separate test runs a local SMTP server with a temporary trusted test certificate and sends verification/reset messages through Nodemailer over STARTTLS. This proves the transport path locally, not external inbox delivery. The account tests inject a mail capture for token assertions and now assert the canonical `https://balhinbalay.com` verification/reset URL shape.
+`npm test` uses file-backed PGlite to execute the same PostgreSQL schema and account queries. It verifies persistence across reopen, hashing, duplicate handling, pending/verified login, single-use/expiry/replacement, resend limits, sessions, reset and revocation, missing configuration and fail-closed outages. A separate test runs a local SMTP server with a temporary trusted test certificate and sends verification/reset messages through Nodemailer over STARTTLS. This proves the transport path locally, not external inbox delivery. The account tests inject a mail capture for token assertions and now assert the canonical `https://balhinbalay.com` verification/reset URL shape. `test/admin.test.js` covers the local admin token guard, loopback-address helper, pre-verified account creation/login, account listing, duplicate handling and cascading deletion of sessions/actions.
 
 Before public access: run migrations against actual PostgreSQL, configure the intended real sender, start the account service with `APP_URL=https://balhinbalay.com`, start the Site with the private loopback account proxy, bring the Cloudflare Tunnel route online, exercise real email delivery and verification/reset in a mailbox, verify Secure cookie transport over public HTTPS, test browser registration/refresh/logout and browse/search regression, and review Privacy/Terms against actual providers and operation.
