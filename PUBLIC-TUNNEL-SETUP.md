@@ -12,7 +12,7 @@ The public path is:
 Browser
   -> Cloudflare HTTPS
   -> Cloudflare Tunnel
-  -> http://127.0.0.1:8787  (Vinext Site)
+  -> http://127.0.0.1:8787  (private Vinext Site target)
   -> http://127.0.0.1:5000  (private account service, via Site proxy only)
   -> PostgreSQL on 127.0.0.1:5433
 ```
@@ -21,11 +21,13 @@ The account service and PostgreSQL must not be published as Cloudflare Tunnel ro
 
 ## Security rules
 
+- The only public browser origin for this run is `https://balhinbalay.com`.
+- `http://127.0.0.1:8787` is the private Cloudflare Tunnel destination, not an alternative browser origin.
 - Keep `127.0.0.1:5000` private. Do not create a public hostname for the account service.
 - Keep PostgreSQL private on localhost.
 - Keep the Cloudflare tunnel token, SMTP password, database password and BalhinBalay proxy key outside Git and browser code.
 - The Site and account service must share the same generated proxy key.
-- The production account origin is exactly `https://balhinbalay.com`.
+- The Site and account service must also share the same canonical `APP_URL`: `https://balhinbalay.com`.
 - Do not delete mail-related DNS records such as MX/TXT records while changing the website route.
 
 ## 1. Start PostgreSQL
@@ -89,7 +91,7 @@ Start the account service:
 npm start
 ```
 
-Leave this window running.
+Leave this PowerShell window running.
 
 ## 3. Start the Vinext Site
 
@@ -99,10 +101,11 @@ Open a second PowerShell window in:
 C:\GitHub\BalhinBalay-v0.0.02
 ```
 
-Load the server-only account proxy configuration:
+Load the server-only account proxy configuration. Use the same `APP_URL` as the account service so the Site validates browser POST origins against the public BalhinBalay origin rather than against its private loopback request URL:
 
 ```powershell
 $env:NODE_ENV = "production"
+$env:APP_URL = "https://balhinbalay.com"
 $env:ACCOUNT_API_ORIGIN = "http://127.0.0.1:5000"
 $env:ACCOUNT_PROXY_KEY = Get-Clipboard
 $env:ACCOUNT_ALLOW_LOCAL_HTTP = "true"
@@ -120,13 +123,15 @@ pnpm build
 npm start
 ```
 
-The local origin remains:
+During this public production run, use this browser URL for account testing:
 
 ```text
-http://127.0.0.1:8787
+https://balhinbalay.com
 ```
 
-Cloudflare Tunnel will publish that local HTTP service as public HTTPS. Do not add a second TLS layer on localhost just for the tunnel.
+The Site process still listens privately on `http://127.0.0.1:8787` so Cloudflare can reach it. That loopback address is an internal transport destination only and must not be treated as a second browser origin. Do not add a second TLS layer on localhost just for the tunnel.
+
+If you need separate local-mode account testing, stop/restart both Site and account service using `LOCAL-SETUP.md`, where the canonical browser origin is `http://localhost:8787`.
 
 ## 4. Create the named Cloudflare Tunnel
 
