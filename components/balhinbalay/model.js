@@ -23,11 +23,11 @@ const freshBrowserState=()=>{
   value.saved=[];value.searches=[];value.convos=[];value.owner=[];
   return value;
 };
-export function useAppModel() {
+export function useAppModel(initialPage = 'home') {
   // Match the server's first render; restore browser-only state after hydration.
   const [db, setDb] = useState(freshBrowserState);
   const [ready, setReady] = useState(false);
-  const [state, setState] = useState({page:'home',q:defaults(),savedTab:'Properties',compare:[],property:1,photo:0,chat:1,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null,returnPage:'results',draft:null});
+  const [state, setState] = useState({page:initialPage,q:defaults(),savedTab:'Properties',compare:[],property:1,photo:0,chat:1,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null,returnPage:'results',draft:null});
   const [modal, writeModal] = useState(null);
   const [toast, setToast] = useState('');
   const [account,writeAccount]=useState(null);
@@ -52,7 +52,7 @@ export function useAppModel() {
       if (stored) setDb(restoreDemo(stored, freshBrowserState()));
       setReady(true);
     });
-    const fromHash = () => setState(current => ({...current,...restoreRoute(location.hash,history.state,current)}));
+    const fromHash = () => setState(current => location.hash ? ({...current,...restoreRoute(location.hash,history.state,current)}) : ({...current,page:initialPage}));
     fromHash(); window.addEventListener('popstate', fromHash); window.addEventListener('hashchange', fromHash);
     return () => {window.removeEventListener('popstate', fromHash); window.removeEventListener('hashchange', fromHash); clearTimeout(timer.current);};
   }, []);
