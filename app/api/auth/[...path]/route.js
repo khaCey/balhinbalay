@@ -1,6 +1,6 @@
 // Same-origin boundary for the separate account service. Configuration is server-only.
-// The account API's public HTTPS endpoint and this Site's secrets must be provisioned
-// after IDE0153's deployment topology is approved. No browser bundle receives them.
+// The account service stays private on the owner PC; public traffic reaches this Site
+// over HTTPS and the Site proxy talks to the account service over same-machine loopback.
 const postPaths=new Set(['register','verify-email','resend-verification','login','logout','forgot-password','reset-password']);
 const sessionCookie=value=>String(value||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('__Host-bb_session='))||'';
 const error=(status,message)=>Response.json({ok:false,code:'SERVICE_UNAVAILABLE',message},{status,headers:{'Cache-Control':'no-store'}});
@@ -14,8 +14,8 @@ async function forward(req,context,method){
   if(!endpoint||!secret)return error(503,'Account registration is not available yet.');
   let origin;
   try{origin=new URL(endpoint);}catch{return error(503,'Account service is not configured.');}
-  // Plain HTTP is allowed only for literal loopback hosts during dev or an explicit
-  // server-only local Wrangler opt-in. All other configurations still require HTTPS.
+  // Plain HTTP is allowed only for literal loopback hosts during development or an
+  // explicit server-only same-machine opt-in. Arbitrary/non-loopback HTTP stays blocked.
   const localHttpEnabled=process.env.NODE_ENV==='development'||process.env.ACCOUNT_ALLOW_LOCAL_HTTP==='true';
   const loopbackHttp=localHttpEnabled&&origin.protocol==='http:'&&
     /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:[/?#]|$)/i.test(endpoint);
