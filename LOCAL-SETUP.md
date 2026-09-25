@@ -1,101 +1,170 @@
 # BalhinBalay local setup (Windows)
 
-This checkout contains the React Site and the separate PostgreSQL-backed account service, imported from Sites commit `0b23b3242c0a7e8086b4291201f68c293cf1377c` into GitHub branch `v.0.0.02`. Run the commands below in **PowerShell** from the project root. Nothing here deploys the Site.
+This checkout contains the React/Vinext Site and the separate PostgreSQL-backed account service. Local Windows execution uses Vinext's normal Node runtime. Wrangler/workerd is not in the local request path.
+
+The current public Sites deployment is not changed by this local setup.
 
 ## Prerequisites
 
-- Windows with Node.js **22.13.0 or later**, npm, and PostgreSQL installed and running locally. Ensure `node`, `npm`, and `psql` work in PowerShell; add PostgreSQL's `bin` folder to your PATH if needed.
-- An SMTP account with a valid sender address if you want to start the account service. The service refuses to start without SMTP settings. Keep its credentials on your own machine.
-- Internet access for the first dependency installation.
+- Windows
+- Node.js 22.13.0 or later
+- npm
+- pnpm 11.25.0
+- PostgreSQL 18
+- SMTP credentials for the verification email sender
 
-## 1. Create the local PostgreSQL database
+Keep passwords, SMTP credentials and proxy keys only in local process environment variables. Do not commit them.
 
-Open PowerShell, then start the PostgreSQL interactive shell:
+## 1. Start the local PostgreSQL cluster
+
+The owner development setup uses the isolated BalhinBalay PostgreSQL cluster on port `5433`.
 
 ```powershell
-psql -h 127.0.0.1 -U postgres -d postgres
+& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" `
+  -D "$env:USERPROFILE\pg18-balhinbalay" `
+  -l "$env:USERPROFILE\pg18-balhinbalay.log" `
+  -o "-p 5433" `
+  start
 ```
 
-Enter your local PostgreSQL administrator password when prompted. At the `postgres=#` prompt, enter each of the following separately. `\password` prompts you for a new password without putting it into this guide or shell history:
+Verify it:
 
-```sql
-CREATE ROLE bb_local LOGIN;
-\password bb_local
-CREATE DATABASE bb_local OWNER bb_local;
-\q
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\pg_isready.exe" `
+  -h 127.0.0.1 `
+  -p 5433
 ```
 
-Use this **fresh** database for the account migration; do not point it at the historical BalhinBalay database. PostgreSQL stays on your local machine. If `psql` is unavailable, use the installed PostgreSQL `bin\psql.exe` or pgAdmin to run the SQL and set the role password.
+Expected result:
+
+```text
+127.0.0.1:5433 - accepting connections
+```
+
+The local account database is `balhinbalay_auth_local`.
 
 ## 2. Run the account service
 
-The Windows fallback below pairs the account service with the built Site running through local Wrangler at `http://localhost:8787`.
+Open PowerShell in:
 
-Open a **new PowerShell window** in the checkout's top-level folder. Enter the PostgreSQL password and SMTP settings when prompted; no real values are included in this source. The `SMTP_FROM` value must be authorised by your SMTP provider. Use port 587 with STARTTLS, or change the port to 465 and `SMTP_SECURE` to `true` if your provider requires implicit TLS.
+```text
+C:\GitHub\BalhinBalay-v0.0.02\account-service
+```
+
+Set the database password without putting it in shell history:
 
 ```powershell
-cd .\account-service
-npm ci
-$dbPassword = Read-Host 'bb_local database password' -AsSecureString
-$dbPlain = [System.Net.NetworkCredential]::new('', $dbPassword).Password
-$env:DATABASE_URL = 'postgresql://bb_local:' + [Uri]::EscapeDataString($dbPlain) + '@127.0.0.1:5432/bb_local'
+$dbPassword = Read-Host "PostgreSQL password" -AsSecureString
+$dbPlain = [System.Net.NetworkCredential]::new("", $dbPassword).Password
+$env:DATABASE_URL = "postgresql://postgres:$([Uri]::EscapeDataString($dbPlain))@127.0.0.1:5433/balhinbalay_auth_local"
 Remove-Variable dbPassword, dbPlain
-$env:NODE_ENV = 'development'
-$env:APP_URL = 'http://localhost:8787'
-$env:SMTP_HOST = Read-Host 'SMTP host'
-$env:SMTP_PORT = '587'
-$env:SMTP_SECURE = 'false'
-$env:SMTP_USER = Read-Host 'SMTP user'
-$smtpPassword = Read-Host 'SMTP password' -AsSecureString
-$env:SMTP_PASS = [System.Net.NetworkCredential]::new('', $smtpPassword).Password
+```
+
+Set the local account-service configuration:
+
+```powershell
+$env:NODE_ENV = "development"
+$env:APP_URL = "http://localhost:8787"
+$env:HOST = "127.0.0.1"
+$env:PORT = "5000"
+
+$env:SMTP_HOST = Read-Host "SMTP host"
+$env:SMTP_PORT = "587"
+$env:SMTP_SECURE = "false"
+$env:SMTP_USER = Read-Host "SMTP user"
+$smtpPassword = Read-Host "SMTP password" -AsSecureString
+$env:SMTP_PASS = [System.Net.NetworkCredential]::new("", $smtpPassword).Password
 Remove-Variable smtpPassword
-$env:SMTP_FROM = Read-Host 'Authorised sender email address'
+$env:SMTP_FROM = Read-Host "Authorised sender email address"
+
 $env:PROXY_KEY = node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"
-Set-Clipboard -Value $env:PROXY_KEY
-$env:HOST = '127.0.0.1'
-$env:PORT = '5000'
+Set-Clipboard $env:PROXY_KEY
+```
+
+Install/migrate when required, then start the service:
+
+```powershell
+npm ci
 npm run migrate
-npm test
 npm start
 ```
 
-Keep this window open. `Set-Clipboard` temporarily transfers the randomly generated local proxy key to the Site window; do not paste it into the repository or a message. The service listens on `127.0.0.1:5000`; its database and SMTP configuration are available only to this PowerShell process and its children. `npm test` uses its own PGlite and local SMTP fixtures; passing tests does not prove delivery to a real mailbox. `account-service/.env.example` lists the configuration keys, but this source does **not** automatically load an `.env` file.
+A successful start prints:
 
-## 3. Run the React Site through local Wrangler
+```text
+BalhinBalay account service listening.
+```
 
-Open another PowerShell window in the checkout's top-level folder:
+Leave this PowerShell window open.
+
+You can confirm the service is reachable from Windows with:
+
+```powershell
+curl.exe -i http://127.0.0.1:5000/api/auth/session
+```
+
+A `403 Forbidden` response without the proxy key is expected and proves the service is reachable.
+
+## 3. Run the React Site with Vinext Node
+
+Open a second PowerShell window in:
+
+```text
+C:\GitHub\BalhinBalay-v0.0.02
+```
+
+Install dependencies:
 
 ```powershell
 npm install --global pnpm@11.25.0
 pnpm install --frozen-lockfile
-pnpm build
-$env:ACCOUNT_API_ORIGIN = 'http://127.0.0.1:5000'
+```
+
+Load the server-only account proxy configuration. The proxy key must be the same one generated by the account-service window:
+
+```powershell
+$env:ACCOUNT_API_ORIGIN = "http://127.0.0.1:5000"
 $env:ACCOUNT_PROXY_KEY = Get-Clipboard
-$env:ACCOUNT_ALLOW_LOCAL_HTTP = 'true'
-$env:CLOUDFLARE_INCLUDE_PROCESS_ENV = 'true'
-Set-Clipboard -Value ''
-if ([string]::IsNullOrWhiteSpace($env:ACCOUNT_PROXY_KEY) -or $env:ACCOUNT_PROXY_KEY.Length -lt 32) { throw 'The Site and account service need the same generated proxy key.' }
+$env:ACCOUNT_ALLOW_LOCAL_HTTP = "true"
+Set-Clipboard ""
+
+if ([string]::IsNullOrWhiteSpace($env:ACCOUNT_PROXY_KEY) -or $env:ACCOUNT_PROXY_KEY.Length -lt 32) {
+  throw "The Site and account service need the same generated proxy key."
+}
+```
+
+Build and start the Node-hosted Site:
+
+```powershell
+pnpm build
 npm start
 ```
 
-Open `http://localhost:8787/`. The explicit `ACCOUNT_ALLOW_LOCAL_HTTP=true` opt-in is server-only and permits plain HTTP only when `ACCOUNT_API_ORIGIN` is the literal loopback host `localhost` or `127.0.0.1`. Arbitrary HTTP hosts are still rejected, and HTTPS remains the default requirement everywhere else.
+Open:
 
-The Site is a React 19 application using Next-compatible Vinext. The tracked `pnpm-lock.yaml` belongs to this Site; the separate account service uses its own `package-lock.json` and `npm ci`. Stop either server with **Ctrl+C**. For source checks, run `node --test tests/*.test.mjs` in the Site folder and `npm test` in `account-service`.
+```text
+http://localhost:8787
+```
 
-## Optional Vinext development mode
+`npm start` runs `vinext start` directly. It does not launch Wrangler/workerd, so the Site's server-side account proxy can reach the same-PC account service at `127.0.0.1:5000`.
 
-If `pnpm dev` is stable on the local machine, it can be used instead of the built Wrangler fallback. In that case restart the account service with `APP_URL=http://localhost:5173`, then start the Site with:
+## Optional development server
+
+For HMR/source development, local Windows now also uses the Node/Vite path rather than workerd:
 
 ```powershell
-$env:NODE_ENV = 'development'
-$env:ACCOUNT_API_ORIGIN = 'http://127.0.0.1:5000'
+$env:ACCOUNT_API_ORIGIN = "http://127.0.0.1:5000"
 $env:ACCOUNT_PROXY_KEY = Get-Clipboard
-Set-Clipboard -Value ''
 pnpm dev
 ```
 
-Open `http://localhost:5173/`. Development mode permits the same literal loopback HTTP origins without requiring `ACCOUNT_ALLOW_LOCAL_HTTP`.
+This runs at `http://localhost:5173`. If using this mode, set the account-service `APP_URL` to `http://localhost:5173` before starting the account service.
 
-## Local account integration
+## Important security notes
 
-The account service and Site must use the same generated proxy key. The key stays in server process environments and is cleared from the Windows clipboard after transfer. Stop and restart both processes if you generate a different key. `ACCOUNT_ALLOW_LOCAL_HTTP` is only a local server-side opt-in for literal loopback hosts; do not set it for a public account-service URL. Do not place the proxy key or the local-HTTP flag in a `NEXT_PUBLIC_` variable or expose PostgreSQL on the network. Browser cookie behaviour, real mailbox delivery and any public HTTPS deployment remain separate verification steps; see `account-service/README.md` and `docs/registration-architecture-assessment.md`.
+- `ACCOUNT_PROXY_KEY` and `PROXY_KEY` must match and remain server-only.
+- Never use a `NEXT_PUBLIC_` variable for the proxy key.
+- Plain HTTP is accepted only for explicit local loopback testing.
+- Public/non-loopback account-service access still requires HTTPS.
+- PostgreSQL should remain bound to the local machine for this setup.
+- Real mailbox delivery, public HTTPS hosting and deployed browser/session verification are separate launch gates under IDE0152/IDE0153/IDE0155.
