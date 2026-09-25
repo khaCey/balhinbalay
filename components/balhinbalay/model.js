@@ -14,9 +14,16 @@ export {distance, searchListings} from './searchListings.js';
 export const filterCount = q => ['type','min','max','beds','baths','size'].reduce((n,k) => n + (q[k] && q[k] !== 'Any' ? 1 : 0), 0) + q.tags.length;
 export const summary = q => [q.type !== 'Any' ? q.type : 'All property types', q.min || q.max ? `${q.min ? compact(q.min) : 'Any price'} – ${q.max ? compact(q.max) : 'No limit'}` : 'Any budget', q.beds !== 'Any' ? q.beds + '+ bedrooms' : '', q.method === 'Keyword' ? q.keyword : '', ...q.tags, q.method === 'School' ? schools[q.school].name + ' · ' + q.radius + ' km' : ''].filter(Boolean).join(' · ');
 export const costs = suppliedCosts;
+const freshBrowserState=()=>{
+  const value=structuredClone(initial);
+  // Account identity comes from the server-side session, never from the legacy demo profile.
+  value.profile={name:'',email:'',photo:''};
+  value.signedIn=false;
+  return value;
+};
 export function useAppModel() {
   // Match the server's first render; restore browser-only state after hydration.
-  const [db, setDb] = useState(() => structuredClone(initial));
+  const [db, setDb] = useState(freshBrowserState);
   const [ready, setReady] = useState(false);
   const [state, setState] = useState({page:'home',q:defaults(),savedTab:'Properties',compare:[],property:1,photo:0,chat:1,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null,returnPage:'results',draft:null});
   const [modal, setModal] = useState(null);
@@ -34,7 +41,7 @@ export function useAppModel() {
       stored = JSON.parse(localStorage.getItem('balhinbalay-react-demo-v1') || 'null');
     } catch { /* A fresh demo is usable when storage is unavailable. */ }
     startTransition(() => {
-      if (stored) setDb(restoreDemo(stored, initial));
+      if (stored) setDb(restoreDemo(stored, freshBrowserState()));
       setReady(true);
     });
     const fromHash = () => setState(current => ({...current,...restoreRoute(location.hash,history.state,current)}));
