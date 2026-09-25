@@ -9,7 +9,7 @@ export const money = v => '₱' + Number(v || 0).toLocaleString('en-PH');
 export const compact = v => v >= 1e6 ? '₱' + (v / 1e6).toFixed(1) + 'm' : '₱' + Math.round(v / 1000) + 'k';
 export const img = p => p.images?.[0] || photos[p.photo || 0];
 export const propertyImages = p => p.images?.length ? p.images : [photos[p.photo || 0], photos[((p.photo || 0) + 2) % 3], photos[((p.photo || 0) + 1) % 3]];
-export const initials = name => name.split(' ').map(x => x[0]).slice(0, 2).join('') || 'AR';
+export const initials = name => String(name || '').split(' ').map(x => x[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'BB';
 export {distance, searchListings} from './searchListings.js';
 export const filterCount = q => ['type','min','max','beds','baths','size'].reduce((n,k) => n + (q[k] && q[k] !== 'Any' ? 1 : 0), 0) + q.tags.length;
 export const summary = q => [q.type !== 'Any' ? q.type : 'All property types', q.min || q.max ? `${q.min ? compact(q.min) : 'Any price'} – ${q.max ? compact(q.max) : 'No limit'}` : 'Any budget', q.beds !== 'Any' ? q.beds + '+ bedrooms' : '', q.method === 'Keyword' ? q.keyword : '', ...q.tags, q.method === 'School' ? schools[q.school].name + ' · ' + q.radius + ' km' : ''].filter(Boolean).join(' · ');
@@ -60,7 +60,7 @@ export function useAppModel() {
   const chooseMethod = method => {const q={...state.q,method};if(method==='Map')startSearch(q);else nav('search',{q});};
   const openChat = id => {update(d=>{const c=d.convos.find(c=>c.id===id);if(c)c.unread=false;});nav('chat',{chat:id});};
   const message = (property,text='') => {const existing=db.convos.find(c=>c.property===property); const id=existing?.id||Date.now(); update(d=>{let c=d.convos.find(c=>c.id===id);if(!c){c={id,property,unread:false,messages:[]};d.convos.unshift(c);}c.unread=false;if(text.trim())c.messages.push({text:text.trim(),mine:true,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})});signal(d,prop(property),5);});nav('chat',{chat:id});};
-  const newListing = p => nav('editor',{draft:p?{...structuredClone(p),images:propertyImages(p)}:{mode:'Rent',type:'Condo',city:'Cebu City',region:'Central Visayas',province:'Cebu',lat:10.332,lng:123.906,beds:1,baths:1,size:30,tags:[],images:[],owner:db.profile.name}});
+  const newListing = p => nav('editor',{draft:p?{...structuredClone(p),images:propertyImages(p)}:{mode:'Rent',type:'Condo',city:'Cebu City',region:'Central Visayas',province:'Cebu',lat:10.332,lng:123.906,beds:1,baths:1,size:30,tags:[],images:[],owner:'Sample owner'}});
   return {db,update,state,patch,nav,setQuery,prop,modal,setModal,toast,notify,openProperty,toggleSave,compare,startSearch,chooseMethod,openChat,message,newListing,account,setAccount};
 }
 export async function readImage(file) {
