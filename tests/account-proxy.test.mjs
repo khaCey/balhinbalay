@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {GET,POST} from '../app/api/auth/[...path]/route.js';
 
-const site='https://balhinbalay.example';
+const site='https://balhinbalay.com';
 const context=path=>({params:Promise.resolve({path:[path]})});
 test('server proxy refuses to run without configured backend and never forwards arbitrary routes',async()=>{
   const original=process.env.ACCOUNT_API_ORIGIN;
@@ -71,8 +71,8 @@ test('HTTP account origins are limited to literal loopback hosts with explicit l
       else process.env.ACCOUNT_ALLOW_LOCAL_HTTP=entry.allowLocal;
       process.env.ACCOUNT_API_ORIGIN=entry.origin;
       const previous=requested.length;
-      const req=new Request('http://localhost:5173/api/auth/register',{
-        method:'POST',headers:{origin:'http://localhost:5173'},body:'{}',
+      const req=new Request(`${site}/api/auth/register`,{
+        method:'POST',headers:{origin:site},body:'{}',
       });
       const result=await POST(req,context('register'));
       assert.equal(result.status,entry.allowed?200:503,`${entry.environment}/${entry.allowLocal}: ${entry.origin}`);
@@ -84,12 +84,12 @@ test('HTTP account origins are limited to literal loopback hosts with explicit l
     for(const suffix of ['/extra','/?q=1','/#fragment']){
       process.env.ACCOUNT_API_ORIGIN=`http://127.0.0.1:5000${suffix}`;
       const before=requested.length;
-      assert.equal((await GET(new Request('http://localhost:5173/api/auth/session'),context('session'))).status,503);
+      assert.equal((await GET(new Request(`${site}/api/auth/session`),context('session'))).status,503);
       assert.equal(requested.length,before);
     }
     process.env.ACCOUNT_API_ORIGIN='http://127.0.0.1:5000';
     delete process.env.ACCOUNT_PROXY_KEY;
-    assert.equal((await GET(new Request('http://localhost:5173/api/auth/session'),context('session'))).status,503);
+    assert.equal((await GET(new Request(`${site}/api/auth/session`),context('session'))).status,503);
   }finally{
     globalThis.fetch=oldFetch;
     for(const [key,value] of [['ACCOUNT_API_ORIGIN',oldOrigin],['ACCOUNT_PROXY_KEY',oldKey],['NODE_ENV',oldNodeEnv],['ACCOUNT_ALLOW_LOCAL_HTTP',oldAllowLocal]]){
