@@ -2,7 +2,7 @@
 
 This checkout contains the React/Vinext Site and the separate PostgreSQL-backed account service. Local Windows execution uses Vinext's normal Node runtime. Wrangler/workerd is not in the local request path.
 
-The current public Sites deployment is not changed by this local setup.
+For the accepted `https://balhinbalay.com` Cloudflare Tunnel path under IDE0157, use `PUBLIC-TUNNEL-SETUP.md`. This file remains the localhost development runbook.
 
 ## Prerequisites
 
@@ -164,7 +164,7 @@ This runs at `http://localhost:5173`. If using this mode, set the account-servic
 
 - `ACCOUNT_PROXY_KEY` and `PROXY_KEY` must match and remain server-only.
 - Never use a `NEXT_PUBLIC_` variable for the proxy key.
-- Plain HTTP is accepted only for explicit local loopback testing.
-- Public/non-loopback account-service access still requires HTTPS.
-- PostgreSQL should remain bound to the local machine for this setup.
-- Real mailbox delivery, public HTTPS hosting and deployed browser/session verification are separate launch gates under IDE0152/IDE0153/IDE0155.
+- Plain HTTP for the account service is accepted only on literal loopback hosts with the explicit local/same-machine allowance.
+- PostgreSQL should remain bound to the local machine.
+- For the public beta, Cloudflare Tunnel publishes only the Site; the account service and PostgreSQL remain private. See `PUBLIC-TUNNEL-SETUP.md`.
+- Real mailbox delivery and the complete public browser/session journey still require verification before the launch gate is complete.
