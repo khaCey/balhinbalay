@@ -16,6 +16,6 @@ const base=[
 {id:11,title:'A home with room to grow',city:'Davao City',area:'Buhangin',mode:'Buy',type:'House',price:5200000,beds:3,baths:2,size:110,photo:1,lat:7.105,lng:125.612,tags:['with parking','garden','pet-friendly'],pop:90,age:3,quality:96,owner:'Paolo Reyes'},
 {id:12,title:'Light-filled living in Banilad',city:'Cebu City',area:'Banilad',mode:'Rent',type:'Condo',price:35000,beds:2,baths:2,size:68,photo:2,lat:10.34,lng:123.912,tags:['furnished','pet-friendly','near a mall'],pop:87,age:4,quality:97,owner:'Andrea Lim'}];
 const defaults=()=>({mode:'Rent',method:'City',cities:[],keyword:'',school:0,radius:2,type:'Any',min:'',max:'',beds:'Any',baths:'Any',size:'',tags:[],sort:'Recommended'});
-const initial={saved:[],searches:[],recent:[],recentCities:[],signals:{},profile:{name:'',email:'',photo:''},settings:{messages:true,searches:true,updates:false},owner:[{...base[0],id:101,status:'Active'},{...base[1],id:102,status:'Pending approval'},{...base[5],id:103,status:'Rented'},{...base[8],id:104,status:'Rejected'},{...base[7],id:105,status:'Sold'},{...base[2],id:106,status:'Unlisted'}],convos:[{id:1,property:1,unread:true,messages:[{text:'Hello! The condo is still available. Would you like to arrange a viewing?',mine:false,time:'09:41'}]}],signedIn:false};
+const initial={saved:[],searches:[],recent:[],recentCities:[],signals:{},profile:{name:'',email:'',photo:''},settings:{messages:true,searches:true,updates:false},owner:[],convos:[],signedIn:false};
 
 export {icons,cities,schools,photos,base,defaults,initial};

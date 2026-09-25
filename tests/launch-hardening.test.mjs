@@ -41,15 +41,15 @@ test('sample listing report prepares an email without losing punctuation or impl
   assert.match(params.get('body'),/does not create a moderation ticket/);
 });
 
-test('malformed stored demo data is bounded and restored safely', () => {
+test('legacy account-like demo data is discarded while guest recent views survive', () => {
   const restored = restoreDemo({saved:[1,'bad',-2],recent:['3'],profile:{name:4,email:'safe@example.com'},settings:{messages:'yes'},owner:[{id:200,title:3,tags:null}],convos:[null,{id:9,property:1,messages:[null,{text:'Hi'}]}]}, initial);
-  assert.deepEqual(restored.saved,[1]);
+  assert.deepEqual(restored.saved,[]);
+  assert.deepEqual(restored.searches,[]);
   assert.deepEqual(restored.recent,[3]);
   assert.equal(restored.profile.name,initial.profile.name);
   assert.equal(restored.settings.messages,initial.settings.messages);
-  assert.equal(restored.owner[0].status,'Unlisted');
-  assert.equal(restored.owner[0].images,undefined);
-  assert.equal(restored.convos[0].messages[0].text,'Hi');
+  assert.deepEqual(restored.owner,[]);
+  assert.deepEqual(restored.convos,[]);
 });
 
 test('query normalisation preserves meaningful zero values', () => {

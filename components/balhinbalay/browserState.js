@@ -1,9 +1,9 @@
-import {defaults} from './data.js';
+import {base,defaults} from './data.js';
 
 const MODES = new Set(['Rent','Buy']);
 const METHODS = new Set(['City','Keyword','School','Map']);
 const SORTS = new Set(['Recommended','Newest','Price: low to high','Price: high to low','Size: large to small','Size: small to large']);
-const PAGES = new Set(['home','search','results','map','property','saved','compare','messages','chat','profile','settings','editProfile','owner','editor','about','contact','privacy','terms','register','login','verify-email','forgot-password','reset-password']);
+const PAGES = new Set(['home','search','results','map','property','saved','recent','compare','messages','chat','profile','settings','editProfile','owner','editor','about','contact','privacy','terms','register','login','verify-email','forgot-password','reset-password']);
 const text = (value, fallback = '') => typeof value === 'string' ? value : fallback;
 const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const uniqueStrings = value => Array.isArray(value) ? [...new Set(value.filter(item => typeof item === 'string'))] : [];
@@ -33,16 +33,12 @@ export function normaliseQuery(value) {
 export function restoreDemo(value, initial) {
   if (!value || typeof value !== 'object') return structuredClone(initial);
   const result = structuredClone(initial);
-  result.saved = [...new Set((Array.isArray(value.saved) ? value.saved : []).map(validId).filter(Boolean))];
-  result.searches = Array.isArray(value.searches) ? value.searches.filter(row => row && typeof row === 'object').map(row => ({...row,q:normaliseQuery(row.q)})).slice(0,50) : result.searches;
-  result.recent = (Array.isArray(value.recent) ? value.recent : []).map(validId).filter(Boolean).slice(0,12);
+  // Historical browser-only saves, messages and listings are not real account data.
+  result.recent = (Array.isArray(value.recent) ? value.recent : []).map(validId).filter(id=>base.some(p=>p.id===id)).slice(0,12);
   result.recentCities = uniqueStrings(value.recentCities).slice(0,6);
   result.signals = value.signals && typeof value.signals === 'object' && !Array.isArray(value.signals) ? Object.fromEntries(Object.entries(value.signals).filter(([,v])=>Number.isFinite(Number(v))).map(([k,v])=>[k,Number(v)])) : result.signals;
   // Authentication identity is authoritative server state. Never restore the old
   // browser-only profile or demo signed-in flag from localStorage.
-  if (value.settings && typeof value.settings === 'object') for (const key of Object.keys(result.settings)) if (typeof value.settings[key] === 'boolean') result.settings[key]=value.settings[key];
-  if (Array.isArray(value.owner)) result.owner = value.owner.filter(row => row && typeof row === 'object' && validId(row.id)).map(row => ({...row,id:validId(row.id),title:text(row.title,'Untitled sample listing'),status:text(row.status,'Unlisted'),tags:uniqueStrings(row.tags),images:Array.isArray(row.images)?row.images.filter(image=>typeof image==='string'):row.images}));
-  if (Array.isArray(value.convos)) result.convos = value.convos.filter(row => row && typeof row === 'object' && validId(row.id) && validId(row.property)).map(row => ({...row,id:validId(row.id),property:validId(row.property),unread:Boolean(row.unread),messages:Array.isArray(row.messages)?row.messages.filter(message=>message&&typeof message.text==='string').map(message=>({...message,mine:Boolean(message.mine)})):[]}));
   if (value.lastSearch && typeof value.lastSearch === 'object') result.lastSearch = normaliseQuery(value.lastSearch);
   return result;
 }
@@ -60,7 +56,7 @@ export function navigationSnapshot(state) {
 
 export function restoreRoute(hash, historyState, current) {
   const [rawPage, rawId] = String(hash || '').replace(/^#/,'').split('/');
-  const page = PAGES.has(rawPage) && rawPage !== 'editor' ? rawPage : 'home';
+  const page = PAGES.has(rawPage) ? rawPage : 'home';
   const same = historyState?.bbRoute && historyState.page === page;
   const saved = same ? navigationSnapshot({...current,...historyState,page}) : {...current,page};
   if (page === 'property') return {...saved,property:validId(rawId),photo:0};

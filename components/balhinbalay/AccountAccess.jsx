@@ -41,8 +41,10 @@ export default function AccountAccess({client=registrationClient}){
     if(mode==='login'){
       if(!address||!password){setError('Enter your email and password.');return;}
       return run(async()=>{
-        const result=await client.login(address,password);
-        setPassword('');setAccount(result.user||null);
+        await client.login(address,password);
+        const session=await client.session();
+        if(!session.user)throw new Error('Sign-in could not establish a server session.');
+        setPassword('');setAccount(session.user);
         setMessage('You are signed in.');
       });
     }
