@@ -16,6 +16,7 @@ let database,dir,app,pool,adminToken;
 const query=async(sql,args)=>{const result=await database.query(sql,args);return {...result,rowCount:result.rows.length};};
 const authPost=(path,body,cookie)=>{let req=request(app).post(`/api/auth/${path}`).set('Origin',ORIGIN).set('x-balhinbalay-proxy-key',proxyKey);if(cookie)req=req.set('Cookie',cookie);return req.send(body);};
 const admin=(method,path)=>request(app)[method](path).set('x-balhinbalay-admin-token',adminToken);
+const siteAdmin=(method,path,cookie)=>{let req=request(app)[method](path).set('Origin',ORIGIN).set('x-balhinbalay-proxy-key',proxyKey);if(cookie)req=req.set('Cookie',cookie);return req;};
 
 test.beforeEach(async()=>{
   dir=await mkdtemp(join(tmpdir(),'bb-admin-'));
@@ -23,8 +24,9 @@ test.beforeEach(async()=>{
   await database.exec(await readFile(new URL('../migrations/001_accounts.sql',import.meta.url),'utf8'));
   pool={query,connect:async()=>({query,release(){}})};
   const mailer={verify:async()=>{},reset:async()=>{}};
-  app=createAccountApp({pool,mailer,config:{appOrigin:ORIGIN,proxyKey,sessionDays:14,verificationHours:24,resetMinutes:15}});
-  mountLocalAdmin(app,{pool});
+  const config={appOrigin:ORIGIN,proxyKey,adminEmails:['admin@example.com'],sessionDays:14,verificationHours:24,resetMinutes:15};
+  app=createAccountApp({pool,mailer,config});
+  mountLocalAdmin(app,{pool,config});
   const page=await request(app).get('/admin');
   assert.equal(page.status,200);
   adminToken=page.text.match(/<meta name="bb-admin-token" content="([^"]+)"/)[1];
@@ -73,4 +75,26 @@ test('admin can see all accounts and deletion cascades auth sessions and account
   assert.equal((await query('SELECT * FROM auth_sessions')).rows.length,0);
   assert.equal((await query('SELECT * FROM account_actions')).rows.length,0);
   assert.equal((await admin('delete',`/admin/api/accounts/${first.body.user.id}`)).status,404);
+});
+
+test('Site admin API requires a real session and configured admin email',async()=>{
+  const created=await admin('post','/admin/api/accounts').send({email:'admin@example.com',password});
+  const login=await authPost('login',{email:'admin@example.com',password});
+  const cookie=login.headers['set-cookie'][0].split(';')[0];
+  assert.equal((await siteAdmin('get','/api/admin/accounts')).status,401);
+  const list=await siteAdmin('get','/api/admin/accounts',cookie);
+  assert.equal(list.status,200);assert.equal(list.body.accounts.length,1);
+  const made=await siteAdmin('post','/api/admin/accounts',cookie).send({email:'created@example.com',password});
+  assert.equal(made.status,201);assert.equal(made.body.user.status,'active');
+  assert.equal((await siteAdmin('delete',`/api/admin/accounts/${made.body.user.id}`,cookie)).status,204);
+  assert.equal((await query("SELECT * FROM users WHERE email='created@example.com'")).rows.length,0);
+  assert.ok(created.body.user.id);
+});
+
+test('Site admin API rejects a signed-in non-admin',async()=>{
+  await admin('post','/admin/api/accounts').send({email:'ordinary@example.com',password});
+  const login=await authPost('login',{email:'ordinary@example.com',password});
+  const cookie=login.headers['set-cookie'][0].split(';')[0];
+  const denied=await siteAdmin('get','/api/admin/accounts',cookie);
+  assert.equal(denied.status,403);assert.equal(denied.body.code,'ADMIN_FORBIDDEN');
 });

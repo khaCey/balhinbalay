@@ -1,7 +1,11 @@
 import argon2 from 'argon2';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
+import {createHash} from 'node:crypto';
+import express from 'express';
 import {v7 as uuidv7} from 'uuid';
 
+const SESSION_COOKIE='__Host-bb_session';
+const sha=value=>createHash('sha256').update(value).digest('hex');
 const normaliseEmail=value=>typeof value==='string'?value.trim().toLowerCase():'';
 const validEmail=value=>value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const validPassword=value=>typeof value==='string'&&value.length>=12&&value.length<=128;
@@ -18,6 +22,11 @@ const sameSecret=(expected,supplied)=>{
 };
 const asyncRoute=fn=>(req,res)=>Promise.resolve(fn(req,res)).catch(error=>{
   console.error('Local admin request failed:',error?.code||error?.name||'UNKNOWN');
+  if(!res.headersSent)res.status(503).json({ok:false,code:'ADMIN_UNAVAILABLE',message:'Admin operation failed.'});
+});
+const cookieToken=req=>String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length+1)||'';
+const asyncMiddleware=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(error=>{
+  console.error('Admin middleware failed:',error?.code||error?.name||'UNKNOWN');
   if(!res.headersSent)res.status(503).json({ok:false,code:'ADMIN_UNAVAILABLE',message:'Admin operation failed.'});
 });
 
@@ -96,7 +105,7 @@ document.getElementById('refresh').addEventListener('click',load);load();
 </body>
 </html>`;
 
-export function mountLocalAdmin(app,{pool}){
+export function mountLocalAdmin(app,{pool,config}={}){
   if(!app||!pool)throw new Error('Admin app and database required');
   const token=randomBytes(32).toString('base64url');
   const loopbackOnly=(req,res,next)=>{
@@ -147,4 +156,60 @@ export function mountLocalAdmin(app,{pool}){
     if(!result.rowCount)return res.status(404).json({ok:false,code:'ACCOUNT_NOT_FOUND',message:'Account not found.'});
     res.status(204).end();
   }));
+
+  // Site-facing admin API. The Site proxy supplies the same private key used by
+  // public auth routes, while this layer still requires a live account session
+  // whose email is explicitly allowlisted in server configuration.
+  const expected=Buffer.from(String(config?.proxyKey||''));
+  const requireProxy=(req,res,next)=>{
+    const supplied=Buffer.from(String(req.get('x-balhinbalay-proxy-key')||''));
+    if(!expected.length||supplied.length!==expected.length||!timingSafeEqual(supplied,expected))return res.status(403).json({ok:false,code:'FORBIDDEN',message:'Forbidden.'});
+    if(req.method!=='GET'&&req.get('origin')!==config?.appOrigin)return res.status(403).json({ok:false,code:'ORIGIN_REJECTED',message:'Forbidden.'});
+    next();
+  };
+  const requireAdmin=asyncMiddleware(async(req,res,next)=>{
+    const allowlist=new Set(Array.isArray(config?.adminEmails)?config.adminEmails.map(normaliseEmail):[]);
+    if(!allowlist.size)return res.status(503).json({ok:false,code:'ADMIN_NOT_CONFIGURED',message:'Admin access is not configured.'});
+    const raw=cookieToken(req);
+    if(!raw)return res.status(401).json({ok:false,code:'UNAUTHENTICATED',message:'Sign in required.'});
+    const result=await pool.query(`SELECT u.id,u.email,u.status,u.email_verified_at
+      FROM auth_sessions s JOIN users u ON u.id=s.user_id
+      WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
+      AND u.status='active' AND u.email_verified_at IS NOT NULL`,[sha(raw)]);
+    if(!result.rowCount)return res.status(401).json({ok:false,code:'UNAUTHENTICATED',message:'Sign in required.'});
+    if(!allowlist.has(normaliseEmail(result.rows[0].email)))return res.status(403).json({ok:false,code:'ADMIN_FORBIDDEN',message:'Admin access required.'});
+    req.adminUser=result.rows[0];
+    next();
+  });
+  const mountAccounts=router=>{
+    router.get('/accounts',asyncRoute(async(_req,res)=>{
+      const result=await pool.query(`SELECT id,email,status,email_verified_at,created_at,updated_at
+        FROM users ORDER BY created_at DESC,email ASC`);
+      res.json({ok:true,accounts:result.rows});
+    }));
+    router.post('/accounts',asyncRoute(async(req,res)=>{
+      const address=normaliseEmail(req.body?.email),password=req.body?.password;
+      if(!validEmail(address))return res.status(400).json({ok:false,code:'INVALID_EMAIL',message:'Enter a valid email address.'});
+      if(!validPassword(password))return res.status(400).json({ok:false,code:'INVALID_PASSWORD',message:'Use 12 to 128 characters for the password.'});
+      const passwordHash=await hashPassword(password),id=uuidv7();
+      try{
+        const result=await pool.query(`INSERT INTO users(id,email,password_hash,status,email_verified_at)
+          VALUES($1,$2,$3,'active',now())
+          RETURNING id,email,status,email_verified_at,created_at,updated_at`,[id,address,passwordHash]);
+        res.status(201).json({ok:true,user:result.rows[0]});
+      }catch(error){
+        if(error.code==='23505')return res.status(409).json({ok:false,code:'ACCOUNT_EXISTS',message:'An account with that email already exists.'});
+        throw error;
+      }
+    }));
+    router.delete('/accounts/:id',asyncRoute(async(req,res)=>{
+      const result=await pool.query('DELETE FROM users WHERE id=$1 RETURNING id,email',[req.params.id]);
+      if(!result.rowCount)return res.status(404).json({ok:false,code:'ACCOUNT_NOT_FOUND',message:'Account not found.'});
+      res.status(204).end();
+    }));
+  };
+  const adminRouter=express.Router();
+  adminRouter.use(requireProxy,requireAdmin);
+  mountAccounts(adminRouter);
+  app.use('/api/admin',adminRouter);
 }

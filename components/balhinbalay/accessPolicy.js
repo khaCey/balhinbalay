@@ -2,10 +2,12 @@
 // an identity or an entitlement, and the current service exposes no Lister grant.
 export const ACCOUNT_PAGES = new Set(['saved', 'messages', 'chat', 'settings', 'editProfile']);
 export const LISTER_PAGES = new Set(['owner', 'editor']);
+export const ADMIN_PAGES = new Set(['admin']);
 export const ACCOUNT_MODALS = new Set(['save-search', 'enquiry', 'viewing']);
 export const LISTER_MODALS = new Set(['availability', 'unlist']);
 
 export function accessFor(page, account, sessionChecked) {
+  if (ADMIN_PAGES.has(page)) return !sessionChecked ? 'checking' : account ? 'admin' : 'sign-in';
   if (LISTER_PAGES.has(page)) return !sessionChecked ? 'checking' : account ? 'lister-unavailable' : 'sign-in';
   if (ACCOUNT_PAGES.has(page)) return !sessionChecked ? 'checking' : account ? 'account-unavailable' : 'sign-in';
   return 'public';

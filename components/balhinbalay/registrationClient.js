@@ -4,7 +4,7 @@ async function request(path, options = {}) {
   let response;
   try {
     response = await fetch(path, {
-      method: options.body ? 'POST' : 'GET',
+      method: options.method || (options.body ? 'POST' : 'GET'),
       credentials: 'same-origin',
       headers: {'Content-Type': 'application/json'},
       cache: 'no-store',
@@ -36,4 +36,7 @@ export const registrationClient = {
   logout: () => request('/api/auth/logout', {body: {}}),
   forgot: email => request('/api/auth/forgot-password', {body: {email}}),
   reset: (token,password) => request('/api/auth/reset-password', {body: {token,password}}),
+  adminAccounts: () => request('/api/admin/accounts'),
+  createAdminAccount: (email,password) => request('/api/admin/accounts', {body: {email,password}}),
+  deleteAdminAccount: id => request(`/api/admin/accounts/${encodeURIComponent(id)}`, {method: 'DELETE'}),
 };

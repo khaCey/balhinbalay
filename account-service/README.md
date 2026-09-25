@@ -4,7 +4,7 @@ This is the **account-only extraction and hardening** of the historical Express/
 
 ## Design and historical reuse
 
-Retained: Express route family, PostgreSQL persistence, pending-account/verification/resend/login/password-recovery flow concepts, and Nodemailer SMTP transport/email copy. Replaced: bcrypt with Argon2id; plain verification/reset tokens with 256-bit random tokens whose SHA-256 digests alone are stored; five-digit reset code with one-use expiring action link; JWT/localStorage with database-authoritative revocable sessions and Secure HttpOnly SameSite=Lax host-only cookie; database-unavailable synthetic user fallback with fail-closed responses; SMTP absence and token logging with fatal startup configuration; unthrottled resend with persisted email/IP buckets and one-minute cooldown. No Lister or listings APIs/tables are included. A minimal **local-only owner admin surface** now exists for account inspection, pre-verified account creation and account deletion; it is intentionally not routed through the public Site.
+Retained: Express route family, PostgreSQL persistence, pending-account/verification/resend/login/password-recovery flow concepts, and Nodemailer SMTP transport/email copy. Replaced: bcrypt with Argon2id; plain verification/reset tokens with 256-bit random tokens whose SHA-256 digests alone are stored; five-digit reset code with one-use expiring action link; JWT/localStorage with database-authoritative revocable sessions and Secure HttpOnly SameSite=Lax host-only cookie; database-unavailable synthetic user fallback with fail-closed responses; SMTP absence and token logging with fatal startup configuration; unthrottled resend with persisted email/IP buckets and one-minute cooldown. No Lister or listings APIs/tables are included. Account Management is now available in the BalhinBalay Site through a same-origin proxy, but only for a live verified session whose email is listed in server-only `ADMIN_EMAILS`. The older loopback admin page remains a private break-glass tool and is not routed through the public Site.
 
 `migrations/001_accounts.sql` defines UUID-backed `users`, `account_actions`, `auth_sessions` and `auth_rate_limits`. Application-generated UUIDv7 identifies users/actions/sessions. `src/migrate.js` tracks migrations in `schema_migrations` and applies each within a transaction. Do not point it at the separate historical database without a specific migration assessment; this migration creates a fresh account slice and does not import old bcrypt users.
 
@@ -18,7 +18,7 @@ SMTP delivery is attempted *after* the pending account and token are persisted. 
 
 ## Required configuration
 
-The backend process needs `DATABASE_URL`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` (`true` for implicit TLS, otherwise STARTTLS is required), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `PROXY_KEY` (at least 32 random characters), optional `HOST` (defaults to `127.0.0.1`) and `PORT` (defaults to `5000`). Store credentials outside Git; grant DB least privilege, take backups, monitor failures and keep PostgreSQL private.
+The backend process needs `DATABASE_URL`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` (`true` for implicit TLS, otherwise STARTTLS is required), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `PROXY_KEY` (at least 32 random characters), and `ADMIN_EMAILS` (a comma-separated server-only allowlist of verified administrator email addresses) plus optional `HOST` (defaults to `127.0.0.1`) and `PORT` (defaults to `5000`). Store credentials outside Git; grant DB least privilege, take backups and keep PostgreSQL private. If `ADMIN_EMAILS` is empty, the Site admin API fails closed with `ADMIN_NOT_CONFIGURED`.
 
 For the accepted public-beta topology:
 
@@ -49,7 +49,13 @@ Under IDE0157, Cloudflare Tunnel publishes only the Vinext Site (`http://127.0.0
 
 The historical archive contains populated SMTP fields in an `.env`. Do not commit, copy or assume that archived credential is valid; the owner should rotate and provision the intended production sender securely.
 
-## Local owner account admin
+## Site Account Management
+
+After signing in to BalhinBalay with an email listed in `ADMIN_EMAILS`, open `#admin` or use **Profile → Admin · Accounts**. The Site proxy forwards only the list/create/delete account actions to the private account service. The browser never receives `PROXY_KEY` or an admin token. Direct navigation and direct API calls are checked server-side against the live session and allowlist.
+
+The Site surface creates ordinary accounts as active and email-verified and deletes accounts after confirmation. It does not grant Lister access or implement role persistence. Keep `ADMIN_EMAILS` in the account-service process only; do not add it to `NEXT_PUBLIC_` variables or commit it.
+
+## Local owner account admin (break-glass)
 
 When the account service is running with its normal private binding (`HOST=127.0.0.1`, `PORT=5000`), open this **on the owner PC only**:
 
@@ -63,9 +69,9 @@ The page lists all account rows and provides only the deliberately small owner w
 - delete an account after browser confirmation; the existing foreign-key cascades also remove that account's verification/reset actions and auth sessions;
 - refresh the account list.
 
-This is **not** a public admin panel and is not proxied by the Site. Both the page and its `/admin/api/*` routes reject non-loopback connections. The page receives a random per-process admin token and sends it back in a private request header for admin API calls, which also prevents another browser origin from blindly submitting destructive admin requests. Restarting the account service changes that token automatically.
+This remains a private break-glass tool and is not proxied by the Site. Both the page and its `/admin/api/*` routes reject non-loopback connections. The page receives a random per-process admin token and sends it back in a private request header for admin API calls, which also prevents another browser origin from blindly submitting destructive admin requests. Restarting the account service changes that token automatically.
 
-Do not add `/admin` or port `5000` to the Cloudflare Tunnel. If remote administration is ever required, implement real admin identity/authorisation separately rather than exposing this local owner tool.
+Do not add `/admin` or port `5000` to the Cloudflare Tunnel. The public Site admin path is `/api/admin` and still reaches the service only through the existing Site proxy; it does not make port `5000` public.
 
 Fast deletion here is an owner/testing operation. It is not the future end-user account-deletion/anonymisation policy described in `dbdesign.md`.
 

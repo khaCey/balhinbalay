@@ -46,6 +46,20 @@ test('verification and password recovery use POST body instead of query-string t
   }finally{globalThis.fetch=oldFetch;}
 });
 
+test('admin account actions stay same-origin and use the explicit delete method',async()=>{
+  const oldFetch=globalThis.fetch;const calls=[];
+  globalThis.fetch=async(path,options)=>{calls.push({path,options});return {ok:true,json:async()=>({ok:true,accounts:[]})};};
+  try{
+    await registrationClient.adminAccounts();
+    await registrationClient.createAdminAccount('admin@example.com','long enough password');
+    await registrationClient.deleteAdminAccount('user/one');
+    assert.equal(calls[0].options.method,'GET');
+    assert.equal(calls[1].options.method,'POST');
+    assert.equal(calls[2].options.method,'DELETE');
+    assert.equal(calls[2].path,'/api/admin/accounts/user%2Fone');
+  }finally{globalThis.fetch=oldFetch;}
+});
+
 test('email-action fragments survive direct navigation without entering demo storage',()=>{
   const initial={page:'home',q:{},compare:[],savedTab:'Properties'};
   const route=restoreRoute('#verify-email/test-action',null,initial);

@@ -83,6 +83,7 @@ Generate one fresh proxy key for the account service and copy it without printin
 ```powershell
 $env:PROXY_KEY = node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"
 Set-Clipboard $env:PROXY_KEY
+$env:ADMIN_EMAILS = Read-Host "Verified admin email address(es), comma-separated"
 ```
 
 Start the account service:
