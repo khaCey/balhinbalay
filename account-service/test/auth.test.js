@@ -10,7 +10,7 @@ import argon2 from 'argon2';
 import {createAccountApp} from '../src/app.js';
 import {readConfig} from '../src/config.js';
 
-const ORIGIN='https://balhinbalay.example';
+const ORIGIN='https://balhinbalay.com';
 const password='a sufficiently long password';
 let database,dir,mail,app,pool;
 const digest=s=>createHash('sha256').update(s).digest('hex');
@@ -51,6 +51,7 @@ test('registration persists normalised unique email and Argon2id hash; duplicate
   assert.equal((await register('SOMEBODY@example.com')).status,202);
   assert.equal((await query('SELECT * FROM users')).rows.length,1);
   assert.equal(mail.length,1);
+  assert.match(mail[0].url,/^https:\/\/balhinbalay\.com\/#verify-email\//);
   assert.equal((await query('SELECT token_hash FROM account_actions')).rows[0].token_hash,digest(raw(mail[0].url)));
   assert.equal((await get('session')).status,401);
 });
@@ -85,6 +86,7 @@ test('resend invalidates previous link, rate limit and cooldown prevent email sp
   await query("UPDATE account_actions SET sent_at=now()-interval '2 minutes'");
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,202);
   assert.equal(mail.length,2);
+  assert.match(mail[1].url,/^https:\/\/balhinbalay\.com\/#verify-email\//);
   assert.equal((await post('verify-email',{token:first})).body.code,'INVALID_TOKEN');
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,202);
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,429);
@@ -144,7 +146,9 @@ test('password reset token is hashed, expiring, one use and revokes existing ses
   const cookie=login.headers['set-cookie'][0].split(';')[0];
   assert.equal((await post('forgot-password',{email:'missing@example.com'})).status,202);
   assert.equal((await post('forgot-password',{email:'somebody@example.com'})).status,202);
-  const resetToken=raw(mail.at(-1).url);
+  const resetMail=mail.at(-1);
+  assert.match(resetMail.url,/^https:\/\/balhinbalay\.com\/#reset-password\//);
+  const resetToken=raw(resetMail.url);
   assert.equal((await query("SELECT token_hash FROM account_actions WHERE purpose='reset'")).rows[0].token_hash,digest(resetToken));
   assert.equal((await post('reset-password',{token:'q'.repeat(43),password:'new long enough password'})).body.code,'INVALID_TOKEN');
   await query("UPDATE account_actions SET created_at=now()-interval '2 hours',expires_at=now()-interval '1 minute' WHERE purpose='reset'");
