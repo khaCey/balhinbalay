@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normaliseEmail,validateRegistration} from '../components/balhinbalay/registrationValidation.js';
 import {registrationClient} from '../components/balhinbalay/registrationClient.js';
-import {restoreRoute,routeHash} from '../components/balhinbalay/browserState.js';
+import {restoreDemo,restoreRoute,routeHash} from '../components/balhinbalay/browserState.js';
 
 test('normalises email consistently and rejects malformed addresses', () => {
   assert.equal(normaliseEmail('  Person@Example.COM  '), 'person@example.com');
@@ -53,4 +53,19 @@ test('email-action fragments survive direct navigation without entering demo sto
   assert.equal(route.actionToken,'test-action');
   assert.equal(routeHash(route.page,route),'#verify-email/test-action');
   assert.equal(restoreRoute('#reset-password/bad%ZZ',null,initial).actionToken,'');
+});
+
+test('legacy browser demo identity cannot override the authenticated account surface',()=>{
+  const blank={
+    saved:[],searches:[],recent:[],recentCities:[],signals:{},
+    profile:{name:'',email:'',photo:''},
+    settings:{messages:true,searches:true,updates:false},
+    owner:[],convos:[],signedIn:false,
+  };
+  const restored=restoreDemo({
+    profile:{name:'Legacy Demo User',email:'demo@example.com',photo:'data:image/png;base64,old'},
+    signedIn:true,
+  },blank);
+  assert.deepEqual(restored.profile,blank.profile);
+  assert.equal(restored.signedIn,false);
 });
