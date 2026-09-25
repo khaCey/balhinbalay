@@ -29,6 +29,8 @@ Use this **fresh** database for the account migration; do not point it at the hi
 
 ## 2. Run the account service
 
+The Windows fallback below pairs the account service with the built Site running through local Wrangler at `http://localhost:8787`.
+
 Open a **new PowerShell window** in the checkout's top-level folder. Enter the PostgreSQL password and SMTP settings when prompted; no real values are included in this source. The `SMTP_FROM` value must be authorised by your SMTP provider. Use port 587 with STARTTLS, or change the port to 465 and `SMTP_SECURE` to `true` if your provider requires implicit TLS.
 
 ```powershell
@@ -39,7 +41,7 @@ $dbPlain = [System.Net.NetworkCredential]::new('', $dbPassword).Password
 $env:DATABASE_URL = 'postgresql://bb_local:' + [Uri]::EscapeDataString($dbPlain) + '@127.0.0.1:5432/bb_local'
 Remove-Variable dbPassword, dbPlain
 $env:NODE_ENV = 'development'
-$env:APP_URL = 'http://localhost:5173'
+$env:APP_URL = 'http://localhost:8787'
 $env:SMTP_HOST = Read-Host 'SMTP host'
 $env:SMTP_PORT = '587'
 $env:SMTP_SECURE = 'false'
@@ -48,7 +50,7 @@ $smtpPassword = Read-Host 'SMTP password' -AsSecureString
 $env:SMTP_PASS = [System.Net.NetworkCredential]::new('', $smtpPassword).Password
 Remove-Variable smtpPassword
 $env:SMTP_FROM = Read-Host 'Authorised sender email address'
-$env:PROXY_KEY = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:PROXY_KEY = node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"
 Set-Clipboard -Value $env:PROXY_KEY
 $env:HOST = '127.0.0.1'
 $env:PORT = '5000'
@@ -59,23 +61,41 @@ npm start
 
 Keep this window open. `Set-Clipboard` temporarily transfers the randomly generated local proxy key to the Site window; do not paste it into the repository or a message. The service listens on `127.0.0.1:5000`; its database and SMTP configuration are available only to this PowerShell process and its children. `npm test` uses its own PGlite and local SMTP fixtures; passing tests does not prove delivery to a real mailbox. `account-service/.env.example` lists the configuration keys, but this source does **not** automatically load an `.env` file.
 
-## 3. Run the React Site
+## 3. Run the React Site through local Wrangler
 
 Open another PowerShell window in the checkout's top-level folder:
 
 ```powershell
 npm install --global pnpm@11.25.0
 pnpm install --frozen-lockfile
+pnpm build
+$env:ACCOUNT_API_ORIGIN = 'http://127.0.0.1:5000'
+$env:ACCOUNT_PROXY_KEY = Get-Clipboard
+$env:ACCOUNT_ALLOW_LOCAL_HTTP = 'true'
+$env:CLOUDFLARE_INCLUDE_PROCESS_ENV = 'true'
+Set-Clipboard -Value ''
+if ([string]::IsNullOrWhiteSpace($env:ACCOUNT_PROXY_KEY) -or $env:ACCOUNT_PROXY_KEY.Length -lt 32) { throw 'The Site and account service need the same generated proxy key.' }
+npm start
+```
+
+Open `http://localhost:8787/`. The explicit `ACCOUNT_ALLOW_LOCAL_HTTP=true` opt-in is server-only and permits plain HTTP only when `ACCOUNT_API_ORIGIN` is the literal loopback host `localhost` or `127.0.0.1`. Arbitrary HTTP hosts are still rejected, and HTTPS remains the default requirement everywhere else.
+
+The Site is a React 19 application using Next-compatible Vinext. The tracked `pnpm-lock.yaml` belongs to this Site; the separate account service uses its own `package-lock.json` and `npm ci`. Stop either server with **Ctrl+C**. For source checks, run `node --test tests/*.test.mjs` in the Site folder and `npm test` in `account-service`.
+
+## Optional Vinext development mode
+
+If `pnpm dev` is stable on the local machine, it can be used instead of the built Wrangler fallback. In that case restart the account service with `APP_URL=http://localhost:5173`, then start the Site with:
+
+```powershell
 $env:NODE_ENV = 'development'
 $env:ACCOUNT_API_ORIGIN = 'http://127.0.0.1:5000'
 $env:ACCOUNT_PROXY_KEY = Get-Clipboard
 Set-Clipboard -Value ''
-if ([string]::IsNullOrWhiteSpace($env:ACCOUNT_PROXY_KEY) -or $env:ACCOUNT_PROXY_KEY.Length -lt 32) { throw 'The Site and account service need the same generated proxy key.' }
 pnpm dev
 ```
 
-Open `http://localhost:5173/`. The Site is a React 19 application using Next-compatible Vinext. The tracked `pnpm-lock.yaml` belongs to this Site; the separate account service uses its own `package-lock.json` and `npm ci`. Stop either server with **Ctrl+C**. For source checks, run `node --test tests/*.test.mjs` in the Site folder and `npm test` in `account-service`.
+Open `http://localhost:5173/`. Development mode permits the same literal loopback HTTP origins without requiring `ACCOUNT_ALLOW_LOCAL_HTTP`.
 
 ## Local account integration
 
-In development only, the server-side Site proxy accepts a plain HTTP account endpoint at literal `localhost` or `127.0.0.1`. The account service and Site must use the same generated key; the key stays in server process environments and is cleared from the Windows clipboard after transfer. Stop and restart both processes if you generate a different key. Production and all non-development configurations still require HTTPS. Do not place the key in a `NEXT_PUBLIC_` variable or expose PostgreSQL on the network. Browser cookie behaviour, real mailbox delivery and any public HTTPS deployment remain separate verification steps; see `account-service/README.md` and `docs/registration-architecture-assessment.md`.
+The account service and Site must use the same generated proxy key. The key stays in server process environments and is cleared from the Windows clipboard after transfer. Stop and restart both processes if you generate a different key. `ACCOUNT_ALLOW_LOCAL_HTTP` is only a local server-side opt-in for literal loopback hosts; do not set it for a public account-service URL. Do not place the proxy key or the local-HTTP flag in a `NEXT_PUBLIC_` variable or expose PostgreSQL on the network. Browser cookie behaviour, real mailbox delivery and any public HTTPS deployment remain separate verification steps; see `account-service/README.md` and `docs/registration-architecture-assessment.md`.
