@@ -14,7 +14,10 @@ async function forward(req,context,method){
   if(!endpoint||!secret)return error(503,'Account registration is not available yet.');
   let origin;
   try{origin=new URL(endpoint);}catch{return error(503,'Account service is not configured.');}
-  if(origin.protocol!=='https:'||origin.pathname!=='/'||origin.search||origin.hash)
+  // Only the literal loopback hostnames may use HTTP in local development.
+  const developmentLoopbackHttp=process.env.NODE_ENV==='development'&&origin.protocol==='http:'&&
+    /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:[/?#]|$)/i.test(endpoint);
+  if(!(origin.protocol==='https:'||developmentLoopbackHttp)||origin.pathname!=='/'||origin.search||origin.hash)
     return error(503,'Account service is not configured.');
   const incomingOrigin=req.headers.get('origin');
   if(method==='POST'&&incomingOrigin!==new URL(req.url).origin)
