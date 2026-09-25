@@ -14,10 +14,12 @@ async function forward(req,context,method){
   if(!endpoint||!secret)return error(503,'Account registration is not available yet.');
   let origin;
   try{origin=new URL(endpoint);}catch{return error(503,'Account service is not configured.');}
-  // Only the literal loopback hostnames may use HTTP in local development.
-  const developmentLoopbackHttp=process.env.NODE_ENV==='development'&&origin.protocol==='http:'&&
+  // Plain HTTP is allowed only for literal loopback hosts during dev or an explicit
+  // server-only local Wrangler opt-in. All other configurations still require HTTPS.
+  const localHttpEnabled=process.env.NODE_ENV==='development'||process.env.ACCOUNT_ALLOW_LOCAL_HTTP==='true';
+  const loopbackHttp=localHttpEnabled&&origin.protocol==='http:'&&
     /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:[/?#]|$)/i.test(endpoint);
-  if(!(origin.protocol==='https:'||developmentLoopbackHttp)||origin.pathname!=='/'||origin.search||origin.hash)
+  if(!(origin.protocol==='https:'||loopbackHttp)||origin.pathname!=='/'||origin.search||origin.hash)
     return error(503,'Account service is not configured.');
   const incomingOrigin=req.headers.get('origin');
   if(method==='POST'&&incomingOrigin!==new URL(req.url).origin)
