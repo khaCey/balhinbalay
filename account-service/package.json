@@ -1,0 +1,26 @@
+{
+  "name": "balhinbalay-account-service",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "migrate": "node src/migrate.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "argon2": "^0.44.0",
+    "express": "^4.21.2",
+    "nodemailer": "^7.0.6",
+    "pg": "^8.16.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "smtp-server": "^3.19.13",
+    "supertest": "^7.1.4"
+  }
+}
