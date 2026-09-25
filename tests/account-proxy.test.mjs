@@ -41,9 +41,10 @@ test('server proxy forwards only account cookie and origin, keeps its secret out
   }
 });
 
-test('HTTP account origins are limited to literal loopback hosts in development; HTTPS still works',async()=>{
+test('HTTP account origins are limited to literal loopback hosts with explicit local opt-in; HTTPS still works',async()=>{
   const oldFetch=globalThis.fetch,oldOrigin=process.env.ACCOUNT_API_ORIGIN;
   const oldKey=process.env.ACCOUNT_PROXY_KEY,oldNodeEnv=process.env.NODE_ENV;
+  const oldAllowLocal=process.env.ACCOUNT_ALLOW_LOCAL_HTTP;
   const requested=[];
   globalThis.fetch=async url=>{
     requested.push(String(url));
@@ -52,28 +53,34 @@ test('HTTP account origins are limited to literal loopback hosts in development;
   process.env.ACCOUNT_PROXY_KEY='local-test-proxy-key';
   try{
     const cases=[
-      {environment:'development',origin:'http://localhost:5000',allowed:true},
-      {environment:'development',origin:'http://127.0.0.1:5000',allowed:true},
-      {environment:'development',origin:'http://account.example:5000',allowed:false},
-      {environment:'development',origin:'http://localhost.evil.example:5000',allowed:false},
-      {environment:'development',origin:'http://127.1:5000',allowed:false},
-      {environment:'production',origin:'http://localhost:5000',allowed:false},
-      {environment:'test',origin:'http://127.0.0.1:5000',allowed:false},
-      {environment:'production',origin:'https://account.example',allowed:true},
+      {environment:'development',allowLocal:undefined,origin:'http://localhost:5000',allowed:true},
+      {environment:'development',allowLocal:undefined,origin:'http://127.0.0.1:5000',allowed:true},
+      {environment:'production',allowLocal:'true',origin:'http://localhost:5000',allowed:true},
+      {environment:'production',allowLocal:'true',origin:'http://127.0.0.1:5000',allowed:true},
+      {environment:'production',allowLocal:'true',origin:'http://account.example:5000',allowed:false},
+      {environment:'production',allowLocal:'true',origin:'http://localhost.evil.example:5000',allowed:false},
+      {environment:'production',allowLocal:'true',origin:'http://127.1:5000',allowed:false},
+      {environment:'production',allowLocal:'false',origin:'http://localhost:5000',allowed:false},
+      {environment:'production',allowLocal:undefined,origin:'http://127.0.0.1:5000',allowed:false},
+      {environment:'test',allowLocal:undefined,origin:'http://127.0.0.1:5000',allowed:false},
+      {environment:'production',allowLocal:undefined,origin:'https://account.example',allowed:true},
     ];
     for(const entry of cases){
       process.env.NODE_ENV=entry.environment;
+      if(entry.allowLocal===undefined)delete process.env.ACCOUNT_ALLOW_LOCAL_HTTP;
+      else process.env.ACCOUNT_ALLOW_LOCAL_HTTP=entry.allowLocal;
       process.env.ACCOUNT_API_ORIGIN=entry.origin;
       const previous=requested.length;
       const req=new Request('http://localhost:5173/api/auth/register',{
         method:'POST',headers:{origin:'http://localhost:5173'},body:'{}',
       });
       const result=await POST(req,context('register'));
-      assert.equal(result.status,entry.allowed?200:503,`${entry.environment}: ${entry.origin}`);
+      assert.equal(result.status,entry.allowed?200:503,`${entry.environment}/${entry.allowLocal}: ${entry.origin}`);
       assert.equal(requested.length,previous+Number(entry.allowed),entry.origin);
       if(entry.allowed)assert.equal(requested.at(-1),`${entry.origin}/api/auth/register`);
     }
-    process.env.NODE_ENV='development';
+    process.env.NODE_ENV='production';
+    process.env.ACCOUNT_ALLOW_LOCAL_HTTP='true';
     for(const suffix of ['/extra','/?q=1','/#fragment']){
       process.env.ACCOUNT_API_ORIGIN=`http://127.0.0.1:5000${suffix}`;
       const before=requested.length;
@@ -85,7 +92,7 @@ test('HTTP account origins are limited to literal loopback hosts in development;
     assert.equal((await GET(new Request('http://localhost:5173/api/auth/session'),context('session'))).status,503);
   }finally{
     globalThis.fetch=oldFetch;
-    for(const [key,value] of [['ACCOUNT_API_ORIGIN',oldOrigin],['ACCOUNT_PROXY_KEY',oldKey],['NODE_ENV',oldNodeEnv]]){
+    for(const [key,value] of [['ACCOUNT_API_ORIGIN',oldOrigin],['ACCOUNT_PROXY_KEY',oldKey],['NODE_ENV',oldNodeEnv],['ACCOUNT_ALLOW_LOCAL_HTTP',oldAllowLocal]]){
       if(value===undefined)delete process.env[key];else process.env[key]=value;
     }
   }
