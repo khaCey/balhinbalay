@@ -110,9 +110,9 @@ You can confirm the service is reachable from Windows with:
 
 ```powershell
 curl.exe -i http://127.0.0.1:5000/api/auth/session
+```
 
 After creating or verifying the administrator account, open the Site at `http://localhost:8787/#admin` and use **Profile → Admin · Accounts**. The Site admin API requires the real `__Host-bb_session` plus an email in `ADMIN_EMAILS`; a browser-local profile or direct menu URL cannot grant access. The account service remains private on `127.0.0.1:5000`.
-```
 
 A `403 Forbidden` response without the proxy key is expected and proves the service is reachable.
 
