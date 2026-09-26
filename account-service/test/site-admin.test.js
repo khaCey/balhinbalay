@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createHash} from 'node:crypto';
 import express from 'express';
 import argon2 from 'argon2';
 import {PGlite} from '@electric-sql/pglite';
@@ -14,6 +15,7 @@ const ORIGIN='https://balhinbalay.com';
 const proxyKey='a'.repeat(40);
 const password='a sufficiently long password';
 let database,dir,app,pool;
+const digest=value=>createHash('sha256').update(value).digest('hex');
 const query=async(sql,args)=>{const result=await database.query(sql,args);return {...result,rowCount:result.rows.length};};
 const api=(method,path,cookie,body)=>{
   let req=request(app)[method](`/api/admin/${path}`).set('x-balhinbalay-proxy-key',proxyKey);
@@ -30,16 +32,15 @@ async function addUser(email,{admin=false}={}){
 
 async function makeNormalSession(userId){
   const raw='normal-session-token-not-admin';
-  const {createHash}=await import('node:crypto');
-  const digest=createHash('sha256').update(raw).digest('hex');
-  await query('INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,$4)',[uuidv7(),userId,digest,new Date(Date.now()+86400000)]);
-  return `__Host-bb_session=${raw}`;
+  await query('INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,$4)',[uuidv7(),userId,digest(raw),new Date(Date.now()+86400000)]);
+  return raw;
 }
 
 test.beforeEach(async()=>{
   dir=await mkdtemp(join(tmpdir(),'bb-site-admin-'));
   database=new PGlite(dir);
   await database.exec(await readFile(new URL('../migrations/001_accounts.sql',import.meta.url),'utf8'));
+  await database.exec(await readFile(new URL('../migrations/002_session_purpose.sql',import.meta.url),'utf8'));
   pool={query,connect:async()=>({query,release(){}})};
   app=express();app.use(express.json({limit:'8kb'}));
   mountSiteAdmin(app,{pool,config:{appOrigin:ORIGIN,proxyKey,adminEmails:['admin@example.com'],sessionDays:14}});
@@ -47,12 +48,19 @@ test.beforeEach(async()=>{
 
 test.afterEach(async()=>{await database.close();await rm(dir,{recursive:true,force:true});});
 
-test('ordinary BalhinBalay session never authenticates the standalone admin API',async()=>{
+test('ordinary BalhinBalay credential cannot authenticate admin even when replayed under the admin cookie name',async()=>{
   const admin=await addUser('admin@example.com');
-  const normalCookie=await makeNormalSession(admin.id);
-  const result=await api('get','accounts',normalCookie);
-  assert.equal(result.status,401);
-  assert.equal(result.body.code,'UNAUTHENTICATED');
+  const raw=await makeNormalSession(admin.id);
+  const row=(await query('SELECT purpose FROM auth_sessions WHERE token_hash=$1',[digest(raw)])).rows[0];
+  assert.equal(row.purpose,'user');
+
+  const normalCookie=await api('get','accounts',`__Host-bb_session=${raw}`);
+  assert.equal(normalCookie.status,401);
+  assert.equal(normalCookie.body.code,'UNAUTHENTICATED');
+
+  const replayed=await api('get','accounts',`__Host-bb_admin_session=${raw}`);
+  assert.equal(replayed.status,401);
+  assert.equal(replayed.body.code,'UNAUTHENTICATED');
 });
 
 test('non-admin credentials cannot create an admin session',async()=>{
@@ -63,7 +71,7 @@ test('non-admin credentials cannot create an admin session',async()=>{
   assert.equal(result.headers['set-cookie'],undefined);
 });
 
-test('allowlisted admin logs in with a dedicated cookie and can manage accounts',async()=>{
+test('allowlisted admin logs in with an admin-purpose cookie and can manage accounts',async()=>{
   await addUser('admin@example.com');
   const login=await api('post','login',null,{email:'admin@example.com',password});
   assert.equal(login.status,200);
@@ -72,6 +80,8 @@ test('allowlisted admin logs in with a dedicated cookie and can manage accounts'
   assert.match(setCookie[0],/^__Host-bb_admin_session=/);
   assert.doesNotMatch(setCookie[0],/__Host-bb_session=/);
   const adminCookie=setCookie[0].split(';')[0];
+  const raw=adminCookie.slice('__Host-bb_admin_session='.length);
+  assert.equal((await query('SELECT purpose FROM auth_sessions WHERE token_hash=$1',[digest(raw)])).rows[0].purpose,'admin');
 
   const session=await api('get','session',adminCookie);
   assert.equal(session.status,200);
