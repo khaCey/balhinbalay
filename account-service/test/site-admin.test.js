@@ -71,7 +71,7 @@ test('non-admin credentials cannot create an admin session',async()=>{
   assert.equal(result.headers['set-cookie'],undefined);
 });
 
-test('allowlisted admin logs in with an admin-purpose cookie and can manage accounts',async()=>{
+test('allowlisted admin logs in with a namespaced admin-purpose cookie and can manage accounts',async()=>{
   await addUser('admin@example.com');
   const login=await api('post','login',null,{email:'admin@example.com',password});
   assert.equal(login.status,200);
@@ -81,7 +81,10 @@ test('allowlisted admin logs in with an admin-purpose cookie and can manage acco
   assert.doesNotMatch(setCookie[0],/__Host-bb_session=/);
   const adminCookie=setCookie[0].split(';')[0];
   const raw=adminCookie.slice('__Host-bb_admin_session='.length);
-  assert.equal((await query('SELECT purpose FROM auth_sessions WHERE token_hash=$1',[digest(raw)])).rows[0].purpose,'admin');
+  const stored=(await query('SELECT purpose,token_hash FROM auth_sessions WHERE purpose=$1',['admin'])).rows[0];
+  assert.equal(stored.purpose,'admin');
+  assert.equal(stored.token_hash,digest(`admin:${raw}`));
+  assert.notEqual(stored.token_hash,digest(raw));
 
   const session=await api('get','session',adminCookie);
   assert.equal(session.status,200);
