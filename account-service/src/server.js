@@ -9,8 +9,9 @@ const config=readConfig();
 const pool=new Pool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
 const mailer=createMailer();
 try{
-  const result=await pool.query('SELECT 1 FROM schema_migrations WHERE name=$1',['001_accounts.sql']);
-  if(!result.rowCount)throw new Error('Run npm run migrate before starting');
+  const result=await pool.query(`SELECT count(*)::int AS count FROM schema_migrations
+    WHERE name IN ('001_accounts.sql','002_session_purpose.sql')`);
+  if(result.rows[0]?.count!==2)throw new Error('Run npm run migrate before starting');
   const app=createAccountApp({pool,mailer,config});
   // The public Site admin API is mounted first and owns /api/admin entirely.
   // The loopback admin remains a separate break-glass tool on /admin and /admin/api.
