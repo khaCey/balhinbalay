@@ -1,0 +1,46 @@
+name: WRK0011 Integrated Baseline
+
+on:
+  push:
+    branches:
+      - wrk0011-verify-integrated
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Verify exact launch head parent
+        run: |
+          test "$(git rev-parse HEAD^)" = "dae7788ab240dc5e84480f5df9d187adb1405fbf"
+          git diff --check HEAD^ HEAD
+      - name: Install Site dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Site automated tests
+        run: node --test tests/*.test.mjs
+      - name: Site lint
+        run: pnpm lint
+      - name: Site production build
+        run: pnpm build
+      - name: Install account-service dependencies
+        working-directory: account-service
+        run: npm ci
+      - name: Account-service production audit
+        working-directory: account-service
+        run: npm audit --omit=dev --audit-level=high
+      - name: Account-service tests
+        working-directory: account-service
+        run: npm test
+      - name: Working-tree sanity
+        run: |
+          git diff --check
+          test -z "$(git status --porcelain)"
+          git status --short --branch
