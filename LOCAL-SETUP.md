@@ -112,9 +112,19 @@ You can confirm the service is reachable from Windows with:
 curl.exe -i http://127.0.0.1:5000/api/auth/session
 ```
 
-After creating or verifying the administrator account, open the Site at `http://localhost:8787/#admin` and use **Profile → Admin · Accounts**. The Site admin API requires the real `__Host-bb_session` plus an email in `ADMIN_EMAILS`; a browser-local profile or direct menu URL cannot grant access. The account service remains private on `127.0.0.1:5000`.
-
 A `403 Forbidden` response without the proxy key is expected and proves the service is reachable.
+
+### Admin login
+
+Create or verify the administrator's ordinary BalhinBalay account, then include that exact email address in `ADMIN_EMAILS` before starting/restarting the account service. Open the standalone admin portal at:
+
+```text
+http://localhost:8787/admin
+```
+
+Sign in there with the administrator account's BalhinBalay email and password. This is a separate authentication flow: successful admin login creates `__Host-bb_admin_session`. The ordinary Site cookie `__Host-bb_session` does **not** unlock `/admin` or authorise `/api/admin`. Admin eligibility is still checked server-side against `ADMIN_EMAILS` on every admin session read. The account service remains private on `127.0.0.1:5000`.
+
+The older `http://127.0.0.1:5000/admin` page remains a loopback-only break-glass owner tool. Do not expose it through Cloudflare.
 
 ## 3. Run the React Site with Vinext Node
 
@@ -179,7 +189,9 @@ This development mode runs at `http://localhost:5173`. Before starting the accou
 
 - `APP_URL` is the single browser origin used by both the Site and account service for the current run.
 - `ACCOUNT_PROXY_KEY` and `PROXY_KEY` must match and remain server-only.
-- Never use a `NEXT_PUBLIC_` variable for the proxy key.
+- `ADMIN_EMAILS` is server-only and controls which verified active accounts may create an admin session.
+- A normal BalhinBalay login/session never by itself grants admin access; `/admin` uses the separate `__Host-bb_admin_session` cookie.
+- Never use a `NEXT_PUBLIC_` variable for the proxy key or admin allowlist.
 - Plain HTTP for the account service is accepted only on literal loopback hosts with the explicit local/same-machine allowance.
 - The canonical normal local browser hostname is `localhost`; `127.0.0.1` remains for internal loopback services only.
 - PostgreSQL should remain bound to the local machine.
