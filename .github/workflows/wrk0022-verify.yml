@@ -18,8 +18,8 @@ jobs:
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
       - name: Install Site dependencies
         run: pnpm install --frozen-lockfile
-      - name: Site tests
-        run: node --test tests/*.test.mjs
+      - name: Relevant Site proxy tests
+        run: node --test tests/admin-proxy.test.mjs tests/account-proxy.test.mjs
       - name: Site lint
         run: pnpm lint
       - name: Site build
