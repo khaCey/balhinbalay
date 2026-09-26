@@ -52,7 +52,7 @@ export function mountSiteAdmin(app,{pool,config}={}){
     if(!raw)return null;
     const result=await pool.query(`SELECT u.id,u.email,u.status,u.email_verified_at,s.id AS session_id
       FROM auth_sessions s JOIN users u ON u.id=s.user_id
-      WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
+      WHERE s.token_hash=$1 AND s.purpose='admin' AND s.revoked_at IS NULL AND s.expires_at>now()
       AND u.status='active' AND u.email_verified_at IS NOT NULL`,[sha(raw)]);
     const user=result.rows[0];
     if(!user||!allowlist.has(normaliseEmail(user.email)))return null;
@@ -93,8 +93,8 @@ export function mountSiteAdmin(app,{pool,config}={}){
     if(!passwordOk||user.status!=='active'||!user.email_verified_at||!allowlist.has(normaliseEmail(user.email)))
       return fail(res,401,'INVALID_ADMIN_CREDENTIALS','Invalid administrator credentials.');
     const raw=token(),days=Number(config.sessionDays||14);
-    await pool.query('INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,$4)',
-      [uuidv7(),user.id,sha(raw),new Date(Date.now()+days*86400000)]);
+    await pool.query(`INSERT INTO auth_sessions(id,user_id,token_hash,purpose,expires_at)
+      VALUES($1,$2,$3,'admin',$4)`,[uuidv7(),user.id,sha(raw),new Date(Date.now()+days*86400000)]);
     res.cookie(ADMIN_COOKIE,raw,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge:days*86400000});
     res.json({ok:true,user:publicUser(user)});
   }));
@@ -105,7 +105,7 @@ export function mountSiteAdmin(app,{pool,config}={}){
 
   router.post('/logout',asyncRoute(async(req,res)=>{
     const raw=cookieToken(req);
-    if(raw)await pool.query('UPDATE auth_sessions SET revoked_at=now() WHERE token_hash=$1 AND revoked_at IS NULL',[sha(raw)]);
+    if(raw)await pool.query("UPDATE auth_sessions SET revoked_at=now() WHERE token_hash=$1 AND purpose='admin' AND revoked_at IS NULL",[sha(raw)]);
     res.clearCookie(ADMIN_COOKIE,{httpOnly:true,secure:true,sameSite:'strict',path:'/'});
     res.json({ok:true});
   }));
