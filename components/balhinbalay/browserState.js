@@ -3,7 +3,7 @@ import {base,defaults} from './data.js';
 const MODES = new Set(['Rent','Buy']);
 const METHODS = new Set(['City','Keyword','School','Map']);
 const SORTS = new Set(['Recommended','Newest','Price: low to high','Price: high to low','Size: large to small','Size: small to large']);
-const PAGES = new Set(['home','search','results','map','property','saved','recent','compare','messages','chat','profile','settings','editProfile','owner','editor','admin','about','contact','privacy','terms','register','login','verify-email','forgot-password','reset-password']);
+const PAGES = new Set(['home','search','results','map','property','saved','recent','compare','messages','chat','profile','settings','editProfile','owner','editor','about','contact','privacy','terms','register','login','verify-email','forgot-password','reset-password']);
 const text = (value, fallback = '') => typeof value === 'string' ? value : fallback;
 const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const uniqueStrings = value => Array.isArray(value) ? [...new Set(value.filter(item => typeof item === 'string'))] : [];
