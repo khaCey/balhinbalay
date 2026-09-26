@@ -1,0 +1,82 @@
+name: WRK0011 Final Baseline
+
+on:
+  push:
+    branches:
+      - wrk0011-verify-final-baseline
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: Verify exact baseline parent
+        run: |
+          test "$(git rev-parse HEAD^)" = "8a43ef18c3bc1b7e3e4bc70b62c80931a7b6a94c"
+          git diff --check HEAD^ HEAD
+      - name: Install Site dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Site automated tests
+        run: node --test tests/*.test.mjs
+      - name: Site lint
+        run: pnpm lint
+      - name: Site build
+        run: pnpm build
+      - name: Install account-service dependencies
+        working-directory: account-service
+        run: npm ci
+      - name: Account-service tests
+        working-directory: account-service
+        run: npm test
+      - name: Account-service production dependency audit summary
+        working-directory: account-service
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > audit-production.json || true
+          node - <<'NODE'
+          const fs=require('fs');
+          const report=JSON.parse(fs.readFileSync('audit-production.json','utf8'));
+          const vulns=report.vulnerabilities||{};
+          const names=Object.keys(vulns);
+          console.log(`production_vulnerability_count=${names.length}`);
+          for(const name of names){
+            const v=vulns[name];
+            const via=(v.via||[]).map(x=>typeof x==='string'?x:`${x.title||x.name||'advisory'}${x.url?` (${x.url})`:''}`).join(' | ');
+            console.log(`${name}: severity=${v.severity}; direct=${Boolean(v.isDirect)}; range=${v.range||''}; fixAvailable=${JSON.stringify(v.fixAvailable)}; via=${via}`);
+          }
+          const meta=report.metadata?.vulnerabilities||{};
+          console.log(`production_metadata=${JSON.stringify(meta)}`);
+          NODE
+      - name: Account-service full dependency audit summary
+        working-directory: account-service
+        shell: bash
+        run: |
+          npm audit --json > audit-all.json || true
+          node - <<'NODE'
+          const fs=require('fs');
+          const report=JSON.parse(fs.readFileSync('audit-all.json','utf8'));
+          const vulns=report.vulnerabilities||{};
+          const names=Object.keys(vulns);
+          console.log(`all_vulnerability_count=${names.length}`);
+          for(const name of names){
+            const v=vulns[name];
+            const via=(v.via||[]).map(x=>typeof x==='string'?x:`${x.title||x.name||'advisory'}${x.url?` (${x.url})`:''}`).join(' | ');
+            console.log(`${name}: severity=${v.severity}; direct=${Boolean(v.isDirect)}; range=${v.range||''}; fixAvailable=${JSON.stringify(v.fixAvailable)}; via=${via}`);
+          }
+          const meta=report.metadata?.vulnerabilities||{};
+          console.log(`all_metadata=${JSON.stringify(meta)}`);
+          NODE
+      - name: Working-tree sanity
+        run: |
+          rm -f account-service/audit-production.json account-service/audit-all.json
+          git diff --check
+          test -z "$(git status --porcelain)"
+          git status --short --branch
