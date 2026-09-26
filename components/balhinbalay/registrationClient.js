@@ -36,7 +36,4 @@ export const registrationClient = {
   logout: () => request('/api/auth/logout', {body: {}}),
   forgot: email => request('/api/auth/forgot-password', {body: {email}}),
   reset: (token,password) => request('/api/auth/reset-password', {body: {token,password}}),
-  adminAccounts: () => request('/api/admin/accounts'),
-  createAdminAccount: (email,password) => request('/api/admin/accounts', {body: {email,password}}),
-  deleteAdminAccount: id => request(`/api/admin/accounts/${encodeURIComponent(id)}`, {method: 'DELETE'}),
 };
