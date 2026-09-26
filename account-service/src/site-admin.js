@@ -5,6 +5,7 @@ import {v7 as uuidv7} from 'uuid';
 
 const ADMIN_COOKIE='__Host-bb_admin_session';
 const sha=value=>createHash('sha256').update(value).digest('hex');
+const adminSessionSha=value=>sha(`admin:${value}`);
 const token=()=>randomBytes(32).toString('base64url');
 const normaliseEmail=value=>typeof value==='string'?value.trim().toLowerCase():'';
 const validEmail=value=>value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -53,7 +54,7 @@ export function mountSiteAdmin(app,{pool,config}={}){
     const result=await pool.query(`SELECT u.id,u.email,u.status,u.email_verified_at,s.id AS session_id
       FROM auth_sessions s JOIN users u ON u.id=s.user_id
       WHERE s.token_hash=$1 AND s.purpose='admin' AND s.revoked_at IS NULL AND s.expires_at>now()
-      AND u.status='active' AND u.email_verified_at IS NOT NULL`,[sha(raw)]);
+      AND u.status='active' AND u.email_verified_at IS NOT NULL`,[adminSessionSha(raw)]);
     const user=result.rows[0];
     if(!user||!allowlist.has(normaliseEmail(user.email)))return null;
     return user;
@@ -94,7 +95,7 @@ export function mountSiteAdmin(app,{pool,config}={}){
       return fail(res,401,'INVALID_ADMIN_CREDENTIALS','Invalid administrator credentials.');
     const raw=token(),days=Number(config.sessionDays||14);
     await pool.query(`INSERT INTO auth_sessions(id,user_id,token_hash,purpose,expires_at)
-      VALUES($1,$2,$3,'admin',$4)`,[uuidv7(),user.id,sha(raw),new Date(Date.now()+days*86400000)]);
+      VALUES($1,$2,$3,'admin',$4)`,[uuidv7(),user.id,adminSessionSha(raw),new Date(Date.now()+days*86400000)]);
     res.cookie(ADMIN_COOKIE,raw,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge:days*86400000});
     res.json({ok:true,user:publicUser(user)});
   }));
@@ -105,7 +106,7 @@ export function mountSiteAdmin(app,{pool,config}={}){
 
   router.post('/logout',asyncRoute(async(req,res)=>{
     const raw=cookieToken(req);
-    if(raw)await pool.query("UPDATE auth_sessions SET revoked_at=now() WHERE token_hash=$1 AND purpose='admin' AND revoked_at IS NULL",[sha(raw)]);
+    if(raw)await pool.query("UPDATE auth_sessions SET revoked_at=now() WHERE token_hash=$1 AND purpose='admin' AND revoked_at IS NULL",[adminSessionSha(raw)]);
     res.clearCookie(ADMIN_COOKIE,{httpOnly:true,secure:true,sameSite:'strict',path:'/'});
     res.json({ok:true});
   }));
