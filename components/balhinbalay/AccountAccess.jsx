@@ -1,9 +1,10 @@
 'use client';
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {useApp} from './model';
 import {Back,Button,Field} from './ui';
 import {normaliseEmail,validateRegistration} from './registrationValidation';
 import {registrationClient} from './registrationClient';
+import {isTerminalResetError,shouldRedirectSignedInAuth} from './accountAccessState';
 
 export default function AccountAccess({client=registrationClient}){
   const {state,nav,account,setAccount}=useApp();
@@ -17,11 +18,18 @@ export default function AccountAccess({client=registrationClient}){
   const [verified,setVerified]=useState(false);
   const actionToken=state.actionToken||'';
   const clear=()=>{setError('');setMessage('');};
+  useEffect(()=>{
+    if(account&&shouldRedirectSignedInAuth(mode))nav('profile');
+  },[account,mode,nav]);
   async function run(task){
     clear();setBusy(true);
     try{await task();}
     catch(cause){
-      if(cause.code==='EMAIL_NOT_VERIFIED'){setMode('check-email');setError('Verify your email before signing in. Request another link below if needed.');}
+      if(mode==='reset-password'&&isTerminalResetError(cause.code)){
+        setPassword('');setConfirmation('');setMode('reset-invalid');
+        setError(cause.message||'This reset link can no longer be used.');
+      }
+      else if(cause.code==='EMAIL_NOT_VERIFIED'){setMode('check-email');setError('Verify your email before signing in. Request another link below if needed.');}
       else if(cause.code==='RATE_LIMITED')setError('Too many requests. Please wait before trying again.');
       else setError(cause.message||'The request could not be completed.');
     }finally{setBusy(false);}
@@ -44,8 +52,7 @@ export default function AccountAccess({client=registrationClient}){
         await client.login(address,password);
         const session=await client.session();
         if(!session.user)throw new Error('Sign-in could not establish a server session.');
-        setPassword('');setAccount(session.user);
-        setMessage('You are signed in.');
+        setPassword('');setAccount(session.user);nav('profile');
       });
     }
     if(mode==='forgot-password'){
@@ -55,8 +62,8 @@ export default function AccountAccess({client=registrationClient}){
     if(mode==='reset-password'){
       const issue=validateRegistration({email:'reset@example.com',password,confirmation});
       if(issue){setError(issue);return;}
-      if(!actionToken){setError('This reset link is incomplete. Request a new one.');return;}
-      return run(async()=>{await client.reset(actionToken,password);setPassword('');setConfirmation('');setMode('reset-complete');setMessage('Password changed. Sign in with your new password.');});
+      if(!actionToken){setPassword('');setConfirmation('');setMode('reset-invalid');setError('This reset link is incomplete. Request a new one.');return;}
+      return run(async()=>{await client.reset(actionToken,password);setAccount(null);setPassword('');setConfirmation('');setMode('reset-complete');setMessage('Password changed. Sign in with your new password.');});
     }
   }
   const resend=()=>run(async()=>{
@@ -69,17 +76,16 @@ export default function AccountAccess({client=registrationClient}){
     if(!actionToken){setError('This verification link is incomplete. Request another link.');return;}
     await client.verify(actionToken);setVerified(true);setMessage('Your email is verified. You can now sign in.');
   });
-  const logout=()=>run(async()=>{await client.logout();setAccount(null);setMode('login');setMessage('You are signed out.');});
-  const title=account?'Your account':({register:'Create an account',login:'Sign in','check-email':'Check your email','verify-email':'Verify your email','forgot-password':'Reset your password','reset-sent':'Check your email','reset-password':'Choose a new password','reset-complete':'Password changed'})[mode]||'Your account';
+  const title=({register:'Create an account',login:'Sign in','check-email':'Check your email','verify-email':'Verify your email','forgot-password':'Reset your password','reset-sent':'Check your email','reset-password':'Choose a new password','reset-invalid':'Reset link unavailable','reset-complete':'Password changed'})[mode]||'Your account';
   const emailField=<Field label="Email" name="email" type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required maxLength={254}/>;
   const passwordField=(newPassword=false)=><Field label={newPassword?'New password':'Password'} name="password" type="password" autoComplete={newPassword?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={newPassword?12:undefined} maxLength={128}/>;
   return <div className="narrow public-info account-access">
     <Back label="Explore places" page="home"/>
     <div className="page-head"><h1>{title}</h1></div>
     <div className="panel">
-      {account?<><p><strong>{account.email}</strong></p><p>Email verified.</p><Button disabled={busy} onClick={logout}>{busy?'Signing out…':'Sign out'}</Button></>:
-      mode==='check-email'?<><p>Registration needs an email verification link. Signing up does not itself verify your account.</p>{emailField}<Button disabled={busy} onClick={resend}>{busy?'Requesting…':'Resend verification email'}</Button><button className="text-btn" type="button" onClick={()=>nav('login')}>Return to sign in</button></>:
+      {mode==='check-email'?<><p>Registration needs an email verification link. Signing up does not itself verify your account.</p>{emailField}<Button disabled={busy} onClick={resend}>{busy?'Requesting…':'Resend verification email'}</Button><button className="text-btn" type="button" onClick={()=>nav('login')}>Return to sign in</button></>:
       mode==='verify-email'?<><p>Use the one-time action from your verification email.</p>{!verified&&<Button disabled={busy||!actionToken} onClick={verify}>{busy?'Verifying…':'Verify email'}</Button>}<button className="text-btn" type="button" onClick={()=>nav('login')}>Sign in</button><button className="text-btn" type="button" onClick={()=>{setMode('check-email');clear();}}>Request another link</button></>:
+      mode==='reset-invalid'?<><p>This password reset link can no longer be used.</p><button className="text-btn" type="button" onClick={()=>nav('forgot-password')}>Request a new reset link</button><button className="text-btn" type="button" onClick={()=>nav('login')}>Return to sign in</button></>:
       mode==='reset-sent'||mode==='reset-complete'?<><button className="text-btn" type="button" onClick={()=>nav('login')}>Return to sign in</button></>:
       <form onSubmit={submit}>
         {mode!=='reset-password'&&emailField}
@@ -89,8 +95,8 @@ export default function AccountAccess({client=registrationClient}){
       </form>}
       {error&&<p role="alert" className="notice danger-notice">{error}</p>}
       {message&&<p role="status" className="notice">{message}</p>}
-      {!account&&mode==='register'&&<button type="button" className="text-btn" onClick={()=>nav('login')}>Already registered? Sign in</button>}
-      {!account&&mode==='login'&&<><button type="button" className="text-btn" onClick={()=>nav('register')}>Need an account? Register</button><button type="button" className="text-btn" onClick={()=>nav('forgot-password')}>Forgot password?</button></>}
+      {mode==='register'&&<button type="button" className="text-btn" onClick={()=>nav('login')}>Already registered? Sign in</button>}
+      {mode==='login'&&<><button type="button" className="text-btn" onClick={()=>nav('register')}>Need an account? Register</button><button type="button" className="text-btn" onClick={()=>nav('forgot-password')}>Forgot password?</button></>}
     </div>
   </div>;
 }
