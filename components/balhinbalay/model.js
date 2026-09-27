@@ -1,6 +1,7 @@
 import {createContext, startTransition, useContext, useEffect, useRef, useState} from 'react';
+import {usePathname, useRouter} from 'next/navigation';
 import {base, defaults, initial, photos, schools} from './data';
-import {navigationSnapshot, normaliseQuery, restoreDemo, restoreRoute, routeHash, suppliedCosts} from './browserState.js';
+import {legacyPath, navigationSnapshot, normaliseQuery, restoreDemo, restorePath, routePath, suppliedCosts} from './browserState.js';
 import {registrationClient} from './registrationClient.js';
 import {modalAccess} from './accessPolicy.js';
 
@@ -24,10 +25,14 @@ const freshBrowserState=()=>{
   return value;
 };
 export function useAppModel(initialPage = 'home') {
+  const router=useRouter();
+  const pathname=usePathname();
   // Match the server's first render; restore browser-only state after hydration.
   const [db, setDb] = useState(freshBrowserState);
   const [ready, setReady] = useState(false);
-  const [state, setState] = useState({page:initialPage,q:defaults(),savedTab:'Properties',compare:[],property:1,photo:0,chat:1,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null,returnPage:'results',draft:null});
+  const [state, setState] = useState(()=>restorePath(pathname,'',null,{page:initialPage,q:defaults(),savedTab:'Properties',compare:[],property:1,photo:0,chat:1,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null,returnPage:'results',draft:null}));
+  const initialState=useRef(state);
+  const pendingNavigation=useRef(null);
   const [modal, writeModal] = useState(null);
   const [toast, setToast] = useState('');
   const [account,writeAccount]=useState(null);
@@ -52,10 +57,38 @@ export function useAppModel(initialPage = 'home') {
       if (stored) setDb(restoreDemo(stored, freshBrowserState()));
       setReady(true);
     });
-    const fromHash = () => setState(current => location.hash ? ({...current,...restoreRoute(location.hash,history.state,current)}) : ({...current,page:initialPage}));
-    fromHash(); window.addEventListener('popstate', fromHash); window.addEventListener('hashchange', fromHash);
-    return () => {window.removeEventListener('popstate', fromHash); window.removeEventListener('hashchange', fromHash); clearTimeout(timer.current);};
-  }, []);
+    const legacy=location.pathname==='/' ? legacyPath(location.hash) : null;
+    if(legacy){
+      const target=new URL(legacy,location.origin);
+      const migrated=restorePath(target.pathname,target.hash,null,initialState.current);
+      pendingNavigation.current={url:legacy,state:migrated};
+      startTransition(()=>setState(migrated));
+      if(target.hash){
+        // Browser History API is integrated with the App Router. No router
+        // navigation/fetch ever receives the legacy one-time credential.
+        history.replaceState({...history.state,bbNav:navigationSnapshot(migrated)},'',legacy);
+      }else router.replace(legacy,{scroll:false});
+    }else{
+      startTransition(()=>setState(current=>restorePath(location.pathname,location.hash,history.state,current)));
+    }
+    const fromHistory=()=>{
+      pendingNavigation.current=null;
+      setState(current=>restorePath(location.pathname,location.hash,history.state,current));
+    };
+    window.addEventListener('popstate',fromHistory);
+    window.addEventListener('hashchange',fromHistory);
+    return () => {window.removeEventListener('popstate',fromHistory);window.removeEventListener('hashchange',fromHistory);clearTimeout(timer.current);};
+  }, [router]);
+  useEffect(()=>{
+    if(!ready)return;
+    const pending=pendingNavigation.current;
+    if(pending && new URL(pending.url,location.origin).pathname===pathname){
+      pendingNavigation.current=null;
+      startTransition(()=>setState(pending.state));
+    }else if(!pending){
+      startTransition(()=>setState(current=>restorePath(pathname,location.hash,history.state,current)));
+    }
+  },[pathname,ready]);
   useEffect(() => {if (ready) {try {localStorage.setItem('balhinbalay-react-demo-v1',JSON.stringify(db));} catch {console.warn('BalhinBalay demo state could not be saved in this browser.');}}}, [db,ready]);
   useEffect(()=>{
     let active=true;
@@ -66,9 +99,26 @@ export function useAppModel(initialPage = 'home') {
     window.addEventListener('focus',onFocus);
     return ()=>{active=false;window.removeEventListener('focus',onFocus);};
   },[]);
-  useEffect(() => {if (ready) history.replaceState(navigationSnapshot(state),'',routeHash(state.page,state));}, [ready,state]);
+  useEffect(() => {
+    if(ready && !pendingNavigation.current && routePath(state.page,state).split('#')[0]===pathname)
+      history.replaceState({...history.state,bbNav:navigationSnapshot(state)},'');
+  }, [ready,state,pathname]);
   const prop = id => base.find(p => p.id === Number(id)) || base[0];
-  const nav = (page,extra={}) => {setModal(null); const next={...state,page,...extra}; history.replaceState(navigationSnapshot(state),'',routeHash(state.page,state)); history.pushState(navigationSnapshot(next),'',routeHash(page,next)); patch({page,...extra}); window.scrollTo(0,0);};
+  const nav = (page,extra={}) => {
+    setModal(null);
+    const next={...state,page,...extra,actionToken:extra.actionToken||''};
+    const url=routePath(page,next);
+    history.replaceState({...history.state,bbNav:navigationSnapshot(state)},'');
+    if(url===location.pathname+location.hash){
+      // A second search on the same page still gets a Back-able state entry.
+      history.pushState({...history.state,bbNav:navigationSnapshot(next)},'',url);
+    }else{
+      pendingNavigation.current={url,state:next};
+      router.push(url,{scroll:false});
+    }
+    patch(next);
+    window.scrollTo(0,0);
+  };
   const setQuery = change => patch(s=>({q:normaliseQuery({...s.q,...change})}));
   const signal = (d,p,n) => {d.signals[p.type]=(d.signals[p.type]||0)+n;};
   const openProperty = id => {const p=prop(id); update(d=>{if(d.recent.includes(p.id))signal(d,p,1);d.recent=[p.id,...d.recent.filter(x=>x!==p.id)].slice(0,12);}); nav('property',{property:p.id,photo:0,returnPage:['map','recent','results','compare'].includes(state.page)?state.page:'home'});};

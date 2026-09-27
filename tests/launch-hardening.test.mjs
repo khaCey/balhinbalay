@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {base, defaults, initial} from '../components/balhinbalay/data.js';
-import {normaliseQuery, navigationSnapshot, restoreDemo, restoreRoute, suppliedCosts} from '../components/balhinbalay/browserState.js';
+import {normaliseQuery, navigationSnapshot, restoreDemo, restorePath, suppliedCosts} from '../components/balhinbalay/browserState.js';
 import {searchListings} from '../components/balhinbalay/searchListings.js';
 import {reportMailto} from '../components/balhinbalay/reportMailto.js';
 import {handleListingImageError,missingPhoto} from '../components/balhinbalay/imageFallback.js';
@@ -18,14 +18,14 @@ test('navigation snapshots preserve search state without account data', () => {
 });
 
 test('invalid direct property IDs remain invalid instead of opening listing one', () => {
-  const restored = restoreRoute('#property/not-a-number',{}, {page:'home',q:defaults(),compare:[]});
+  const restored = restorePath('/property/not-a-number','',{}, {page:'home',q:defaults(),compare:[]});
   assert.equal(restored.page,'property');
   assert.equal(restored.property,null);
 });
 
 test('public information routes restore directly without changing search state', () => {
   for (const page of ['about','contact','privacy','terms']) {
-    const restored = restoreRoute(`#${page}`, {}, {page:'home',q:{...defaults(),cities:['Cebu City']},compare:[]});
+    const restored = restorePath(`/${page}`, '', {}, {page:'home',q:{...defaults(),cities:['Cebu City']},compare:[]});
     assert.equal(restored.page,page);
     assert.deepEqual(restored.q.cities,['Cebu City']);
   }
@@ -103,8 +103,8 @@ test('every visible manual sort obeys its selected criterion', () => {
 });
 
 test('unknown hash route and invalid positive property ID do not become valid listings', () => {
-  assert.equal(restoreRoute('#unknown-route',{}, {page:'results',q:defaults()}).page,'home');
-  const restored=restoreRoute('#property/999999',{}, {page:'home',q:defaults()});
+  assert.equal(restorePath('/unknown-route','',{}, {page:'results',q:defaults()}).page,'home');
+  const restored=restorePath('/property/999999','',{}, {page:'home',q:defaults()});
   assert.equal(restored.page,'property');
   assert.equal(base.some(p=>p.id===restored.property),false);
 });

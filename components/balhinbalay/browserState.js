@@ -43,31 +43,47 @@ export function restoreDemo(value, initial) {
   return result;
 }
 
-export function routeHash(page, state = {}) {
-  if (page === 'property') return state.property ? `#property/${state.property}` : '#property';
-  if (page === 'chat') return state.chat ? `#chat/${state.chat}` : '#chat';
-  if (['verify-email','reset-password'].includes(page))return state.actionToken?`#${page}/${encodeURIComponent(state.actionToken)}`:`#${page}`;
-  return page === 'home' ? '#home' : `#${page}`;
+export function routePath(page, state = {}) {
+  if (!PAGES.has(page)) return '/';
+  if (page === 'property' || page === 'chat') return `/${page}${validId(state[page]) ? `/${validId(state[page])}` : ''}`;
+  // Action credentials remain in the fragment, never in HTTP paths or queries.
+  if (page === 'verify-email' || page === 'reset-password')
+    return `/${page}${state.actionToken ? `#${encodeURIComponent(state.actionToken)}` : ''}`;
+  return page === 'home' ? '/' : `/${page}`;
 }
 
 export function navigationSnapshot(state) {
   return {bbRoute:true,page:state.page,q:normaliseQuery(state.q),savedTab:text(state.savedTab,'Properties'),compare:(Array.isArray(state.compare)?state.compare:[]).map(validId).filter(Boolean).slice(0,3),property:validId(state.property),chat:validId(state.chat),mapSelected:validId(state.mapSelected),mapCenter:state.mapCenter&&finite(state.mapCenter.lat)!==null&&finite(state.mapCenter.lng)!==null?{lat:finite(state.mapCenter.lat),lng:finite(state.mapCenter.lng)}:null,mapZoom:finite(state.mapZoom),mapBounds:state.mapBounds&&typeof state.mapBounds==='object'?state.mapBounds:null,returnPage:PAGES.has(state.returnPage)?state.returnPage:'results'};
 }
 
-export function restoreRoute(hash, historyState, current) {
-  const [rawPage, rawId] = String(hash || '').replace(/^#/,'').split('/');
-  const page = PAGES.has(rawPage) ? rawPage : 'home';
-  const same = historyState?.bbRoute && historyState.page === page;
-  const saved = same ? navigationSnapshot({...current,...historyState,page}) : {...current,page};
+const decodeToken = fragment => {
+  try { return decodeURIComponent(fragment.replace(/^#/,'')); }
+  catch { return ''; }
+};
+
+export function restorePath(pathname, fragment, historyState, current) {
+  const [, rawPage = '', rawId] = String(pathname || '/').split('/');
+  const page = !rawPage ? 'home' : PAGES.has(rawPage) ? rawPage : 'home';
+  const previous = historyState?.bbNav || historyState;
+  const same = previous?.bbRoute && previous.page === page;
+  const saved = same ? {...current,...navigationSnapshot({...current,...previous,page})} : {...current,page};
   if (page === 'property') return {...saved,property:validId(rawId),photo:0};
   if (page === 'chat') return {...saved,chat:validId(rawId)};
-  if (['verify-email','reset-password'].includes(page)){
-    let actionToken='';
-    try{actionToken=rawId?decodeURIComponent(rawId):'';}catch{ /* Invalid URL encoding cannot become a token. */ }
-    return {...saved,actionToken};
-  }
-  if (saved.actionToken) return {...saved,actionToken:''};
-  return saved;
+  if (page === 'verify-email' || page === 'reset-password') return {...saved,actionToken:decodeToken(fragment || '')};
+  return {...saved,actionToken:''};
+}
+
+// Only old ordinary hash routes and old email-action links are migrated.
+// The returned action URL keeps the credential after '#'; no request URL contains it.
+export function legacyPath(hash) {
+  const value = String(hash || '').replace(/^#/, '');
+  const [page, ...parts] = value.split('/');
+  if (!PAGES.has(page)) return null;
+  if (page === 'verify-email' || page === 'reset-password')
+    return parts.length === 1 ? `/${page}#${parts[0]}` : null;
+  if (page === 'property' || page === 'chat')
+    return parts.length === 1 && validId(parts[0]) ? routePath(page,{[page]:parts[0]}) : null;
+  return parts.length === 0 ? routePath(page) : null;
 }
 
 export function suppliedCosts(property = {}) {

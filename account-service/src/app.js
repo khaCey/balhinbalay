@@ -47,7 +47,8 @@ export function createAccountApp({pool,mailer,config}){
       RETURNING count`,[key,now,new Date(now.getTime()-minutes*60000)]);
     if(r.rows[0].count>max)throw new Failure(429,'RATE_LIMITED','Please wait before trying again.');
   }
-  const url=(purpose,value)=>`${config.appOrigin}/#${purpose}/${encodeURIComponent(value)}`;
+  // Fragments are browser-only; the one-time credential never enters the HTTP URL.
+  const url=(purpose,value)=>`${config.appOrigin}/${purpose}#${encodeURIComponent(value)}`;
   async function issue(client,userId,purpose,minutes){
     const raw=token();
     await client.query(`UPDATE account_actions SET invalidated_at=now()

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {normaliseEmail,validateRegistration} from '../components/balhinbalay/registrationValidation.js';
 import {registrationClient} from '../components/balhinbalay/registrationClient.js';
-import {restoreDemo,restoreRoute,routeHash} from '../components/balhinbalay/browserState.js';
+import {restoreDemo,restorePath,routePath,legacyPath} from '../components/balhinbalay/browserState.js';
 import {isTerminalResetError,shouldRedirectSignedInAuth} from '../components/balhinbalay/accountAccessState.js';
 
 test('normalises email consistently and rejects malformed addresses', () => {
@@ -56,11 +56,13 @@ test('ordinary registration client does not expose admin account actions',()=>{
 
 test('email-action fragments survive direct navigation without entering demo storage',()=>{
   const initial={page:'home',q:{},compare:[],savedTab:'Properties'};
-  const route=restoreRoute('#verify-email/test-action',null,initial);
+  const route=restorePath('/verify-email','#test-action',null,initial);
   assert.equal(route.page,'verify-email');
   assert.equal(route.actionToken,'test-action');
-  assert.equal(routeHash(route.page,route),'#verify-email/test-action');
-  assert.equal(restoreRoute('#reset-password/bad%ZZ',null,initial).actionToken,'');
+  assert.equal(routePath(route.page,route),'/verify-email#test-action');
+  assert.equal(legacyPath('#verify-email/test-action'),'/verify-email#test-action');
+  assert.equal(legacyPath('#reset-password/test-action'),'/reset-password#test-action');
+  assert.equal(restorePath('/reset-password','#bad%ZZ',null,initial).actionToken,'');
 });
 
 test('consumed, expired and invalid reset actions are terminal UI states',()=>{

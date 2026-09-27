@@ -74,8 +74,8 @@ $env:PORT = "5000"
 `APP_URL` is the canonical browser origin. It is also the origin used when the account service builds verification and password-reset links, so production email links become:
 
 ```text
-https://balhinbalay.com/#verify-email/...
-https://balhinbalay.com/#reset-password/...
+https://balhinbalay.com/verify-email#...
+https://balhinbalay.com/reset-password#...
 ```
 
 Generate one fresh proxy key for the account service and copy it without printing it:
@@ -177,7 +177,7 @@ Then verify the real account journey:
 
 1. Register a fresh test account at `https://balhinbalay.com`.
 2. Confirm the verification email arrives.
-3. Confirm the link starts with `https://balhinbalay.com/#verify-email/`.
+3. Confirm the link starts with `https://balhinbalay.com/verify-email#` and the one-time credential is after `#`.
 4. Open the link and verify the account.
 5. Sign in at `https://balhinbalay.com`.
 6. Refresh the page and confirm the authenticated session survives.

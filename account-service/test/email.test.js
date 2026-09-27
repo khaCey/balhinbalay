@@ -25,11 +25,11 @@ test('historical Nodemailer transport sends verification and reset messages over
     const env={SMTP_HOST:'127.0.0.1',SMTP_PORT:String(server.server.address().port),SMTP_USER:'test',SMTP_PASS:'local-only',
       SMTP_FROM:'support@balhinbalay.example',SMTP_SECURE:'false'};
     mailer=createMailer(env,{ca:await readFile(cert)});
-    await mailer.verify('recipient@example.com','https://balhinbalay.example/#verify-email/test-action');
-    await mailer.reset('recipient@example.com','https://balhinbalay.example/#reset-password/test-action');
+    await mailer.verify('recipient@example.com','https://balhinbalay.example/verify-email#test-action');
+    await mailer.reset('recipient@example.com','https://balhinbalay.example/reset-password#test-action');
     assert.equal(received.length,2);
-    assert.match(received[0],/verify-email\/test-action/);
-    assert.match(received[1],/reset-password\/test-action/);
+    assert.match(received[0],/verify-email#test-action/);
+    assert.match(received[1],/reset-password#test-action/);
   }finally{
     mailer?.close();
     if(server)await new Promise(resolve=>server.close(resolve));

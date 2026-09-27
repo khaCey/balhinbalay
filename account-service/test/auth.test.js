@@ -24,7 +24,7 @@ const post=(path,body,cookie)=>{
   return req.send(body);
 };
 const get=(path,cookie)=>request(app).get(`/api/auth/${path}`).set('x-balhinbalay-proxy-key','a'.repeat(40)).set('Cookie',cookie||'');
-const raw=link=>decodeURIComponent(link.split('/#')[1].split('/').slice(1).join('/'));
+const raw=link=>decodeURIComponent(new URL(link).hash.slice(1));
 const register=async(email='somebody@example.com')=>post('register',{email,password});
 const verify=async(i=0)=>post('verify-email',{token:raw(mail[i].url)});
 
@@ -51,7 +51,7 @@ test('registration persists normalised unique email and Argon2id hash; duplicate
   assert.equal((await register('SOMEBODY@example.com')).status,202);
   assert.equal((await query('SELECT * FROM users')).rows.length,1);
   assert.equal(mail.length,1);
-  assert.match(mail[0].url,/^https:\/\/balhinbalay\.com\/#verify-email\//);
+  assert.match(mail[0].url,/^https:\/\/balhinbalay\.com\/verify-email#/);
   assert.equal((await query('SELECT token_hash FROM account_actions')).rows[0].token_hash,digest(raw(mail[0].url)));
   assert.equal((await get('session')).status,401);
 });
@@ -86,7 +86,7 @@ test('resend invalidates previous link, rate limit and cooldown prevent email sp
   await query("UPDATE account_actions SET sent_at=now()-interval '2 minutes'");
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,202);
   assert.equal(mail.length,2);
-  assert.match(mail[1].url,/^https:\/\/balhinbalay\.com\/#verify-email\//);
+  assert.match(mail[1].url,/^https:\/\/balhinbalay\.com\/verify-email#/);
   assert.equal((await post('verify-email',{token:first})).body.code,'INVALID_TOKEN');
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,202);
   assert.equal((await post('resend-verification',{email:'somebody@example.com'})).status,429);
@@ -147,7 +147,10 @@ test('password reset token is hashed, expiring, one use and revokes existing ses
   assert.equal((await post('forgot-password',{email:'missing@example.com'})).status,202);
   assert.equal((await post('forgot-password',{email:'somebody@example.com'})).status,202);
   const resetMail=mail.at(-1);
-  assert.match(resetMail.url,/^https:\/\/balhinbalay\.com\/#reset-password\//);
+  assert.match(resetMail.url,/^https:\/\/balhinbalay\.com\/reset-password#/);
+  assert.equal(new URL(resetMail.url).pathname,'/reset-password');
+  assert.equal(new URL(resetMail.url).search,'');
+  assert.ok(new URL(resetMail.url).hash.length>1);
   const resetToken=raw(resetMail.url);
   assert.equal((await query("SELECT token_hash FROM account_actions WHERE purpose='reset'")).rows[0].token_hash,digest(resetToken));
   assert.equal((await post('reset-password',{token:'q'.repeat(43),password:'new long enough password'})).body.code,'INVALID_TOKEN');
