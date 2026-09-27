@@ -55,12 +55,15 @@ test('legacy ordinary links migrate while action tokens remain browser-only',()=
 test('framework owns direct consumer routes; admin is separate and account UX is preserved',async()=>{
   const route=await readFile(new URL('../app/(consumer)/[...route]/page.tsx',import.meta.url),'utf8');
   const layout=await readFile(new URL('../app/(consumer)/layout.tsx',import.meta.url),'utf8');
+  const shell=await readFile(new URL('../components/balhinbalay/App.jsx',import.meta.url),'utf8');
   const admin=await readFile(new URL('../app/admin/page.tsx',import.meta.url),'utf8');
   const account=await readFile(new URL('../components/balhinbalay/AccountAccess.jsx',import.meta.url),'utf8');
   const profile=await readFile(new URL('../components/balhinbalay/Account.jsx',import.meta.url),'utf8');
   assert.match(route,/params: Promise<\{route: string\[\]\}>/);
   assert.match(route,/route\[0\]==='property'/);
+  assert.match(route,/ConsumerScreen page=\{route\[0\]\}/);
   assert.match(layout,/BalhinBalay/);
+  assert.match(shell,/\{children\}<footer/);
   assert.match(admin,/function AdminPortal/);
   assert.match(account,/setMode\('reset-invalid'\)/);
   assert.match(account,/nav\('profile'\)/);
