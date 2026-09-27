@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {normaliseEmail,validateRegistration} from '../components/balhinbalay/registrationValidation.js';
 import {registrationClient} from '../components/balhinbalay/registrationClient.js';
 import {restoreDemo,restoreRoute,routeHash} from '../components/balhinbalay/browserState.js';
+import {isTerminalResetError,shouldRedirectSignedInAuth} from '../components/balhinbalay/accountAccessState.js';
 
 test('normalises email consistently and rejects malformed addresses', () => {
   assert.equal(normaliseEmail('  Person@Example.COM  '), 'person@example.com');
@@ -59,6 +61,29 @@ test('email-action fragments survive direct navigation without entering demo sto
   assert.equal(route.actionToken,'test-action');
   assert.equal(routeHash(route.page,route),'#verify-email/test-action');
   assert.equal(restoreRoute('#reset-password/bad%ZZ',null,initial).actionToken,'');
+});
+
+test('consumed, expired and invalid reset actions are terminal UI states',()=>{
+  for(const code of ['ALREADY_USED','EXPIRED_TOKEN','INVALID_TOKEN'])assert.equal(isTerminalResetError(code),true,code);
+  for(const code of ['RATE_LIMITED','EMAIL_NOT_VERIFIED',null])assert.equal(isTerminalResetError(code),false,String(code));
+});
+
+test('signed-in ordinary auth entry pages return to profile while action pages stay actionable',()=>{
+  for(const mode of ['login','register','forgot-password'])assert.equal(shouldRedirectSignedInAuth(mode),true,mode);
+  for(const mode of ['verify-email','reset-password'])assert.equal(shouldRedirectSignedInAuth(mode),false,mode);
+});
+
+test('account UI removes reset inputs on terminal links and keeps sign-out on Profile',async()=>{
+  const access=await readFile(new URL('../components/balhinbalay/AccountAccess.jsx',import.meta.url),'utf8');
+  const profile=await readFile(new URL('../components/balhinbalay/Account.jsx',import.meta.url),'utf8');
+  assert.match(access,/setMode\('reset-invalid'\)/);
+  assert.match(access,/mode==='reset-invalid'\?<>/);
+  assert.match(access,/This password reset link can no longer be used\./);
+  assert.match(access,/Request a new reset link/);
+  assert.match(access,/setAccount\(session\.user\);nav\('profile'\)/);
+  assert.match(access,/setAccount\(null\).*setMode\('reset-complete'\)/s);
+  assert.match(profile,/registrationClient\.logout\(\)/);
+  assert.doesNotMatch(profile,/Manage sign-in and sign out/);
 });
 
 test('legacy browser demo identity cannot override the authenticated account surface',()=>{
