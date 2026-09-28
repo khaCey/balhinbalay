@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {normaliseEmail,validateRegistration} from '../components/balhinbalay/registrationValidation.js';
 import {registrationClient} from '../components/balhinbalay/registrationClient.js';
 import {restoreDemo,restorePath,routePath,legacyPath} from '../components/balhinbalay/browserState.js';
-import {isTerminalResetError,shouldRedirectSignedInAuth} from '../components/balhinbalay/accountAccessState.js';
+import {isTerminalResetError,resetViewMode,shouldRedirectSignedInAuth} from '../components/balhinbalay/accountAccessState.js';
 
 test('normalises email consistently and rejects malformed addresses', () => {
   assert.equal(normaliseEmail('  Person@Example.COM  '), 'person@example.com');
@@ -70,6 +70,17 @@ test('consumed, expired and invalid reset actions are terminal UI states',()=>{
   for(const code of ['RATE_LIMITED','EMAIL_NOT_VERIFIED',null])assert.equal(isTerminalResetError(code),false,String(code));
 });
 
+test('token-free reset is terminal on first render and after route restoration; fragment token keeps the form',()=>{
+  const initial={page:'home',q:{},compare:[],savedTab:'Properties'};
+  for(const fragment of ['', '#']){
+    const state=restorePath('/reset-password',fragment,null,initial);
+    assert.equal(resetViewMode(state.page,state.actionToken),'reset-invalid');
+  }
+  const valid=restorePath('/reset-password','#sample-action',null,initial);
+  assert.equal(resetViewMode(valid.page,valid.actionToken),'reset-password');
+  assert.equal(resetViewMode('reset-invalid',valid.actionToken),'reset-invalid');
+});
+
 test('signed-in ordinary auth entry pages return to profile while action pages stay actionable',()=>{
   for(const mode of ['login','register','forgot-password'])assert.equal(shouldRedirectSignedInAuth(mode),true,mode);
   for(const mode of ['verify-email','reset-password'])assert.equal(shouldRedirectSignedInAuth(mode),false,mode);
@@ -79,7 +90,8 @@ test('account UI removes reset inputs on terminal links and keeps sign-out on Pr
   const access=await readFile(new URL('../components/balhinbalay/AccountAccess.jsx',import.meta.url),'utf8');
   const profile=await readFile(new URL('../components/balhinbalay/Account.jsx',import.meta.url),'utf8');
   assert.match(access,/setMode\('reset-invalid'\)/);
-  assert.match(access,/mode==='reset-invalid'\?<>/);
+  assert.match(access,/viewMode=resetViewMode\(mode,actionToken\)/);
+  assert.match(access,/viewMode==='reset-invalid'\?<>/);
   assert.match(access,/This password reset link can no longer be used\./);
   assert.match(access,/Request a new reset link/);
   assert.match(access,/setAccount\(session\.user\);nav\('profile'\)/);
