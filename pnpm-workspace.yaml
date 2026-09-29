@@ -19,3 +19,4 @@ verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
   miniflare>sharp: 0.35.4
+  '@babel/helper-compilation-targets>browserslist': 4.28.7
