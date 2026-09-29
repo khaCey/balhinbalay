@@ -7,7 +7,7 @@ import {registrationClient} from './registrationClient';
 import {isTerminalResetError,resetViewMode,shouldRedirectSignedInAuth} from './accountAccessState';
 
 export default function AccountAccess({client=registrationClient}){
-  const {state,nav,account,setAccount}=useApp();
+  const {state,nav,account,setAccount,setSessionEndNoticeSuppressed}=useApp();
   const [mode,setMode]=useState(state.page);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
@@ -64,7 +64,7 @@ export default function AccountAccess({client=registrationClient}){
       const issue=validateRegistration({email:'reset@example.com',password,confirmation});
       if(issue){setError(issue);return;}
       if(!actionToken){setPassword('');setConfirmation('');setMode('reset-invalid');setError('This reset link is incomplete. Request a new one.');return;}
-      return run(async()=>{await client.reset(actionToken,password);setAccount(null);setPassword('');setConfirmation('');setMode('reset-complete');setMessage('Password changed. Sign in with your new password.');});
+      return run(async()=>{setSessionEndNoticeSuppressed(true);try{await client.reset(actionToken,password);setAccount(null);setPassword('');setConfirmation('');setMode('reset-complete');setMessage('Password changed. Sign in with your new password.');}finally{setSessionEndNoticeSuppressed(false);}});
     }
   }
   const resend=()=>run(async()=>{

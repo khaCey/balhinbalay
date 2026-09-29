@@ -4,6 +4,7 @@ import {base, defaults, initial, photos, schools} from './data';
 import {legacyPath, navigationSnapshot, normaliseQuery, restoreDemo, restorePath, routePath, suppliedCosts} from './browserState.js';
 import {registrationClient} from './registrationClient.js';
 import {modalAccess} from './accessPolicy.js';
+import {sessionOutcome} from './sessionState.js';
 
 export const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
@@ -38,7 +39,10 @@ export function useAppModel(initialPage = 'home') {
   const [account,writeAccount]=useState(null);
   const [sessionChecked,setSessionChecked]=useState(false);
   const accountRevision=useRef(0);
-  const setAccount=user=>{accountRevision.current++;writeAccount(user);setSessionChecked(true);};
+  const hadAuthenticatedSession=useRef(false);
+  const suppressSessionEndNotice=useRef(false);
+  const setSessionEndNoticeSuppressed=value=>{suppressSessionEndNotice.current=value;};
+  const setAccount=user=>{accountRevision.current++;hadAuthenticatedSession.current=Boolean(user);writeAccount(user);setSessionChecked(true);};
   const timer = useRef(null);
   const patch = change => setState(s => ({...s, ...(typeof change === 'function' ? change(s) : change)}));
   const update = fn => setDb(d => {const next = structuredClone(d); fn(next); return next;});
@@ -92,8 +96,16 @@ export function useAppModel(initialPage = 'home') {
   useEffect(() => {if (ready) {try {localStorage.setItem('balhinbalay-react-demo-v1',JSON.stringify(db));} catch {console.warn('BalhinBalay demo state could not be saved in this browser.');}}}, [db,ready]);
   useEffect(()=>{
     let active=true;
-    const check=()=>{const revision=accountRevision.current;return registrationClient.session().then(result=>{if(active&&revision===accountRevision.current){writeAccount(result.user||null);setSessionChecked(true);}})
-      .catch(()=>{if(active&&revision===accountRevision.current){writeAccount(null);setSessionChecked(true);}});};
+    const apply=(revision,user,unauthenticated)=>{
+      if(!active||revision!==accountRevision.current)return;
+      const outcome=sessionOutcome(hadAuthenticatedSession.current,user,{unauthenticated,suppressNotice:suppressSessionEndNotice.current});
+      hadAuthenticatedSession.current=outcome.hadAuthenticatedSession;
+      writeAccount(outcome.account);
+      setSessionChecked(true);
+      if(outcome.showSessionEnded)writeModal({type:'session-ended'});
+    };
+    const check=()=>{const revision=accountRevision.current;return registrationClient.session().then(result=>apply(revision,result.user,!result.user))
+      .catch(error=>apply(revision,null,error.code==='UNAUTHENTICATED'));};
     check();
     const onFocus=()=>{accountRevision.current++;check();};
     window.addEventListener('focus',onFocus);
@@ -129,7 +141,7 @@ export function useAppModel(initialPage = 'home') {
   const openChat = id => nav('chat',{chat:id});
   const message = () => setModal({type:'enquiry'});
   const newListing = () => nav('owner');
-  return {db,update,state,patch,nav,setQuery,prop,modal,setModal,toast,notify,openProperty,toggleSave,compare,startSearch,chooseMethod,openChat,message,newListing,account,setAccount,sessionChecked};
+  return {db,update,state,patch,nav,setQuery,prop,modal,setModal,toast,notify,openProperty,toggleSave,compare,startSearch,chooseMethod,openChat,message,newListing,account,setAccount,setSessionEndNoticeSuppressed,sessionChecked};
 }
 export async function readImage(file) {
   if (!file.type.startsWith('image/') || file.size > 3e6) throw new Error('Choose an image smaller than 3 MB.');
