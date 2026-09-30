@@ -86,6 +86,25 @@ test('signed-in ordinary auth entry pages return to profile while action pages s
   for(const mode of ['verify-email','reset-password'])assert.equal(shouldRedirectSignedInAuth(mode),false,mode);
 });
 
+test('verified login navigates once to the profile clean path even while login child remains mounted',async()=>{
+  const access=await readFile(new URL('../components/balhinbalay/AccountAccess.jsx',import.meta.url),'utf8');
+  const initial={page:'home',q:{},compare:[],savedTab:'Properties'};
+  let currentPage='login';
+  let redirects=0;
+  const nav=page=>{redirects++;currentPage=page;};
+  assert.match(access,/setAccount\(session\.user\);nav\('profile'\)/);
+  assert.match(access,/shouldRedirectSignedInAuth\(mode,state\.page\)/);
+  assert.equal(routePath('profile',{page:'profile'}),'/profile');
+  nav('profile'); // The verified login handler navigates after confirming the server session.
+  for(let render=0;render<3;render++){
+    if(shouldRedirectSignedInAuth('login',currentPage))nav('profile');
+  }
+  assert.equal(redirects,1);
+  assert.equal(restorePath('/profile','',null,initial).page,'profile');
+  assert.equal(shouldRedirectSignedInAuth('login','login'),true); // An already-authenticated direct visit redirects.
+  assert.equal(shouldRedirectSignedInAuth('login','profile'),false);
+});
+
 test('account UI removes reset inputs on terminal links and keeps sign-out on Profile',async()=>{
   const access=await readFile(new URL('../components/balhinbalay/AccountAccess.jsx',import.meta.url),'utf8');
   const profile=await readFile(new URL('../components/balhinbalay/Account.jsx',import.meta.url),'utf8');

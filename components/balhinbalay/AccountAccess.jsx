@@ -20,8 +20,8 @@ export default function AccountAccess({client=registrationClient}){
   const viewMode=resetViewMode(mode,actionToken);
   const clear=()=>{setError('');setMessage('');};
   useEffect(()=>{
-    if(account&&shouldRedirectSignedInAuth(mode))nav('profile');
-  },[account,mode,nav]);
+    if(account&&shouldRedirectSignedInAuth(mode,state.page))nav('profile');
+  },[account,mode,state.page,nav]);
   async function run(task){
     clear();setBusy(true);
     try{await task();}
