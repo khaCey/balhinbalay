@@ -1,0 +1,92 @@
+name: Deploy BalhinBalay Server
+
+on:
+  push:
+    branches:
+      - server
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balhinbalay-server-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Validate and deploy exact server commit
+    if: github.ref == 'refs/heads/server'
+    runs-on:
+      - self-hosted
+      - windows
+      - x64
+      - balhinbalay-server
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Check out exact triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+
+      - name: Verify exact source identity
+        run: |
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -ne '${{ github.sha }}') {
+            throw "Checked-out HEAD $head does not match triggering SHA ${{ github.sha }}"
+          }
+          if ('${{ github.ref_name }}' -ne 'server') {
+            throw 'Automatic deployment is permitted only from the server branch.'
+          }
+
+      - name: Verify runner prerequisites
+        run: |
+          node --version
+          pnpm --version
+          npm --version
+          pm2 --version
+          git --version
+
+          $envFile = Join-Path $env:USERPROFILE '.balhinbalay\production.env'
+          if (-not (Test-Path $envFile)) {
+            throw "Missing machine-local production environment file: $envFile"
+          }
+
+          $marker = Join-Path $env:USERPROFILE '.balhinbalay\server-deploy-enabled'
+          if (-not (Test-Path $marker)) {
+            throw "Automatic deployment is not enabled on this PC. Missing: $marker"
+          }
+
+      - name: Site preflight
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit --prod --audit-level high
+          node --test tests/*.test.mjs
+          pnpm lint
+          pnpm build
+
+      - name: Account-service preflight
+        working-directory: account-service
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm test
+
+      - name: Verify preflight did not change tracked source
+        run: |
+          $changes = @(git status --porcelain --untracked-files=no)
+          if ($changes.Count -gt 0) {
+            $changes | ForEach-Object { Write-Host $_ }
+            throw 'Preflight changed tracked repository files.'
+          }
+
+      - name: Deploy exact SHA to owner-PC runtime
+        env:
+          BALHINBALAY_DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          & '.\ops\windows\deploy-server.ps1' -CommitSha $env:BALHINBALAY_DEPLOY_SHA
