@@ -9,7 +9,6 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$Repository = 'https://github.com/khaCey/balhinbalay.git'
 $ConfigDir = Join-Path $env:USERPROFILE '.balhinbalay'
 $ProductionEnv = Join-Path $ConfigDir 'production.env'
 $DeployEnabledMarker = Join-Path $ConfigDir 'server-deploy-enabled'
@@ -185,7 +184,7 @@ try {
 }
 catch {
     $deploymentError = $_
-    Write-Error "Deployment failed: $($deploymentError.Exception.Message)"
+    Write-Warning "Deployment failed: $($deploymentError.Exception.Message)"
     Write-Host "Attempting rollback to $previousSha."
 
     try {
@@ -197,7 +196,7 @@ catch {
         Write-Host "Rollback succeeded at $previousSha."
     }
     catch {
-        Write-Error "Automatic rollback also failed: $($_.Exception.Message)"
+        Write-Warning "Automatic rollback also failed: $($_.Exception.Message)"
     }
 
     throw $deploymentError
