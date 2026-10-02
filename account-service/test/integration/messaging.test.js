@@ -26,7 +26,7 @@ async function user(email){const uid=id(),raw=randomBytes(32).toString('base64ur
 async function fixture(){return transaction(pool,async client=>{
  // Direct SQL synthetic moderation fixtures ONLY. No approval/activation endpoint.
  const property=id(),authority=id(),lid=id(),submission=id();
- await client.query("INSERT INTO properties(id,property_type) VALUES($1,'HOUSE')",[property]);await client.query('INSERT INTO house_details(property_id) VALUES($1)',[property]);
+ await client.query("INSERT INTO properties(id,property_type,created_by_user_id) VALUES($1,'HOUSE',$2)",[property,lister.id]);await client.query('INSERT INTO house_details(property_id) VALUES($1)',[property]);
  await client.query("INSERT INTO property_authorities(id,property_id,principal_id,relationship,verification_state,status,verified_by_user_id,verified_at) VALUES($1,$2,$3,'OWNER','verified','active',$4,now())",[authority,property,lister.principal,owner.id]);
  await client.query("INSERT INTO listings(id,property_id,owner_principal_id,authority_id,created_by_user_id,responsible_lister_user_id,title,description,transaction_type) VALUES($1,$2,$3,$4,$5,$5,'Synthetic safe title','PRIVATE DESCRIPTION SECRET','SALE')",[lid,property,lister.principal,authority,lister.id]);
  await client.query('INSERT INTO sale_terms(listing_id) VALUES($1)',[lid]);
