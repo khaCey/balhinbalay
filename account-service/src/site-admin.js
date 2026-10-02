@@ -2,6 +2,8 @@ import express from 'express';
 import argon2 from 'argon2';
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
+import {createAccountWithPrincipal,guardedDeleteAccount} from './marketplace-identity.js';
+import {marketplaceAdminRouter} from './marketplace.js';
 
 const ADMIN_COOKIE='__Host-bb_admin_session';
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -117,13 +119,15 @@ export function mountSiteAdmin(app,{pool,config}={}){
     res.json({ok:true,accounts:result.rows});
   }));
 
+  if(config.marketplaceEnabled)router.use('/marketplace',requireAdmin,marketplaceAdminRouter({pool,config}));
+
   router.post('/accounts',requireAdmin,asyncRoute(async(req,res)=>{
     const address=normaliseEmail(req.body?.email),password=req.body?.password;
     if(!validEmail(address))return fail(res,400,'INVALID_EMAIL','Enter a valid email address.');
     if(!validPassword(password))return fail(res,400,'INVALID_PASSWORD','Use 12 to 128 characters for the password.');
     const passwordHash=await hashPassword(password),id=uuidv7();
     try{
-      const result=await pool.query(`INSERT INTO users(id,email,password_hash,status,email_verified_at)
+      const result=await createAccountWithPrincipal(pool,`INSERT INTO users(id,email,password_hash,status,email_verified_at)
         VALUES($1,$2,$3,'active',now())
         RETURNING id,email,status,email_verified_at,created_at,updated_at`,[id,address,passwordHash]);
       res.status(201).json({ok:true,user:result.rows[0]});
@@ -134,7 +138,8 @@ export function mountSiteAdmin(app,{pool,config}={}){
   }));
 
   router.delete('/accounts/:id',requireAdmin,asyncRoute(async(req,res)=>{
-    const result=await pool.query('DELETE FROM users WHERE id=$1 RETURNING id,email',[req.params.id]);
+    const result=await guardedDeleteAccount(pool,req.params.id);
+    if(result.history)return res.status(409).json({ok:false,code:'ACCOUNT_HAS_MARKETPLACE_HISTORY',message:'This account has retained marketplace history and cannot be hard-deleted.'});
     if(!result.rowCount)return fail(res,404,'ACCOUNT_NOT_FOUND','Account not found.');
     res.status(204).end();
   }));

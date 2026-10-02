@@ -1,0 +1,69 @@
+name: WRK0037 isolated marketplace verification
+on:
+  push:
+    branches:
+      - wrk0037-persistent-listing-foundation
+permissions:
+  contents: read
+jobs:
+  marketplace:
+    if: github.ref == 'refs/heads/wrk0037-persistent-listing-foundation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: wrk0037-disposable-synthetic
+          POSTGRES_DB: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BB_MARKETPLACE_TEST_URL: postgresql://postgres:wrk0037-disposable-synthetic@127.0.0.1:55432/postgres
+      BB_MARKETPLACE_DISPOSABLE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - name: Verify isolated runner and source boundary
+        run: |
+          test "$(id -u)" -ne 0
+          test "$GITHUB_REF" = refs/heads/wrk0037-persistent-listing-foundation
+          git rev-parse HEAD 'HEAD^{tree}'
+          git diff --check
+      - name: Frozen account install
+        working-directory: account-service
+        run: npm ci
+      - name: Account regression suite
+        working-directory: account-service
+        run: npm test
+      - name: Real PostgreSQL/PostGIS migrations and marketplace integration
+        working-directory: account-service
+        run: node --test test/integration/*.test.js
+      - name: Frozen Site install
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+      - name: Site regression suite
+        run: node --test tests/*.test.mjs
+      - name: Lint
+        run: pnpm lint
+      - name: Production build
+        run: pnpm build
+      - name: Production audits
+        run: |
+          pnpm audit --prod --audit-level=high
+          npm audit --omit=dev --audit-level=high --prefix account-service
+      - name: Clean source and exact migration evidence
+        run: |
+          git diff --exit-code
+          git diff --check
+          sha256sum account-service/migrations/003_marketplace_identity.sql account-service/migrations/004_property_listing_foundation.sql
+          git status --porcelain=v1

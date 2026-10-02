@@ -23,7 +23,7 @@ test('direct identity routes require a checked server account and never expose l
   for(const route of ['owner','editor']){
     assert.equal(restorePath('/'+route,'',null,{page:'home'}).page,route);
     assert.equal(accessFor(route,null,true),'sign-in');
-    assert.equal(accessFor(route,{id:'real',email:'test@example.com'},true),'lister-unavailable');
+    assert.equal(accessFor(route,{id:'real',email:'test@example.com'},true),'marketplace');
   }
 });
 

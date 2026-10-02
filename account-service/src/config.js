@@ -11,5 +11,5 @@ export function readConfig(env=process.env){
   const adminEmails=String(env.ADMIN_EMAILS||'').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean);
   if(adminEmails.some(value=>value.length>254||!/^\S+@\S+\.\S+$/.test(value)))throw new Error('ADMIN_EMAILS contains an invalid email');
   return {appOrigin:appUrl.origin,port,secure:env.SMTP_SECURE==='true',proxyKey:env.PROXY_KEY,
-    adminEmails:[...new Set(adminEmails)],sessionDays:14,verificationHours:24,resetMinutes:15};
+    adminEmails:[...new Set(adminEmails)],marketplaceEnabled:env.MARKETPLACE_ENABLED==='true',sessionDays:14,verificationHours:24,resetMinutes:15};
 }
