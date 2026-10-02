@@ -23,17 +23,17 @@ let pool,upgrade,app,owner,lister,seeker,outsider,listing,thread;
 const call=(method,path,actor=seeker,body)=>{const r=request(app)[method]('/api/marketplace/'+path).set('x-balhinbalay-proxy-key',config.proxyKey).set('Origin',config.appOrigin);if(actor)r.set('Cookie',actor.cookie);if(body!==undefined)r.send(body);return r;};
 const admin=async(action)=>{const version=(await pool.query('SELECT version FROM lister_access WHERE user_id=$1',[lister.id])).rows[0].version;const r=await request(app).post('/api/admin/marketplace/lister-access/'+lister.id+'/'+action).set('Cookie',owner.adminCookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey).send({expected_version:version});assert.equal(r.status,200,JSON.stringify(r.body));};
 async function user(email){const uid=id(),raw=randomBytes(32).toString('base64url'),araw=randomBytes(32).toString('base64url');let principal;await transaction(pool,async c=>{await c.query("INSERT INTO users(id,email,password_hash,status,email_verified_at) VALUES($1,$2,'synthetic','active',now())",[uid,email]);principal=await ensureUserPrincipal(c,uid);});await pool.query("INSERT INTO auth_sessions(id,user_id,token_hash,purpose,expires_at) VALUES($1,$2,$3,'user',now()+interval '1 day'),($4,$2,$5,'admin',now()+interval '1 day')",[id(),uid,sha(raw),id(),sha('admin:'+araw)]);return {id:uid,principal,cookie:'__Host-bb_session='+raw,adminCookie:'__Host-bb_admin_session='+araw,raw,araw};}
-async function fixture(){
+async function fixture(){return transaction(pool,async client=>{
  // Direct SQL synthetic moderation fixtures ONLY. No approval/activation endpoint.
  const property=id(),authority=id(),lid=id(),submission=id();
- await pool.query("INSERT INTO properties(id,property_type) VALUES($1,'HOUSE')",[property]);await pool.query('INSERT INTO house_details(property_id) VALUES($1)',[property]);
- await pool.query("INSERT INTO property_authorities(id,property_id,principal_id,relationship,verification_state,status,verified_by_user_id,verified_at) VALUES($1,$2,$3,'OWNER','verified','active',$4,now())",[authority,property,lister.principal,owner.id]);
- await pool.query("INSERT INTO listings(id,property_id,owner_principal_id,authority_id,created_by_user_id,responsible_lister_user_id,title,description,transaction_type) VALUES($1,$2,$3,$4,$5,$5,'Synthetic safe title','PRIVATE DESCRIPTION SECRET','SALE')",[lid,property,lister.principal,authority,lister.id]);
- await pool.query('INSERT INTO sale_terms(listing_id) VALUES($1)',[lid]);
- await pool.query("INSERT INTO property_private_locations(property_id,street_address) VALUES($1,'PRIVATE STREET SECRET')",[property]);
- await pool.query("INSERT INTO listing_submissions(id,listing_id,listing_version,property_version,validation_policy_version,payload,submitted_by_user_id,review_outcome,reviewer_user_id,reviewed_at) VALUES($1,$2,1,1,'synthetic-ci-only','{}',$3,'approved',$4,now())",[submission,lid,lister.id,owner.id]);
- await pool.query("UPDATE listings SET review_status='approved',market_status='active',published_at=now(),approved_submission_id=$2 WHERE id=$1",[lid,submission]);return lid;
-}
+ await client.query("INSERT INTO properties(id,property_type) VALUES($1,'HOUSE')",[property]);await client.query('INSERT INTO house_details(property_id) VALUES($1)',[property]);
+ await client.query("INSERT INTO property_authorities(id,property_id,principal_id,relationship,verification_state,status,verified_by_user_id,verified_at) VALUES($1,$2,$3,'OWNER','verified','active',$4,now())",[authority,property,lister.principal,owner.id]);
+ await client.query("INSERT INTO listings(id,property_id,owner_principal_id,authority_id,created_by_user_id,responsible_lister_user_id,title,description,transaction_type) VALUES($1,$2,$3,$4,$5,$5,'Synthetic safe title','PRIVATE DESCRIPTION SECRET','SALE')",[lid,property,lister.principal,authority,lister.id]);
+ await client.query('INSERT INTO sale_terms(listing_id) VALUES($1)',[lid]);
+ await client.query("INSERT INTO property_private_locations(property_id,street_address) VALUES($1,'PRIVATE STREET SECRET')",[property]);
+ await client.query("INSERT INTO listing_submissions(id,listing_id,listing_version,property_version,validation_policy_version,payload,submitted_by_user_id,review_outcome,reviewer_user_id,reviewed_at) VALUES($1,$2,1,1,'synthetic-ci-only','{}',$3,'approved',$4,now())",[submission,lid,lister.id,owner.id]);
+ await client.query("UPDATE listings SET review_status='approved',market_status='active',published_at=now(),approved_submission_id=$2 WHERE id=$1",[lid,submission]);return lid;
+});}
 const start=(lid=listing,key=id(),text='First synthetic message',actor=seeker)=>call('post','conversations',actor,{listing_id:lid,first_message:text,client_request_id:key});
 const send=(text='Reply',key=id(),actor=seeker,tid=thread)=>call('post',`conversations/${tid}/messages`,actor,{body:text,client_request_id:key});
 await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
@@ -104,7 +104,7 @@ await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
    const c=await pool.connect();try{await c.query('BEGIN');await c.query("INSERT INTO conversations(id,listing_id,initiator_user_id,recipient_user_id,listing_owner_principal_id,listing_context) VALUES($1,$2,$3,$4,$5,'{}')",[id(),listing,outsider.id,lister.id,lister.principal]);await assert.rejects(c.query('COMMIT'));}finally{await c.query('ROLLBACK');c.release();}
    await assert.rejects(pool.query("INSERT INTO conversation_participants(id,conversation_id,user_id,side) VALUES($1,$2,$3,'SEEKER')",[id(),thread,outsider.id]));
    const participant=(await pool.query('SELECT id FROM conversation_participants WHERE conversation_id=$1 LIMIT 1',[thread])).rows[0].id;
-   await assert.rejects(pool.query("INSERT INTO messages(id,conversation_id,sender_participant_id,body,client_request_id) VALUES($1,$2,$3,'spoof',$4)",[id(),id(),participant,id()]));
+   await assert.rejects(pool.query("INSERT INTO messages(id,conversation_id,sender_participant_id,body,client_request_id) VALUES($1,$2,$3,'spoof',$4)",[id(),(await start(await fixture(),id(),'Other thread',outsider)).body.conversation.id,participant,id()]));
    for(const sql of ['DELETE FROM messages WHERE conversation_id=$1',"UPDATE messages SET body='changed' WHERE conversation_id=$1",'DELETE FROM conversation_participants WHERE conversation_id=$1','DELETE FROM conversations WHERE id=$1'])await assert.rejects(pool.query(sql,[thread]));
    assert.equal((await guardedDeleteAccount(pool,seeker.id)).history,true);
    const deletion=await request(app).delete('/api/admin/accounts/'+seeker.id).set('Cookie',owner.adminCookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey);assert.equal(deletion.status,409);assert.equal(deletion.body.code,'ACCOUNT_HAS_MARKETPLACE_HISTORY');
