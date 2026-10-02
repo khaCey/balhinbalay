@@ -62,7 +62,7 @@ await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
    for(const status of ['unlisted','sold','rented','archived']){await pool.query('UPDATE listings SET market_status=$2 WHERE id=$1',[listing,status]);assert.equal((await start()).status,403);}await pool.query("UPDATE listings SET market_status='active' WHERE id=$1",[listing]);
    await pool.query("UPDATE property_authorities SET verification_state='declared' WHERE property_id=(SELECT property_id FROM listings WHERE id=$1)",[listing]);assert.equal((await start()).status,403);await pool.query("UPDATE property_authorities SET verification_state='verified' WHERE property_id=(SELECT property_id FROM listings WHERE id=$1)",[listing]);
    await admin('suspend');assert.equal((await start()).status,403);await admin('approve');
-   await pool.query('UPDATE users SET status='pending',email_verified_at=NULL WHERE id=$1',[seeker.id]);assert.equal((await start()).status,401);await pool.query('UPDATE users SET status='active',email_verified_at=now() WHERE id=$1',[seeker.id]);
+   await pool.query("UPDATE users SET status='pending',email_verified_at=NULL WHERE id=$1",[seeker.id]);assert.equal((await start()).status,401);await pool.query("UPDATE users SET status='active',email_verified_at=now() WHERE id=$1",[seeker.id]);
    await pool.query("UPDATE users SET status='disabled' WHERE id=$1",[lister.id]);assert.equal((await start()).status,403);await pool.query("UPDATE users SET status='active' WHERE id=$1",[lister.id]);
   });
   await t.test('concurrent identical first messages create one UUIDv7 thread/two participants/message; altered retry conflicts',async()=>{
