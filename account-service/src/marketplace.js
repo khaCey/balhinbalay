@@ -1,6 +1,7 @@
 import express from 'express';
 import {messagingRouter} from './marketplace-messaging.js';
 import {moderationRouter} from './marketplace-moderation.js';
+import {publicationRouter,publicListingRouter} from './marketplace-publication.js';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
@@ -145,7 +146,9 @@ async function statusHistory(client,id,actor,oldReview,newReview,oldAvailability
 
 export function mountMarketplace(app,{pool,config}) {
   const router=express.Router();
-  router.use(proxy(config),route(async(req,res,next)=>{req.marketplaceActor=await session(pool,req,config);next();}));
+  router.use(proxy(config));
+  if(config.publicationEnabled)router.use('/public',publicListingRouter({pool,route}));
+  router.use(route(async(req,res,next)=>{req.marketplaceActor=await session(pool,req,config);next();}));
   router.get('/me/lister-access',route(async(req,res)=>{
     const result=await pool.query('SELECT * FROM lister_access WHERE user_id=$1',[req.marketplaceActor.id]);
     res.json({ok:true,lister_access:capProjection(result.rows[0])});
@@ -272,6 +275,7 @@ export function mountMarketplace(app,{pool,config}) {
     });
     res.status(201).json({ok:true,submission:result});
   }));
+  if(config.publicationEnabled)router.use(publicationRouter({pool,config,session,route,lister,principal,owned,audit,update}));
   if(config.messagingEnabled)router.use('/conversations',messagingRouter({pool,config,session,route}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
   app.use('/api/marketplace',router);

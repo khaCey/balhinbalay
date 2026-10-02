@@ -21,9 +21,9 @@ try{
     const messaging=await pool.query("SELECT 1 FROM schema_migrations WHERE name='005_marketplace_messaging.sql'");
     if(!messaging.rowCount)throw new Error('Messaging is enabled but migration005 is absent');
   }
-  if(config.moderationEnabled){
+  if(config.moderationEnabled||config.publicationEnabled){
     const moderation=await pool.query("SELECT 1 FROM schema_migrations WHERE name='006_listing_moderation.sql'");
-    if(!moderation.rowCount)throw new Error('Moderation is enabled but migration006 is absent');
+    if(!moderation.rowCount)throw new Error('Moderation/publication is enabled but migration006 is absent');
   }
   const app=createAccountApp({pool,mailer,config});
   if(config.marketplaceEnabled)mountMarketplace(app,{pool,config});
