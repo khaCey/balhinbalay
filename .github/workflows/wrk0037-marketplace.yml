@@ -56,7 +56,10 @@ jobs:
       - name: Lint
         run: pnpm lint
       - name: Production build
-        run: pnpm build
+        run: |
+          pnpm build
+          test -s dist/server/index.js
+          test -s dist/client/vinext-client-entry-manifest.json
       - name: Production audits
         run: |
           pnpm audit --prod --audit-level=high

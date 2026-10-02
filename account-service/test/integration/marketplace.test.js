@@ -89,7 +89,7 @@ await test('WRK0037 PostgreSQL/PostGIS foundation',async t=>{
    assert.equal((await call('get','me/lister-access',{cookie:owner.adminCookie})).status,401);
    assert.equal((await call('get','me/lister-access',{cookie:'__Host-bb_session='+owner.adminRaw})).status,401);
    assert.equal((await admin('get','marketplace/lister-access',undefined,{cookie:owner.cookie})).status,401);
-   assert.equal((await admin('get','marketplace/lister-access',undefined,bob)).status,403);
+   assert.equal((await admin('get','marketplace/lister-access',undefined,bob)).status,401);
   });
   await t.test('pending request retries are idempotent and cannot grant capability',async()=>{
    const responses=await Promise.all([call('post','me/lister-access',alice,{}),call('post','me/lister-access',alice,{})]);responses.forEach(r=>assert.equal(r.status,200));
@@ -158,6 +158,13 @@ await test('WRK0037 PostgreSQL/PostGIS foundation',async t=>{
    }
    const room=await draft(complete('ROOM'));await approveAuthority(room);const r=await call('post','listings/'+room.listing.id+'/submissions',alice,versions(room));assert.equal(r.status,422);for(const key of ['property.parent_property_id','details.max_occupants','details.bathroom_access','rental_terms.offering_mode','rental_terms.current_occupants'])assert.ok(r.body.fields[key],key);
    const condo=await draft(complete('CONDO'));await approveAuthority(condo);assert.ok((await call('post','listings/'+condo.listing.id+'/submissions',alice,versions(condo))).body.fields['property.development_id']);
+  });
+  await t.test('draft type and transaction switches retain applicable values and reject stale context',async()=>{
+   const x=await draft({...complete('ROOM'),development:{development_type:'BOARDING_HOUSE',name:'Synthetic type switch'},details:{max_occupants:2,bathroom_access:'SHARED'},rental_terms:{pricing_period:'MONTHLY',offering_mode:'BEDSPACE',current_occupants:0}});
+   let r=await call('patch','listings/'+x.listing.id,alice,{...versions(x),property:{property_type:'HOUSE'},details:{storeys:2},rental_terms:{offering_mode:null,current_occupants:null}});assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.details.storeys,2);
+   r=await call('patch','listings/'+x.listing.id,alice,{...versions(r.body),listing:{transaction_type:'SALE'},sale_terms:{payment_notes:'Synthetic optional note'}});assert.equal(r.status,200,JSON.stringify(r.body));assert.deepEqual(r.body.rental_terms,{});assert.equal(r.body.sale_terms.payment_notes,'Synthetic optional note');
+   const room=await draft({...complete('ROOM'),development:{development_type:'BOARDING_HOUSE',name:'Synthetic archived context'},details:{max_occupants:1,bathroom_access:'PRIVATE'},rental_terms:{pricing_period:'DAILY',offering_mode:'PRIVATE_ROOM',current_occupants:0}});await approveAuthority(room);
+   await pool.query('UPDATE developments SET archived_at=now() WHERE id=$1',[room.property.development_id]);assert.equal((await call('post','listings/'+room.listing.id+'/submissions',alice,versions(room))).status,422);
   });
   await t.test('authority declaration change invalidates approval without silently retaining it',async()=>{
    const x=await draft(complete());const a=await approveAuthority(x);

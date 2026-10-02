@@ -148,6 +148,10 @@ BEGIN
    UNION SELECT q.id,q.parent_property_id FROM properties q JOIN ancestors a ON q.id=a.parent_property_id
   ) SELECT 1 FROM ancestors WHERE id=pid) THEN RAISE EXCEPTION 'Property cycle' USING ERRCODE='23514'; END IF;
  END IF;
+ IF p.property_type IS DISTINCT FROM 'ROOM' AND EXISTS(SELECT 1 FROM rental_terms t JOIN listings l ON l.id=t.listing_id
+    WHERE l.property_id=pid AND (t.offering_mode IS NOT NULL OR t.current_occupants IS NOT NULL)) THEN
+  RAISE EXCEPTION 'Room terms on non-room property' USING ERRCODE='23514';
+ END IF;
  IF EXISTS(SELECT 1 FROM rental_terms t JOIN listings l ON l.id=t.listing_id JOIN room_details r ON r.property_id=l.property_id
     WHERE l.property_id=pid AND t.current_occupants>r.max_occupants) THEN RAISE EXCEPTION 'Room occupancy exceeds capacity' USING ERRCODE='23514'; END IF;
  RETURN NULL;
