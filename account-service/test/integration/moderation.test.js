@@ -120,6 +120,7 @@ await test('WRK0039 real PostgreSQL/PostGIS moderation',async t=>{
   });
   await t.test('composite FK/unique decision/immutable history and reviewer account retention',async()=>{
    const a=await pending(),b=await pending();await decide(a);
+   const crossed={...b,listingId:a.listingId};assert.equal((await admin('get',resource(crossed))).status,404);assert.equal((await decide(crossed)).status,404);
    await assert.rejects(pool.query("INSERT INTO listing_submission_reviews(id,submission_id,listing_id,reviewer_user_id,outcome,listing_version) VALUES($1,$2,$3,$4,'approved',1)",[uuidv7(),b.submissionId,a.listingId,reviewer.id]),e=>e.code==='23503');
    await assert.rejects(pool.query("INSERT INTO listing_submission_reviews(id,submission_id,listing_id,reviewer_user_id,outcome,listing_version) VALUES($1,$2,$3,$4,'approved',1)",[uuidv7(),a.submissionId,a.listingId,reviewer.id]),e=>e.code==='23505');
    assert.equal((await call('delete','/api/admin/accounts/'+reviewer2.id,undefined,reviewer.adminCookie)).status,409);
@@ -127,7 +128,21 @@ await test('WRK0039 real PostgreSQL/PostGIS moderation',async t=>{
   await t.test('inactive/unverified/expired/revoked admin cannot access retained moderation context',async()=>{
    for(const assignment of ["status='suspended'","status='pending',email_verified_at=NULL","deleted_at=now()","anonymised_at=now()"]){await pool.query('UPDATE users SET '+assignment+' WHERE id=$1',[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);await pool.query("UPDATE users SET status='active',email_verified_at=now(),deleted_at=NULL,anonymised_at=NULL WHERE id=$1",[reviewer.id]);}
    await pool.query("UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND purpose='admin'",[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);
-   await pool.query("UPDATE auth_sessions SET revoked_at=NULL,expires_at=now()-interval '1 second' WHERE user_id=$1 AND purpose='admin'",[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);
+   await pool.query("UPDATE auth_sessions SET revoked_at=NULL,created_at=now()-interval '1 day',expires_at=now()-interval '1 second' WHERE user_id=$1 AND purpose='admin'",[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);
   });
- }finally{if(pool)await pool.end();await root.query(`DROP DATABASE IF EXISTS ${db} WITH(FORCE)`);await root.end();}
+ }finally{
+  if(pool)await pool.end();
+  // Failed FK probes remove clients from pg-pool before socket termination has
+  // completed. Wait for server-observed closure; never force-kill those sockets
+  // and introduce an asynchronous error after a successful assertion.
+  try{
+   for(let attempt=0;attempt<100;attempt++) {
+    const n=(await root.query('SELECT count(*)::int n FROM pg_stat_activity WHERE datname=$1',[db])).rows[0].n;
+    if(!n)break;
+    if(attempt===99)throw new Error('Disposable test connections did not close');
+    await new Promise(resolve=>setTimeout(resolve,20));
+   }
+   await root.query(`DROP DATABASE IF EXISTS ${db}`);
+  }finally{await root.end();}
+ }
 });
