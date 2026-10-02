@@ -1,0 +1,78 @@
+name: WRK0037 DB environment preflight
+
+on:
+  push:
+    branches:
+      - wrk0037-db-environment-preflight
+
+permissions:
+  contents: read
+
+jobs:
+  verify-postgres-postgis:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: wrk0037-preflight
+          POSTGRES_DB: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGPASSWORD: wrk0037-preflight
+      PGHOST: 127.0.0.1
+      PGPORT: 55432
+      PGUSER: postgres
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify PostgreSQL and PostGIS
+        run: |
+          set -euo pipefail
+          psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT version();
+          SELECT PostGIS_Full_Version();
+          CREATE DATABASE bb_wrk0037_empty;
+          CREATE DATABASE bb_wrk0037_upgrade;
+          SQL
+
+          for db in bb_wrk0037_empty bb_wrk0037_upgrade; do
+            psql -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
+            CREATE EXTENSION IF NOT EXISTS postgis;
+            CREATE TABLE spatial_probe (
+              id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+              location geography(Point, 4326) NOT NULL
+            );
+            CREATE INDEX spatial_probe_location_gix ON spatial_probe USING GIST (location);
+            INSERT INTO spatial_probe(location)
+            VALUES (ST_SetSRID(ST_MakePoint(123.8854, 10.3157), 4326)::geography);
+            SELECT ST_SRID(location::geometry) AS srid FROM spatial_probe;
+
+            CREATE TABLE deferred_parent (id integer PRIMARY KEY);
+            CREATE TABLE deferred_child (
+              id integer PRIMARY KEY,
+              parent_id integer NOT NULL REFERENCES deferred_parent(id) DEFERRABLE INITIALLY DEFERRED
+            );
+            BEGIN;
+            INSERT INTO deferred_child(id, parent_id) VALUES (1, 42);
+            INSERT INTO deferred_parent(id) VALUES (42);
+            COMMIT;
+            SQL
+          done
+
+      - name: Verify ordinary non-root execution context
+        run: |
+          set -euo pipefail
+          id
+          test "$(id -u)" -ne 0
+          echo "Ordinary runner step is non-root; PostgreSQL runs isolated in a service container."
