@@ -17,6 +17,10 @@ try{
     const marketplace=await pool.query("SELECT count(*)::int AS count FROM schema_migrations WHERE name IN ('003_marketplace_identity.sql','004_property_listing_foundation.sql')");
     if(marketplace.rows[0]?.count!==2)throw new Error('Marketplace is enabled but its reviewed migrations are absent');
   }
+  if(config.messagingEnabled){
+    const messaging=await pool.query("SELECT 1 FROM schema_migrations WHERE name='005_marketplace_messaging.sql'");
+    if(!messaging.rowCount)throw new Error('Messaging is enabled but migration005 is absent');
+  }
   const app=createAccountApp({pool,mailer,config});
   if(config.marketplaceEnabled)mountMarketplace(app,{pool,config});
   // The public Site admin API is mounted first and owns /api/admin entirely.

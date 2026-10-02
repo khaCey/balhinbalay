@@ -50,9 +50,9 @@ await test('WRK0037 PostgreSQL/PostGIS foundation',async t=>{
   for(const name of names)await root.query(`CREATE DATABASE ${name} TEMPLATE template0`);
   pool=new Pool({connectionString:new URL('/'+names[0],connection).href});
   upgrade=new Pool({connectionString:new URL('/'+names[1],connection).href});
-  await t.test('001→004 from empty and idempotent runner with real PostGIS',async()=>{
+  await t.test('001→005 from empty and idempotent runner with real PostGIS',async()=>{
    await migrate(pool);await migrate(pool);
-   assert.equal((await pool.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,4);
+   assert.equal((await pool.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,5);
    const spatial=await pool.query("SELECT extversion FROM pg_extension WHERE extname='postgis'");assert.match(spatial.rows[0].extversion,/^3\.4/);
    assert.equal((await pool.query('SELECT count(*)::int n FROM lister_access')).rows[0].n,0);
    console.log('Actual PostgreSQL/PostGIS:',(await pool.query('SELECT version() AS pg,PostGIS_Full_Version() AS postgis')).rows[0]);

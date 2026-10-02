@@ -1,4 +1,5 @@
 import express from 'express';
+import {messagingRouter} from './marketplace-messaging.js';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
@@ -261,6 +262,7 @@ export function mountMarketplace(app,{pool,config}) {
     });
     res.status(201).json({ok:true,submission:result});
   }));
+  if(config.messagingEnabled)router.use('/conversations',messagingRouter({pool,config,session,route}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
   app.use('/api/marketplace',router);
 }

@@ -7,7 +7,7 @@ const ctx=path=>({params:Promise.resolve({path})});
 
 test('marketplace methods/resources are exact; approval and arbitrary paths fail closed',()=>{
  for(const [method,path] of [['GET',['me','lister-access']],['POST',['me','lister-access']],['GET',['me','listings']],['GET',['reference-data']],['POST',['listings']],['GET',['listings',id]],['PATCH',['listings',id]],['POST',['listings',id,'submissions']]])assert.equal(marketplaceAllowed(method,path),true);
- for(const path of [['listings',id,'approve'],['listings',id,'activate'],['conversations'],['auth','login'],['..','admin'],['listings','1'],['listings',id,'submissions','extra']])assert.equal(marketplaceAllowed('POST',path),false);
+ for(const path of [['listings',id,'approve'],['listings',id,'activate'],['conversations','1'],['auth','login'],['..','admin'],['listings','1'],['listings',id,'submissions','extra']])assert.equal(marketplaceAllowed('POST',path),false);
  assert.equal(marketplaceAllowed('DELETE',['listings',id]),false);
  assert.equal(marketplaceAllowed('POST',['property-authorities',id,'approve'],true),true);
  assert.equal(marketplaceAllowed('POST',['property-authorities',id,'revoke'],true),false);

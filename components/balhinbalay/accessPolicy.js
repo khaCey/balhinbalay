@@ -7,7 +7,7 @@ export const ACCOUNT_MODALS = new Set(['save-search', 'enquiry', 'viewing']);
 export const LISTER_MODALS = new Set(['availability', 'unlist']);
 
 export function accessFor(page, account, sessionChecked) {
-  if (LISTER_PAGES.has(page)) return !sessionChecked ? 'checking' : account ? 'marketplace' : 'sign-in';
+  if (LISTER_PAGES.has(page) || ['messages','chat'].includes(page)) return !sessionChecked ? 'checking' : account ? 'marketplace' : 'sign-in';
   if (ACCOUNT_PAGES.has(page)) return !sessionChecked ? 'checking' : account ? 'account-unavailable' : 'sign-in';
   return 'public';
 }

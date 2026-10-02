@@ -15,7 +15,7 @@ test('direct identity routes require a checked server account and never expose l
     assert.equal(restorePath('/'+route,'',null,{page:'home'}).page,route);
     assert.equal(accessFor(route,null,false),'checking',route);
     assert.equal(accessFor(route,null,true),'sign-in',route);
-    assert.equal(accessFor(route,{id:'real',email:'test@example.com'},true),'account-unavailable',route);
+    assert.equal(accessFor(route,{id:'real',email:'test@example.com'},true),['messages','chat'].includes(route)?'marketplace':'account-unavailable',route);
   }
   // Administration is a separate /admin application, not a consumer hash route.
   assert.equal(legacyPath('#admin'),null);
