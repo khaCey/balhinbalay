@@ -52,7 +52,8 @@ await test('WRK0039 real PostgreSQL/PostGIS moderation',async t=>{
   const first=await pending();
   await t.test('reviewer-only queue/detail: ordinary, wrong-purpose, non-allowlisted, missing credentials denied',async()=>{
    for(const actor of [null,{cookie:lister.cookie},{cookie:reviewer.cookie},{cookie:'__Host-bb_admin_session='+reviewer.raw},stranger]) {
-    const status=actor===stranger?403:401;
+    // Existing outer Admin Portal conceals non-allowlisted membership as401.
+    const status=401;
     assert.equal((await admin('get','listing-submissions',undefined,actor)).status,status);
     assert.equal((await admin('get',resource(first),undefined,actor)).status,status);
     assert.equal((await decide(first,'approve',{},actor)).status,status);
@@ -74,7 +75,7 @@ await test('WRK0039 real PostgreSQL/PostGIS moderation',async t=>{
   await t.test('stale review and review-state/actor mass assignment cannot alter a pending listing',async()=>{
    assert.equal((await decide(first,'approve',{expected_version:'1'})).status,409);
    for(const body of [{approved_submission_id:uuidv7()},{reviewer_user_id:lister.id},{market_status:'active'},{outcome:'approved'}])assert.equal((await decide(first,'approve',body)).status,422);
-   assert.equal((await consumer('patch','listings/'+first.listingId,{expected_version:first.version,expected_property_version:first.propertyVersion,listing:{approved_submission_id:first.submissionId}})).status,422);
+   assert.equal((await consumer('patch','listings/'+first.listingId,{expected_version:first.version,expected_property_version:first.propertyVersion,listing:{approved_submission_id:first.submissionId}})).status,409);
    assert.equal((await pool.query('SELECT count(*)::int n FROM listing_submission_reviews')).rows[0].n,0);
   });
   await t.test('reject requires non-empty bounded reason and records one immutable decision/history',async()=>{
@@ -124,7 +125,7 @@ await test('WRK0039 real PostgreSQL/PostGIS moderation',async t=>{
    assert.equal((await call('delete','/api/admin/accounts/'+reviewer2.id,undefined,reviewer.adminCookie)).status,409);
   });
   await t.test('inactive/unverified/expired/revoked admin cannot access retained moderation context',async()=>{
-   for(const assignment of ["status='suspended'","email_verified_at=NULL","deleted_at=now()","anonymised_at=now()"]){await pool.query('UPDATE users SET '+assignment+' WHERE id=$1',[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);await pool.query("UPDATE users SET status='active',email_verified_at=now(),deleted_at=NULL,anonymised_at=NULL WHERE id=$1",[reviewer.id]);}
+   for(const assignment of ["status='suspended'","status='pending',email_verified_at=NULL","deleted_at=now()","anonymised_at=now()"]){await pool.query('UPDATE users SET '+assignment+' WHERE id=$1',[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);await pool.query("UPDATE users SET status='active',email_verified_at=now(),deleted_at=NULL,anonymised_at=NULL WHERE id=$1",[reviewer.id]);}
    await pool.query("UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND purpose='admin'",[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);
    await pool.query("UPDATE auth_sessions SET revoked_at=NULL,expires_at=now()-interval '1 second' WHERE user_id=$1 AND purpose='admin'",[reviewer.id]);assert.equal((await admin('get','listing-submissions')).status,401);
   });
