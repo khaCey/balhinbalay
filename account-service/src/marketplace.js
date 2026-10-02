@@ -1,5 +1,6 @@
 import express from 'express';
 import {messagingRouter} from './marketplace-messaging.js';
+import {moderationRouter} from './marketplace-moderation.js';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
@@ -220,7 +221,10 @@ export function mountMarketplace(app,{pool,config}) {
   }));
   router.get('/listings/:id',route(async(req,res)=>{
     const l=await owned(pool,uuid(req.params.id),req.marketplaceActor.id);
-    res.json({ok:true,...await aggregate(pool,l)});
+    const history=config.moderationEnabled?(await pool.query(`SELECT s.id AS submission_id,s.submitted_at,r.outcome,r.reason,r.reviewed_at
+      FROM listing_submissions s LEFT JOIN listing_submission_reviews r ON r.submission_id=s.id
+      WHERE s.listing_id=$1 ORDER BY s.listing_version`,[l.id])).rows:[];
+    res.json({ok:true,...await aggregate(pool,l),review_history:history});
   }));
   router.patch('/listings/:id',route(async(req,res)=>{
     const data=body(req),id=uuid(req.params.id),lv=expected(data.expected_version),pv=expected(data.expected_property_version,'expected_property_version');
@@ -233,8 +237,14 @@ export function mountMarketplace(app,{pool,config}) {
       await client.query('SELECT id FROM properties WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',[locks]);
       const locked=(await client.query('SELECT * FROM listings WHERE id=$1 FOR UPDATE',[id])).rows[0];
       const current=await aggregate(client,locked);
-      if(locked.review_status!=='draft'||locked.market_status!=='unlisted')fail(409,'DRAFT_ONLY','Only an unsubmitted private draft can be edited.');
+      if(!['draft','rejected'].includes(locked.review_status)||locked.market_status!=='unlisted')fail(409,'DRAFT_ONLY','Only a private draft or rejected listing can be edited.');
       if(String(locked.version)!==lv||String(current.property.version)!==pv)fail(409,'VERSION_CONFLICT','This draft changed. Reload before saving.');
+      if(locked.review_status==='rejected') {
+        await update(client,'listings','id',id,{review_status:'draft',approved_submission_id:null});
+        await statusHistory(client,id,actor.id,'rejected','draft',locked.availability_status,locked.availability_status,'rejected listing reopened as private draft');
+        await audit(client,actor.id,subject,'listing',id,'rejected_draft_reopened');
+        current.listing.review_status='draft';
+      }
       return save(client,current,data,actor.id,subject);
     });
     res.json({ok:true,...result});
@@ -248,7 +258,7 @@ export function mountMarketplace(app,{pool,config}) {
       await client.query('SELECT id FROM properties WHERE id=$1 FOR UPDATE',[l.property_id]);
       const locked=(await client.query('SELECT * FROM listings WHERE id=$1 FOR UPDATE',[id])).rows[0];
       const current=await aggregate(client,locked);
-      if(locked.review_status!=='draft'||locked.market_status!=='unlisted')fail(409,'DRAFT_ONLY','Only the first draft submission is supported.');
+      if(locked.review_status!=='draft'||locked.market_status!=='unlisted')fail(409,'DRAFT_ONLY','Save a private draft before submitting.');
       if(String(locked.version)!==lv||String(current.property.version)!==pv)fail(409,'VERSION_CONFLICT','This draft changed. Reload before submitting.');
       await validateContext(client,current.property,subject);
       const errors=submissionErrors(current);
@@ -256,7 +266,7 @@ export function mountMarketplace(app,{pool,config}) {
       const sid=uuidv7();
       await client.query('INSERT INTO listing_submissions(id,listing_id,listing_version,property_version,validation_policy_version,payload,submitted_by_user_id) VALUES($1,$2,$3,$4,$5,$6,$7)',[sid,id,locked.version,current.property.version,POLICY,snapshot(current),actor.id]);
       await update(client,'listings','id',id,{review_status:'pending',market_status:'unlisted'},true);
-      await statusHistory(client,id,actor.id,'draft','pending',locked.availability_status,locked.availability_status,'first submission');
+      await statusHistory(client,id,actor.id,'draft','pending',locked.availability_status,locked.availability_status,'draft submitted for review');
       await audit(client,actor.id,subject,'listing',id,'submitted',{submission_id:sid,policy:POLICY});
       return {id:sid,listing_id:id,review_status:'pending',market_status:'unlisted',validation_policy_version:POLICY};
     });
@@ -316,6 +326,7 @@ export function marketplaceAdminRouter({pool,config}) {
     });
     res.json({ok:true,authority:result});
   }));
+  if(config.moderationEnabled)router.use(moderationRouter({pool,config,session,route,audit,statusHistory,update}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
   return router;
 }

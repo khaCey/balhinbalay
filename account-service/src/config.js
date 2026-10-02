@@ -13,5 +13,6 @@ export function readConfig(env=process.env){
   return {appOrigin:appUrl.origin,port,secure:env.SMTP_SECURE==='true',proxyKey:env.PROXY_KEY,
     adminEmails:[...new Set(adminEmails)],marketplaceEnabled:env.MARKETPLACE_ENABLED==='true',
     messagingEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MESSAGING_ENABLED==='true',
+    moderationEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MODERATION_ENABLED==='true',
     runtimeMode:env.NODE_ENV, messagingFixtureStart:env.NODE_ENV==='test'&&env.BB_MESSAGING_SYNTHETIC_START==='true',sessionDays:14,verificationHours:24,resetMinutes:15};
 }

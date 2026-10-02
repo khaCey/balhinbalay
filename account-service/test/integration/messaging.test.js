@@ -41,8 +41,8 @@ await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
  try{
   for(const name of names)await root.query(`CREATE DATABASE ${name} TEMPLATE template0`);
   pool=new Pool({connectionString:new URL('/'+names[0],connection).href});upgrade=new Pool({connectionString:new URL('/'+names[1],connection).href});
-  await t.test('empty001→005, account-only upgrade,005 rerun and foundation history unchanged',async()=>{
-   await migrate(pool);await migrate(pool);assert.equal((await pool.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,5);
+  await t.test('empty001→006, account-only upgrade,005 rerun and foundation history unchanged',async()=>{
+   await migrate(pool);await migrate(pool);assert.equal((await pool.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,6);
    await upgrade.query('CREATE TABLE schema_migrations(name text PRIMARY KEY,applied_at timestamptz DEFAULT now())');
    for(const name of ['001_accounts.sql','002_session_purpose.sql']){await upgrade.query(await readFile(new URL('../../migrations/'+name,import.meta.url),'utf8'));await upgrade.query('INSERT INTO schema_migrations(name) VALUES($1)',[name]);}
    const uid=id(),sid=id(),action=id();await upgrade.query("INSERT INTO users(id,email,password_hash,status,email_verified_at) VALUES($1,'upgrade@synthetic.invalid','synthetic','active',now())",[uid]);await upgrade.query("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES($1,$2,'synthetic-upgrade',now()+interval '1 day')",[sid,uid]);await upgrade.query("INSERT INTO account_actions(id,user_id,purpose,token_hash,expires_at) VALUES($1,$2,'verify','synthetic-action',now()+interval '1 day')",[action,uid]);
