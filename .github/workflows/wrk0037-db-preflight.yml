@@ -39,35 +39,61 @@ jobs:
       - name: Verify PostgreSQL and PostGIS
         run: |
           set -euo pipefail
-          psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-          SELECT version();
-          SELECT PostGIS_Full_Version();
-          CREATE DATABASE bb_wrk0037_empty;
-          CREATE DATABASE bb_wrk0037_upgrade;
+          psql -d postgres -v ON_ERROR_STOP=1 -c 'SELECT version();'
+          psql -d postgres -v ON_ERROR_STOP=1 -c 'SELECT PostGIS_Full_Version();'
+          createdb bb_wrk0037_empty
+          createdb bb_wrk0037_upgrade
+
+          cat >/tmp/wrk0037-probe.sql <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          CREATE TABLE spatial_probe (
+            id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            location geography(Point, 4326) NOT NULL
+          );
+          CREATE INDEX spatial_probe_location_gix ON spatial_probe USING GIST (location);
+          INSERT INTO spatial_probe(location)
+          VALUES (ST_SetSRID(ST_MakePoint(123.8854, 10.3157), 4326)::geography);
+          SELECT ST_SRID(location::geometry) AS srid FROM spatial_probe;
+
+          CREATE TABLE deferred_parent (id integer PRIMARY KEY);
+          CREATE TABLE deferred_child (
+            id integer PRIMARY KEY,
+            parent_id integer NOT NULL REFERENCES deferred_parent(id) DEFERRABLE INITIALLY DEFERRED
+          );
+          BEGIN;
+          INSERT INTO deferred_child(id, parent_id) VALUES (1, 42);
+          INSERT INTO deferred_parent(id) VALUES (42);
+          COMMIT;
+
+          CREATE TABLE trigger_probe (
+            id integer PRIMARY KEY,
+            ok boolean NOT NULL DEFAULT false
+          );
+          CREATE OR REPLACE FUNCTION enforce_trigger_probe()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM trigger_probe WHERE id = NEW.id AND NOT ok) THEN
+              RAISE EXCEPTION 'deferred constraint trigger fired';
+            END IF;
+            RETURN NEW;
+          END;
+          $$;
+          CREATE CONSTRAINT TRIGGER trigger_probe_deferred
+            AFTER INSERT OR UPDATE ON trigger_probe
+            DEFERRABLE INITIALLY DEFERRED
+            FOR EACH ROW
+            EXECUTE FUNCTION enforce_trigger_probe();
+          BEGIN;
+          INSERT INTO trigger_probe(id, ok) VALUES (1, false);
+          UPDATE trigger_probe SET ok = true WHERE id = 1;
+          COMMIT;
+          SELECT id, ok FROM trigger_probe;
           SQL
 
           for db in bb_wrk0037_empty bb_wrk0037_upgrade; do
-            psql -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
-            CREATE EXTENSION IF NOT EXISTS postgis;
-            CREATE TABLE spatial_probe (
-              id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-              location geography(Point, 4326) NOT NULL
-            );
-            CREATE INDEX spatial_probe_location_gix ON spatial_probe USING GIST (location);
-            INSERT INTO spatial_probe(location)
-            VALUES (ST_SetSRID(ST_MakePoint(123.8854, 10.3157), 4326)::geography);
-            SELECT ST_SRID(location::geometry) AS srid FROM spatial_probe;
-
-            CREATE TABLE deferred_parent (id integer PRIMARY KEY);
-            CREATE TABLE deferred_child (
-              id integer PRIMARY KEY,
-              parent_id integer NOT NULL REFERENCES deferred_parent(id) DEFERRABLE INITIALLY DEFERRED
-            );
-            BEGIN;
-            INSERT INTO deferred_child(id, parent_id) VALUES (1, 42);
-            INSERT INTO deferred_parent(id) VALUES (42);
-            COMMIT;
-            SQL
+            psql -d "$db" -v ON_ERROR_STOP=1 -f /tmp/wrk0037-probe.sql
           done
 
       - name: Verify ordinary non-root execution context
