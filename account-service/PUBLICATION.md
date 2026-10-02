@@ -1,5 +1,10 @@
 # First listing publication slice — WRK0040
 
+WRK0041 extends this reviewed source with real in-app contact using the existing
+messaging router and the same publication validator. The historical WRK0040
+scope below remains unchanged; see ../docs/wrk0041-real-listing-contact.md for
+the new initiation boundary. No deployment or runtime configuration changed.
+
 Built on the reviewed WRK0039 source. Existing migrations 001–006 suffice;
 007 was verified unused and no migration is added or applied to production.
 

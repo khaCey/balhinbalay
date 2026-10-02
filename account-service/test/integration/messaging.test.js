@@ -17,24 +17,26 @@ if(!connection)throw new Error('Disposable integration URL required');
 const url=new URL(connection);
 if(!['localhost','127.0.0.1'].includes(url.hostname)||url.pathname!=='/postgres'||process.env.BB_MARKETPLACE_DISPOSABLE!=='true')throw new Error('Disposable local synthetic databases only');
 const root=new Pool({connectionString:connection}),names=['bb_wrk0038_empty','bb_wrk0038_upgrade'];
-const config={appOrigin:'https://synthetic.invalid',proxyKey:'synthetic-proxy-key-000000000000000000',adminEmails:['admin@synthetic.invalid'],marketplaceEnabled:true,messagingEnabled:true,runtimeMode:'test',messagingFixtureStart:true,sessionDays:14,verificationHours:24,resetMinutes:15};
+const config={appOrigin:'https://synthetic.invalid',proxyKey:'synthetic-proxy-key-000000000000000000',adminEmails:['admin@synthetic.invalid'],marketplaceEnabled:true,messagingEnabled:true,moderationEnabled:true,publicationEnabled:true,sessionDays:14,verificationHours:24,resetMinutes:15};
 const sha=x=>createHash('sha256').update(x).digest('hex');
 let pool,upgrade,app,owner,lister,seeker,outsider,listing,thread;
 const call=(method,path,actor=seeker,body)=>{const r=request(app)[method]('/api/marketplace/'+path).set('x-balhinbalay-proxy-key',config.proxyKey).set('Origin',config.appOrigin);if(actor)r.set('Cookie',actor.cookie);if(body!==undefined)r.send(body);return r;};
 const admin=async(action)=>{const version=(await pool.query('SELECT version FROM lister_access WHERE user_id=$1',[lister.id])).rows[0].version;const r=await request(app).post('/api/admin/marketplace/lister-access/'+lister.id+'/'+action).set('Cookie',owner.adminCookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey).send({expected_version:version});assert.equal(r.status,200,JSON.stringify(r.body));};
 async function user(email){const uid=id(),raw=randomBytes(32).toString('base64url'),araw=randomBytes(32).toString('base64url');let principal;await transaction(pool,async c=>{await c.query("INSERT INTO users(id,email,password_hash,status,email_verified_at) VALUES($1,$2,'synthetic','active',now())",[uid,email]);principal=await ensureUserPrincipal(c,uid);});await pool.query("INSERT INTO auth_sessions(id,user_id,token_hash,purpose,expires_at) VALUES($1,$2,$3,'user',now()+interval '1 day'),($4,$2,$5,'admin',now()+interval '1 day')",[id(),uid,sha(raw),id(),sha('admin:'+araw)]);return {id:uid,principal,cookie:'__Host-bb_session='+raw,adminCookie:'__Host-bb_admin_session='+araw,raw,araw};}
-async function fixture(){return transaction(pool,async client=>{
- // Direct SQL synthetic moderation fixtures ONLY. No approval/activation endpoint.
- const property=id(),authority=id(),lid=id(),submission=id(),region=id(),city=id(),barangay=id();
- await client.query("INSERT INTO regions VALUES($1,$2,'Synthetic region')",[region,'SYNTHETIC-'+region]);await client.query("INSERT INTO cities(id,region_id,code,name,locality_type) VALUES($1,$2,$3,'Synthetic city','CITY')",[city,region,'SYNTHETIC-'+city]);await client.query("INSERT INTO barangays VALUES($1,$2,$3,'Synthetic barangay')",[barangay,city,'SYNTHETIC-'+barangay]);
- await client.query("INSERT INTO properties(id,property_type,created_by_user_id,city_id,barangay_id) VALUES($1,'HOUSE',$2,$3,$4)",[property,lister.id,city,barangay]);await client.query('INSERT INTO house_details(property_id) VALUES($1)',[property]);
- await client.query("INSERT INTO property_authorities(id,property_id,principal_id,relationship,verification_state,status,verified_by_user_id,verified_at) VALUES($1,$2,$3,'OWNER','verified','active',$4,now())",[authority,property,lister.principal,owner.id]);
- await client.query("INSERT INTO listings(id,property_id,owner_principal_id,authority_id,created_by_user_id,responsible_lister_user_id,title,description,transaction_type,price_amount,currency_code) VALUES($1,$2,$3,$4,$5,$5,'Synthetic safe title','PRIVATE DESCRIPTION SECRET','SALE',100,'PHP')",[lid,property,lister.principal,authority,lister.id]);
- await client.query('INSERT INTO sale_terms(listing_id) VALUES($1)',[lid]);
- await client.query("INSERT INTO property_private_locations(property_id,street_address) VALUES($1,'PRIVATE STREET SECRET')",[property]);
- await client.query("INSERT INTO listing_submissions(id,listing_id,listing_version,property_version,validation_policy_version,payload,submitted_by_user_id,review_outcome,reviewer_user_id,reviewed_at) VALUES($1,$2,1,1,'synthetic-ci-only','{}',$3,'approved',$4,now())",[submission,lid,lister.id,owner.id]);
- await client.query("UPDATE listings SET review_status='approved',market_status='active',published_at=now(),approved_submission_id=$2 WHERE id=$1",[lid,submission]);return lid;
-});}
+async function fixture(){
+ // Disposable synthetic references; approval/publication use the real reviewed APIs.
+ const region=id(),city=id(),barangay=id();
+ await transaction(pool,async client=>{
+  await client.query("INSERT INTO regions VALUES($1,$2,'Synthetic region')",[region,'SYNTHETIC-'+region]);await client.query("INSERT INTO cities(id,region_id,code,name,locality_type) VALUES($1,$2,$3,'Synthetic city','CITY')",[city,region,'SYNTHETIC-'+city]);await client.query("INSERT INTO barangays VALUES($1,$2,$3,'Synthetic barangay')",[barangay,city,'SYNTHETIC-'+barangay]);
+ });
+ const reviewer=(path,body)=>request(app).post('/api/admin/marketplace/'+path).set('Cookie',owner.adminCookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey).send(body);
+ let r=await call('post','listings',lister,{relationship:'OWNER',property:{property_type:'HOUSE',city_id:city,barangay_id:barangay},listing:{title:'Synthetic safe title',description:'Synthetic reviewed description.',transaction_type:'SALE',price_amount:'100',currency_code:'PHP'},private_location:{street_address:'PRIVATE STREET SECRET'}});assert.equal(r.status,201,JSON.stringify(r.body));const d=r.body;
+ r=await reviewer('property-authorities/'+d.authority.id+'/approve',{expected_version:d.authority.version});assert.equal(r.status,200);
+ r=await call('post','listings/'+d.listing.id+'/submissions',lister,{expected_version:d.listing.version,expected_property_version:d.property.version});assert.equal(r.status,201,JSON.stringify(r.body));const sid=r.body.submission.id;
+ r=await call('get','listings/'+d.listing.id,lister);
+ r=await reviewer('listings/'+d.listing.id+'/submissions/'+sid+'/approve',{expected_version:r.body.listing.version});assert.equal(r.status,200,JSON.stringify(r.body));
+ r=await call('post','listings/'+d.listing.id+'/activate',lister,{expected_version:r.body.listing.version});assert.equal(r.status,200,JSON.stringify(r.body));return d.listing.id;
+}
 const start=(lid=listing,key=id(),text='First synthetic message',actor=seeker)=>call('post','conversations',actor,{listing_id:lid,first_message:text,client_request_id:key});
 const send=(text='Reply',key=id(),actor=seeker,tid=thread)=>call('post',`conversations/${tid}/messages`,actor,{body:text,client_request_id:key});
 await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
@@ -52,8 +54,8 @@ await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
   owner=await user(config.adminEmails[0]);lister=await user('lister@synthetic.invalid');seeker=await user('seeker@synthetic.invalid');outsider=await user('outsider@synthetic.invalid');
   await pool.query("INSERT INTO lister_access(user_id,status,activated_by_user_id,activated_at) VALUES($1,'active',$2,now())",[lister.id,owner.id]);
   app=createAccountApp({pool,config,mailer:{verify:async()=>{},reset:async()=>{}}});mountMarketplace(app,{pool,config});mountSiteAdmin(app,{pool,config});listing=await fixture();
-  await t.test('production/default start is disabled even with a valid active fixture',async()=>{
-   const disabled={...config,runtimeMode:'production'};const other=createAccountApp({pool,config:disabled,mailer:{}});mountMarketplace(other,{pool,config:disabled});const r=await request(other).post('/api/marketplace/conversations').set('Cookie',seeker.cookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey).send({listing_id:listing,first_message:'No',client_request_id:id()});assert.equal(r.status,503);assert.equal(r.body.code,'CONVERSATION_START_UNAVAILABLE');assert.equal((await pool.query('SELECT count(*)::int n FROM conversations')).rows[0].n,0);
+  await t.test('publication-disabled start is unavailable even for a genuinely reviewed active listing',async()=>{
+   const disabled={...config,publicationEnabled:false};const other=createAccountApp({pool,config:disabled,mailer:{}});mountMarketplace(other,{pool,config:disabled});const r=await request(other).post('/api/marketplace/conversations').set('Cookie',seeker.cookie).set('Origin',config.appOrigin).set('x-balhinbalay-proxy-key',config.proxyKey).send({listing_id:listing,first_message:'No',client_request_id:id()});assert.equal(r.status,503);assert.equal(r.body.code,'CONVERSATION_START_UNAVAILABLE');assert.equal((await pool.query('SELECT count(*)::int n FROM conversations')).rows[0].n,0);
   });
   await t.test('start eligibility: verified active user, ordinary purpose, active listing/authority/Lister and no self contact',async()=>{
    assert.equal((await start(listing,id(),'self',lister)).body.code,'SELF_CONTACT');assert.equal((await start(listing,id(),'guest',null)).status,401);

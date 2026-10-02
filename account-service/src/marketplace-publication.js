@@ -30,7 +30,7 @@ export function publicationContent(payload,authority) {
  return {listing:l,property:p,details:d,rental_terms:r,sale_terms:s,development};
 }
 
-async function approved(client,l,a) {
+export async function approvedPublication(client,l,a) {
  if(l.review_status!=='approved'||!l.approved_submission_id||l.archived_at)fail(409,'APPROVAL_REQUIRED','A current approved submission is required.');
  const s=(await client.query(`SELECT s.* FROM listing_submissions s JOIN listing_submission_reviews r
    ON r.submission_id=s.id AND r.listing_id=s.listing_id AND r.outcome='approved'
@@ -82,7 +82,7 @@ export function publicListingRouter({pool,route}) {
     WHERE l.id=$1 AND l.review_status='approved' AND l.market_status='active' AND l.archived_at IS NULL AND l.published_at IS NOT NULL`,[req.params.id])).rows[0];
   if(!row)return notFound();
   try {
-   const result=await approved(pool,row,{status:row.authority_status,verification_state:row.verification_state});
+   const result=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
    res.json({ok:true,listing:publicProjection(row,result)});
   }catch(error){if(error instanceof MarketplaceError)return notFound();throw error;}
  }));
@@ -102,7 +102,7 @@ export function publicationRouter({pool,config,session,route,lister,principal,ow
    const l=(await client.query('SELECT * FROM listings WHERE id=$1 FOR UPDATE',[id])).rows[0];
    if(String(l.version)!==version)fail(409,'VERSION_CONFLICT','This listing changed. Reload before changing publication.');
    if(!p||p.archived_at||l.archived_at||l.review_status!=='approved'||l.market_status!==(action==='activate'?'unlisted':'active'))fail(409,'PUBLICATION_STATE_CONFLICT','This listing cannot make that publication transition.');
-   if(action==='activate')await approved(client,l,a);
+   if(action==='activate')await approvedPublication(client,l,a);
    const next=action==='activate'?'active':'unlisted';
    await update(client,'listings','id',id,{market_status:next,...(action==='activate'&&!l.published_at?{published_at:new Date()}:{})},true);
    await client.query(`INSERT INTO listing_status_history(id,listing_id,acting_user_id,old_review_status,new_review_status,old_market_status,new_market_status,old_availability_status,new_availability_status,reason)

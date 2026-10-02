@@ -15,5 +15,5 @@ export function readConfig(env=process.env){
     messagingEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MESSAGING_ENABLED==='true',
     moderationEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MODERATION_ENABLED==='true',
     publicationEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_PUBLICATION_ENABLED==='true',
-    runtimeMode:env.NODE_ENV, messagingFixtureStart:env.NODE_ENV==='test'&&env.BB_MESSAGING_SYNTHETIC_START==='true',sessionDays:14,verificationHours:24,resetMinutes:15};
+    sessionDays:14,verificationHours:24,resetMinutes:15};
 }

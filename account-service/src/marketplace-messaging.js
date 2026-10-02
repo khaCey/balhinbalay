@@ -2,6 +2,7 @@ import express from 'express';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
 import {MarketplaceError,invalid,object,UUID} from './marketplace-validation.js';
+import {approvedPublication} from './marketplace-publication.js';
 
 const fail=(status,code,message)=>{throw new MarketplaceError(status,code,message);};
 const uuid=value=>{if(typeof value!=='string'||!UUID.test(value))invalid('id','Use a real UUID.');return value.toLowerCase();};
@@ -81,9 +82,9 @@ export function messagingRouter({pool,config,session,route}) {
     });res.status(result.replayed?200:201).json({ok:true,...result});
   }));
   router.post('/',route(async(req,res)=>{
-    // This assignment has no production publication path. Start exists only in
-    // explicitly opted-in synthetic tests; no environment toggle enables it in production.
-    if(!config.messagingFixtureStart||config.runtimeMode!=='test')fail(503,'CONVERSATION_START_UNAVAILABLE','New conversations are not available yet.');
+    // Real initiation requires the reviewed publication module. The existing
+    // messaging flag still controls this entire router, with no fixture bypass.
+    if(!config.publicationEnabled)fail(503,'CONVERSATION_START_UNAVAILABLE','New conversations are not available yet.');
     const data=messageInput(req.body,true);
     const result=await transaction(pool,async client=>{
       const actor=await session(client,req,config,false,true);
@@ -98,16 +99,19 @@ export function messagingRouter({pool,config,session,route}) {
       const recipient=l.responsible_lister_user_id;
       const eligible=await client.query("SELECT id FROM users WHERE id=$1 AND status='active' AND email_verified_at IS NOT NULL AND deleted_at IS NULL AND anonymised_at IS NULL FOR SHARE",[recipient]);
       if(!eligible.rowCount||!await capability(client,recipient,true))fail(403,'LISTER_ACCESS_REQUIRED','An active responsible Lister is required.');
-      // Recheck the listing under lock after capability. Approved authority and
-      // USER principal must designate this individual; organisation routing absent.
-      const current=(await client.query('SELECT * FROM listings WHERE id=$1 FOR SHARE',[l.id])).rows[0];
-      if(current.responsible_lister_user_id!==recipient)fail(409,'LISTING_CHANGED','The listing changed. Retry.');
-      const authority=await client.query(`SELECT 1 FROM property_authorities a JOIN principals p ON p.id=a.principal_id
+      // Match activation's capability→authority→property→listing lock order.
+      // Otherwise simultaneous unlisting and contact could form a lock cycle.
+      const authority=(await client.query(`SELECT a.* FROM property_authorities a JOIN principals p ON p.id=a.principal_id
         WHERE a.id=$1 AND a.property_id=$2 AND a.principal_id=$3 AND a.status='active' AND a.verification_state='verified'
-        AND p.kind='USER' AND p.user_id=$4 AND p.archived_at IS NULL FOR SHARE OF a,p`,[current.authority_id,current.property_id,current.owner_principal_id,recipient]);
-      if(current.review_status!=='approved'||current.market_status!=='active'||current.archived_at||!authority.rowCount)fail(403,'LISTING_NOT_CONTACTABLE','This listing cannot start a conversation.');
-      const property=(await client.query('SELECT property_type FROM properties WHERE id=$1',[current.property_id])).rows[0];
-      const id=uuidv7(),snapshot={listing_id:current.id,title:current.title,property_type:property.property_type,transaction_type:current.transaction_type};
+        AND p.kind='USER' AND p.user_id=$4 AND p.archived_at IS NULL FOR SHARE OF a,p`,[l.authority_id,l.property_id,l.owner_principal_id,recipient])).rows[0];
+      const property=(await client.query('SELECT id FROM properties WHERE id=$1 AND archived_at IS NULL FOR SHARE',[l.property_id])).rows[0];
+      const current=(await client.query('SELECT * FROM listings WHERE id=$1 FOR SHARE',[l.id])).rows[0];
+      if(!current||current.responsible_lister_user_id!==recipient||current.owner_principal_id!==l.owner_principal_id||current.authority_id!==l.authority_id||current.property_id!==l.property_id)fail(409,'LISTING_CHANGED','The listing changed. Retry.');
+      if(current.review_status!=='approved'||current.market_status!=='active'||current.archived_at||!current.published_at||!authority||!property)fail(403,'LISTING_NOT_CONTACTABLE','This listing cannot start a conversation.');
+      let approved;
+      try{approved=await approvedPublication(client,current,authority);}
+      catch(error){if(error instanceof MarketplaceError)fail(403,'LISTING_NOT_CONTACTABLE','This listing cannot start a conversation.');throw error;}
+      const id=uuidv7(),snapshot={listing_id:current.id,title:approved.content.listing.title,property_type:approved.content.property.property_type,transaction_type:approved.content.listing.transaction_type};
       const created=await client.query(`INSERT INTO conversations(id,listing_id,initiator_user_id,recipient_user_id,listing_owner_principal_id,listing_context)
         VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(listing_id,initiator_user_id,recipient_user_id) DO NOTHING RETURNING id`,[id,current.id,actor.id,recipient,current.owner_principal_id,snapshot]);
       const conversationId=created.rowCount?id:(await client.query('SELECT id FROM conversations WHERE listing_id=$1 AND initiator_user_id=$2 AND recipient_user_id=$3',[current.id,actor.id,recipient])).rows[0].id;
