@@ -8,8 +8,8 @@ import {migrate} from '../../src/migrate.js';
 import {createAccountApp} from '../../src/app.js';
 import {mountMarketplace} from '../../src/marketplace.js';
 import {mountSiteAdmin} from '../../src/site-admin.js';
-import {marketplaceForward} from '../../../../lib/marketplace-proxy.js';
-import {contactRequest,sendContact} from '../../../../lib/listing-contact.js';
+import {marketplaceForward} from '../../../lib/marketplace-proxy.js';
+import {contactRequest,sendContact} from '../../../lib/listing-contact.js';
 import {ensureUserPrincipal,transaction} from '../../src/marketplace-identity.js';
 
 const connection=process.env.BB_MARKETPLACE_TEST_URL;
