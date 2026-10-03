@@ -27,7 +27,6 @@ jobs:
     env:
       BB_MARKETPLACE_TEST_URL: postgresql://postgres:wrk0042-disposable-synthetic@127.0.0.1:55432/postgres
       BB_MARKETPLACE_DISPOSABLE: 'true'
-      BB_MARKETPLACE_PG_CONTAINER: ${{ job.services.postgis.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,6 +76,8 @@ jobs:
           Remove-Item $fixture
       - name: Real PostgreSQL/PostGIS migrations and marketplace integration
         working-directory: account-service
+        env:
+          BB_MARKETPLACE_PG_CONTAINER: ${{ job.services.postgis.id }}
         run: node --test test/integration/*.test.js
       - name: Frozen Site install
         run: |
