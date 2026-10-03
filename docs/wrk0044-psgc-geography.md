@@ -33,7 +33,7 @@ it is a binary publication containing several unused summary/classification
 sheets. The reviewable transformed JSON, exact source hash and standard-library
 transformer are committed. Reproduction uses this **exact URL and hash**, never
 a mirror, live API or a “latest” link. Downloading is only a source-acquisition
-or independent CI reproduction step, never an application/runtime or production
+or independent reproduction step, never an application/runtime or production
 maintenance-window prerequisite.
 
 ## Deterministic transformation and hierarchy
@@ -195,8 +195,14 @@ account/session/action and marketplace-history preservation, SELECT-only
 verification and real-reference draft→submit→moderate→Activate→detail→contact.
 It inserts no fake administrative geography as a successful test fixture.
 
-The narrowly scoped `wrk0044-geography.yml` verifies the exact branch, reproduces
-the dataset from a checksum-verified official source download and runs all
+The official workbook was acquired directly and two independent local rebuilds
+were compared byte-for-byte with each other and the committed package. This
+source, acquisition headers and reproduction evidence are retained with the
+Work report. The initial hosted CI source-download attempt received PSA HTTP403;
+no mirror or replacement source was used.
+
+The narrowly scoped `wrk0044-geography.yml` verifies the exact branch and pinned
+offline package checksums, including tamper rejection in unit tests, and runs all
 reviewed marketplace/release tests plus full Site/account regressions, frozen
 installs, lint, build, audits and clean/diff checks. The WRK0042 verifier remains
 byte-identical, scoped to its original branch. Production deployment workflow,

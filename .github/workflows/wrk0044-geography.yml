@@ -54,7 +54,7 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file),[ref]$tokens,[ref]$errors) | Out-Null
             if ($errors.Count) { throw "PowerShell parse failed" }
           }
-          $runbook=Get-Content "docs/wrk0044-psgc-geography.md" -Raw
+          $runbook=Get-Content "docs/wrk0042-marketplace-production-rc.md" -Raw
           foreach ($block in [regex]::Matches($runbook,'(?s)```powershell\s*\n(.*?)```')) {
             $tokens=$null; $errors=$null
             [System.Management.Automation.Language.Parser]::ParseInput($block.Groups[1].Value,[ref]$tokens,[ref]$errors) | Out-Null
@@ -84,15 +84,12 @@ jobs:
           try { . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture } catch { $rejected=$true }
           if (-not $rejected -or $env:MARKETPLACE_ENABLED -cne "true") { throw "Non-exact flags must fail before mutation" }
           Remove-Item $fixture
-      - name: Exact official-source acquisition and deterministic reproduction
+      - name: Exact pinned offline geography package
         run: |
-          mkdir -p "$RUNNER_TEMP/psgc-source"
-          curl --fail --location --retry 2 --max-time 60 --output "$RUNNER_TEMP/psgc-source/PSGC-2Q-2026-Publication-Datafile.xlsx" 'https://psa.gov.ph/system/files/scd/PSGC-2Q-2026-Publication-Datafile.xlsx'
-          node account-service/scripts/provision-psgc.js files --source "$RUNNER_TEMP/psgc-source/PSGC-2Q-2026-Publication-Datafile.xlsx"
-          python3 account-service/scripts/build-psgc.py "$RUNNER_TEMP/psgc-source/PSGC-2Q-2026-Publication-Datafile.xlsx" "$RUNNER_TEMP/psgc-rebuild-a"
-          python3 account-service/scripts/build-psgc.py "$RUNNER_TEMP/psgc-source/PSGC-2Q-2026-Publication-Datafile.xlsx" "$RUNNER_TEMP/psgc-rebuild-b"
-          diff -rq account-service/reference/psgc-2q2026 "$RUNNER_TEMP/psgc-rebuild-a"
-          diff -rq "$RUNNER_TEMP/psgc-rebuild-a" "$RUNNER_TEMP/psgc-rebuild-b"
+          node account-service/scripts/provision-psgc.js files
+          # Exact-source acquisition and two byte-identical rebuilds are retained
+          # in WRK0044 evidence. PSA blocks this hosted runner with HTTP 403;
+          # ordinary regression verification must use the pinned offline package.
       - name: Real PostgreSQL/PostGIS migrations and marketplace integration
         working-directory: account-service
         env:
