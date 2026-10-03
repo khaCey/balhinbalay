@@ -1,0 +1,44 @@
+{
+  "counts": {
+    "barangays": 42010,
+    "cities": 1642,
+    "provinces": 82,
+    "regions": 18
+  },
+  "effective_date": "2026-06-30",
+  "files": {
+    "barangays.json": {
+      "sha256": "beab9ee0891471b9de0c4b28573b15ca19d45a422ab359f9f0992035aa1f399b",
+      "size_bytes": 5882364
+    },
+    "cities.json": {
+      "sha256": "40ed5e5046ae0244e8388f688fba3d44bafe6af28a87f4c8d27fe1f501dc12c1",
+      "size_bytes": 349436
+    },
+    "hierarchy.json": {
+      "sha256": "6c4e9db6f723fb0e5f5f1de5ebb1cf44c2bc7d2f75f5fd491d8c1e37b7356d10",
+      "size_bytes": 2923
+    },
+    "provinces.json": {
+      "sha256": "74f5d26e89c89a7afe487d08546cb7abc8b8b7bc1ec47b1ede6a7cd93a791167",
+      "size_bytes": 11758
+    },
+    "regions.json": {
+      "sha256": "dcf4b7580083f826da285eb57ce516b7237afc63f5f430fbd4f3af3d74adc313",
+      "size_bytes": 2301
+    }
+  },
+  "format": "balhinbalay-psgc-2q2026-v1",
+  "release_date": "2026-07-13",
+  "source": {
+    "access_constraints": "None",
+    "filename": "PSGC-2Q-2026-Publication-Datafile.xlsx",
+    "release_url": "https://psa.gov.ph/content/second-quarter-2026-psgc-updates-renaming-one-municipality-and-one-barangay-and-correction",
+    "sha256": "31892bc2bdde3ea0682562d9412b5bab4d45a0be5e5a5b4f6c9d7714b94bca5d",
+    "size_bytes": 3250889,
+    "title": "PSGC 2Q 2026 Publication Datafile",
+    "url": "https://psa.gov.ph/system/files/scd/PSGC-2Q-2026-Publication-Datafile.xlsx",
+    "use_constraints": "Acknowledgement of the Philippine Statistics Authority (PSA) as the source",
+    "website_licence": "CC BY 4.0 unless otherwise stated; PSA release page footer"
+  }
+}
