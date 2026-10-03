@@ -86,7 +86,16 @@ await test('WRK0042 exact RC migration, preflight and backup restoration',async 
     });
   }finally{
     for(const p of pools)await p.end();
-    for(const name of names)await root.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
-    await root.end();if(dir)await rm(dir,{recursive:true});
+    try{
+      for(const name of names){
+        for(let attempt=0;attempt<100;attempt++){
+          const n=(await root.query('SELECT count(*)::int n FROM pg_stat_activity WHERE datname=$1',[name])).rows[0].n;
+          if(!n)break;
+          if(attempt===99)throw new Error('Disposable release connections did not close');
+          await new Promise(resolve=>setTimeout(resolve,20));
+        }
+        await root.query(`DROP DATABASE IF EXISTS ${name}`);
+      }
+    }finally{await root.end();if(dir)await rm(dir,{recursive:true});}
   }
 });
