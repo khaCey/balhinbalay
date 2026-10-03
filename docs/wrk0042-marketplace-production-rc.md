@@ -12,6 +12,8 @@ Five historical workflows are excluded: `wrk0037-marketplace.yml`, `wrk0038-mess
 
 New manual helpers: read-only migration/schema/account-digest verifier; a process-only environment loader; temporary loopback 503 responder. None runs at application startup. The existing migration runner alone applies SQL **when manually invoked**, globally serialises writers and performs the UUIDv7 principal backfill inside migration003's transaction.
 
+Exact-candidate CI exposed a disposal-only race in the inherited WRK0037 negative-FK test: all assertions passed, but FORCE database deletion terminated a closing socket after the test ended. WRK0042 uses the already-reviewed WRK0039 server-observed socket-closure wait for that test's cleanup. No assertion, application behaviour or schema is weakened. Failed and successful run evidence is retained separately.
+
 ## Migration catalogue
 
 | Order | Reviewed file | SHA256 |

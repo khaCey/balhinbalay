@@ -73,6 +73,10 @@ jobs:
           $rejected=$false
           try { . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture } catch { $rejected=$true }
           if (-not $rejected -or $env:MARKETPLACE_ENABLED -ne "true") { throw "Duplicate must fail before mutation" }
+          Set-Content $fixture "DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:55432/fixture`nMARKETPLACE_ENABLED=TRUE"
+          $rejected=$false
+          try { . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture } catch { $rejected=$true }
+          if (-not $rejected -or $env:MARKETPLACE_ENABLED -cne "true") { throw "Non-exact flags must fail before mutation" }
           Remove-Item $fixture
       - name: Real PostgreSQL/PostGIS migrations and marketplace integration
         working-directory: account-service
@@ -100,5 +104,6 @@ jobs:
         run: |
           git diff --exit-code
           git diff --check
+          test -z "$(git status --porcelain=v1)"
           sha256sum account-service/migrations/003_marketplace_identity.sql account-service/migrations/004_property_listing_foundation.sql account-service/migrations/005_marketplace_messaging.sql account-service/migrations/006_listing_moderation.sql
           git status --porcelain=v1

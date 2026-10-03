@@ -223,7 +223,19 @@ await test('WRK0037 PostgreSQL/PostGIS foundation',async t=>{
  } finally {
   if(upgrade)await upgrade.end();
   if(pool)await pool.end();
-  for(const name of names)await root.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
-  await root.end();
+  // The reviewed moderation suite uses this same closure gate. Failed FK
+  // probes can leave a removed pool client's socket briefly closing; force
+  // termination would create an asynchronous error after its assertion passed.
+  try{
+   for(const name of names){
+    for(let attempt=0;attempt<100;attempt++){
+     const n=(await root.query('SELECT count(*)::int n FROM pg_stat_activity WHERE datname=$1',[name])).rows[0].n;
+     if(!n)break;
+     if(attempt===99)throw new Error('Disposable test connections did not close');
+     await new Promise(resolve=>setTimeout(resolve,20));
+    }
+    await root.query(`DROP DATABASE IF EXISTS ${name}`);
+   }
+  }finally{await root.end();}
  }
 });
