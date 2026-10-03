@@ -1,0 +1,24 @@
+'use client';
+import {useEffect,useState} from 'react';
+
+async function request(path,body) {
+  const response=await fetch('/api/admin/marketplace/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.message||'Marketplace administration is unavailable.');
+  return data;
+}
+export default function MarketplaceAdmin({accounts}) {
+  const [capabilities,setCapabilities]=useState([]),[authorities,setAuthorities]=useState([]),[capCursor,setCapCursor]=useState(null),[authorityCursor,setAuthorityCursor]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const names=Object.fromEntries(accounts.map(a=>[a.id,a.email]));
+  const load=async()=>{setBusy(true);setError('');try{const [a,b]=await Promise.all([request('lister-access'),request('property-authorities')]);setCapabilities(a.lister_access);setAuthorities(b.property_authorities);setCapCursor(a.next_cursor);setAuthorityCursor(b.next_cursor);}catch(cause){setError(cause.message);}finally{setBusy(false);}};
+  useEffect(()=>{let active=true;Promise.all([request('lister-access'),request('property-authorities')]).then(([a,b])=>{if(active){setCapabilities(a.lister_access);setAuthorities(b.property_authorities);setCapCursor(a.next_cursor);setAuthorityCursor(b.next_cursor);}}).catch(cause=>{if(active)setError(cause.message);});return()=>{active=false;};},[]);
+  const more=async(kind,cursor)=>{setBusy(true);try{const data=await request(kind+'?before='+encodeURIComponent(cursor));if(kind==='lister-access'){setCapabilities(old=>[...old,...data.lister_access]);setCapCursor(data.next_cursor);}else{setAuthorities(old=>[...old,...data.property_authorities]);setAuthorityCursor(data.next_cursor);}}catch(cause){setError(cause.message);}finally{setBusy(false);}};
+  const action=async(kind,item,verb)=>{
+    const id=kind==='lister-access'?item.user_id:item.id;
+    const prompt=kind==='property-authorities'?'Approve this exact property authority after your manual review? This permits submission, not public listing activation.':`${verb==='approve'?'Grant or restore':verb==='suspend'?'Suspend':'Revoke'} listing capability for ${names[id]||id}?`;
+    if(!window.confirm(prompt))return;
+    setBusy(true);setError('');setMessage('');
+    try{await request(`${kind}/${id}/${verb}`,{expected_version:item.version});setMessage('Decision saved.');await load();}catch(cause){setError(cause.message);}finally{setBusy(false);}
+  };
+  return <section className="admin-card admin-section" style={{marginTop:24}}><div className="admin-toolbar"><div><h2>Listing access and property authority</h2><p className="admin-muted">Manual beta decisions. Capability and exact property authority are separate; neither makes a listing public.</p></div><button className="admin-button admin-secondary" disabled={busy} onClick={load}>Refresh</button></div>{error&&<p className="admin-message admin-error" role="alert">{error}</p>}{message&&<p role="status">{message}</p>}<h3>Lister requests and capabilities</h3>{capabilities.length?<div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Account</th><th>Capability</th><th>Manual action</th></tr></thead><tbody>{capabilities.map(item=><tr key={item.user_id}><td>{names[item.user_id]||item.user_id}</td><td>{item.status}</td><td>{['approve','suspend','revoke'].map(verb=><button className="admin-button admin-secondary" key={verb} disabled={busy} onClick={()=>action('lister-access',item,verb)}>{verb==='approve'?'Grant / restore':verb==='suspend'?'Suspend':'Revoke'}</button>)}</td></tr>)}</tbody></table></div>:<p className="admin-muted">No Lister requests.</p>}{capCursor&&<button className="admin-button admin-secondary" disabled={busy} onClick={()=>more('lister-access',capCursor)}>More requests</button>}<h3>Declared property authorities</h3>{authorities.length?<div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Authority</th><th>Property</th><th>Relationship</th><th>Decision</th></tr></thead><tbody>{authorities.map(item=><tr key={item.id}><td>{item.id}<br/>{names[item.user_id]||item.user_id}</td><td>{item.property_id}</td><td>{item.relationship.replaceAll('_',' ')}</td><td><button className="admin-button" disabled={busy} onClick={()=>action('property-authorities',item,'approve')}>Approve authority</button></td></tr>)}</tbody></table></div>:<p className="admin-muted">No declared authorities awaiting review.</p>}{authorityCursor&&<button className="admin-button admin-secondary" disabled={busy} onClick={()=>more('property-authorities',authorityCursor)}>More declarations</button>}</section>;
+}

@@ -9,6 +9,8 @@ const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const uniqueStrings = value => Array.isArray(value) ? [...new Set(value.filter(item => typeof item === 'string'))] : [];
 const validId = value => Number.isSafeInteger(Number(value)) && Number(value) > 0 ? Number(value) : null;
 
+const conversationId=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)?value:null;
+
 export function normaliseQuery(value) {
   const fallback = defaults();
   const source = value && typeof value === 'object' ? value : {};
@@ -45,7 +47,8 @@ export function restoreDemo(value, initial) {
 
 export function routePath(page, state = {}) {
   if (!PAGES.has(page)) return '/';
-  if (page === 'property' || page === 'chat') return `/${page}${validId(state[page]) ? `/${validId(state[page])}` : ''}`;
+  if (page === 'chat') return conversationId(state.chat)?`/chat/${conversationId(state.chat)}`:'/messages';
+  if (page === 'property') return `/${page}${validId(state[page]) ? `/${validId(state[page])}` : ''}`;
   // Action credentials remain in the fragment, never in HTTP paths or queries.
   if (page === 'verify-email' || page === 'reset-password')
     return `/${page}${state.actionToken ? `#${encodeURIComponent(state.actionToken)}` : ''}`;
@@ -53,7 +56,7 @@ export function routePath(page, state = {}) {
 }
 
 export function navigationSnapshot(state) {
-  return {bbRoute:true,page:state.page,q:normaliseQuery(state.q),savedTab:text(state.savedTab,'Properties'),compare:(Array.isArray(state.compare)?state.compare:[]).map(validId).filter(Boolean).slice(0,3),property:validId(state.property),chat:validId(state.chat),mapSelected:validId(state.mapSelected),mapCenter:state.mapCenter&&finite(state.mapCenter.lat)!==null&&finite(state.mapCenter.lng)!==null?{lat:finite(state.mapCenter.lat),lng:finite(state.mapCenter.lng)}:null,mapZoom:finite(state.mapZoom),mapBounds:state.mapBounds&&typeof state.mapBounds==='object'?state.mapBounds:null,returnPage:PAGES.has(state.returnPage)?state.returnPage:'results'};
+  return {bbRoute:true,page:state.page,q:normaliseQuery(state.q),savedTab:text(state.savedTab,'Properties'),compare:(Array.isArray(state.compare)?state.compare:[]).map(validId).filter(Boolean).slice(0,3),property:validId(state.property),chat:conversationId(state.chat),mapSelected:validId(state.mapSelected),mapCenter:state.mapCenter&&finite(state.mapCenter.lat)!==null&&finite(state.mapCenter.lng)!==null?{lat:finite(state.mapCenter.lat),lng:finite(state.mapCenter.lng)}:null,mapZoom:finite(state.mapZoom),mapBounds:state.mapBounds&&typeof state.mapBounds==='object'?state.mapBounds:null,returnPage:PAGES.has(state.returnPage)?state.returnPage:'results'};
 }
 
 const decodeToken = fragment => {
@@ -68,7 +71,7 @@ export function restorePath(pathname, fragment, historyState, current) {
   const same = previous?.bbRoute && previous.page === page;
   const saved = same ? {...current,...navigationSnapshot({...current,...previous,page})} : {...current,page};
   if (page === 'property') return {...saved,property:validId(rawId),photo:0};
-  if (page === 'chat') return {...saved,chat:validId(rawId)};
+  if (page === 'chat') return {...saved,chat:conversationId(rawId)};
   if (page === 'verify-email' || page === 'reset-password') return {...saved,actionToken:decodeToken(fragment || '')};
   return {...saved,actionToken:''};
 }
@@ -81,7 +84,8 @@ export function legacyPath(hash) {
   if (!PAGES.has(page)) return null;
   if (page === 'verify-email' || page === 'reset-password')
     return parts.length === 1 ? `/${page}#${parts[0]}` : null;
-  if (page === 'property' || page === 'chat')
+  if (page === 'chat') return parts.length===1&&conversationId(parts[0])?routePath(page,{chat:parts[0]}):null;
+  if (page === 'property')
     return parts.length === 1 && validId(parts[0]) ? routePath(page,{[page]:parts[0]}) : null;
   return parts.length === 0 ? routePath(page) : null;
 }

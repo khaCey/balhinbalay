@@ -1,5 +1,7 @@
 # BalhinBalay account service — private integration branch
 
+Current marketplace RC preparation: reviewed WRK0037→0041 extends this original account foundation with additive Lister/listing/messaging/moderation/publication resources behind explicit default-off flags. The account-only and admin-only descriptions below record the original extraction. Current boundaries and the manual production migration/configuration/backup/deployment/recovery procedure are in [WRK0042's runbook](../docs/wrk0042-marketplace-production-rc.md), alongside the reviewed marketplace documents. No production migration or deployment has been performed by WRK0042.
+
 This is the **account-only extraction and hardening** of the historical Express/PostgreSQL authentication flow. It is not the old marketplace API. The current GitHub `v.0.0.02` branch contains the local account integration. Under IDE0157, the public-beta topology is now accepted: `https://balhinbalay.com` will reach the owner-PC Vinext Site through Cloudflare Tunnel, while this account service remains private on loopback. The actual tunnel/DNS/service and public mailbox/browser E2E still need verification before the public account path is complete.
 
 ## Design and historical reuse
