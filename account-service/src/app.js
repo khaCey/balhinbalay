@@ -2,6 +2,7 @@ import express from 'express';
 import argon2 from 'argon2';
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
+import {ensureUserPrincipal} from './marketplace-identity.js';
 
 const SESSION_COOKIE='__Host-bb_session';
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -109,6 +110,7 @@ export function createAccountApp({pool,mailer,config}){
     try{created=await tx(pool,async client=>{
       const user={id:uuidv7(),email:address};
       await client.query(`INSERT INTO users(id,email,password_hash,status) VALUES($1,$2,$3,'pending')`,[user.id,address,digest]);
+      await ensureUserPrincipal(client,user.id);
       return {user,action:await issue(client,user.id,'verify',config.verificationHours*60)};
     });}catch(error){if(error.code==='23505')return res.status(202).json({ok:true,message:'If this address is eligible, check your email or request a new link.'});throw error;}
     await deliver(created.user,created.action,'verify');

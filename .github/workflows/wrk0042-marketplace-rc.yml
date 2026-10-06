@@ -1,0 +1,109 @@
+name: WRK0042 exact marketplace release verification
+on:
+  push:
+    branches:
+      - wrk0042-marketplace-production-rc
+permissions:
+  contents: read
+jobs:
+  marketplace:
+    if: github.ref == 'refs/heads/wrk0042-marketplace-production-rc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: wrk0042-disposable-synthetic
+          POSTGRES_DB: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BB_MARKETPLACE_TEST_URL: postgresql://postgres:wrk0042-disposable-synthetic@127.0.0.1:55432/postgres
+      BB_MARKETPLACE_DISPOSABLE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - name: Verify isolated runner and source boundary
+        run: |
+          test "$(id -u)" -ne 0
+          test "$GITHUB_REF" = refs/heads/wrk0042-marketplace-production-rc
+          git rev-parse HEAD 'HEAD^{tree}'
+          git diff --check
+      - name: Frozen account install
+        working-directory: account-service
+        run: npm ci
+      - name: Account regression suite
+        working-directory: account-service
+        run: npm test
+      - name: Exact reviewed migration checksums
+        run: node account-service/scripts/verify-marketplace-release.js files
+      - name: Windows deployment preparation syntax and synthetic settings
+        shell: pwsh
+        run: |
+          foreach ($file in @("ops/windows/load-marketplace-environment.ps1")) {
+            $tokens=$null; $errors=$null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file),[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors.Count) { throw "PowerShell parse failed" }
+          }
+          $runbook=Get-Content "docs/wrk0042-marketplace-production-rc.md" -Raw
+          foreach ($block in [regex]::Matches($runbook,'(?s)```powershell\s*\n(.*?)```')) {
+            $tokens=$null; $errors=$null
+            [System.Management.Automation.Language.Parser]::ParseInput($block.Groups[1].Value,[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors.Count) { throw "Runbook PowerShell parse failed" }
+          }
+          $fixture=Join-Path $env:RUNNER_TEMP "synthetic-production.env"
+          Set-Content $fixture "DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:55432/fixture"
+          . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture
+          if ($env:MARKETPLACE_ENABLED -ne "false" -or $env:PGPORT -ne "55432") { throw "Default settings failed" }
+          Add-Content $fixture "MARKETPLACE_ENABLED=true`nMARKETPLACE_MESSAGING_ENABLED=true`nMARKETPLACE_MODERATION_ENABLED=true`nMARKETPLACE_PUBLICATION_ENABLED=true"
+          . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture
+          foreach ($flag in @("MARKETPLACE_ENABLED","MARKETPLACE_MESSAGING_ENABLED","MARKETPLACE_MODERATION_ENABLED","MARKETPLACE_PUBLICATION_ENABLED")) {
+            if ([Environment]::GetEnvironmentVariable($flag,"Process") -ne "true") { throw "Explicit settings failed" }
+          }
+          Add-Content $fixture "MARKETPLACE_ENABLED=false"
+          $rejected=$false
+          try { . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture } catch { $rejected=$true }
+          if (-not $rejected -or $env:MARKETPLACE_ENABLED -ne "true") { throw "Duplicate must fail before mutation" }
+          Set-Content $fixture "DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:55432/fixture`nMARKETPLACE_ENABLED=TRUE"
+          $rejected=$false
+          try { . ./ops/windows/load-marketplace-environment.ps1 -EnvFile $fixture } catch { $rejected=$true }
+          if (-not $rejected -or $env:MARKETPLACE_ENABLED -cne "true") { throw "Non-exact flags must fail before mutation" }
+          Remove-Item $fixture
+      - name: Real PostgreSQL/PostGIS migrations and marketplace integration
+        working-directory: account-service
+        env:
+          BB_MARKETPLACE_PG_CONTAINER: ${{ job.services.postgis.id }}
+        run: node --test test/integration/*.test.js
+      - name: Frozen Site install
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+      - name: Site regression suite
+        run: node --test tests/*.test.mjs
+      - name: Lint
+        run: pnpm lint
+      - name: Production build
+        run: |
+          pnpm build
+          test -s dist/server/index.js
+          test -s dist/client/vinext-client-entry-manifest.json
+      - name: Production audits
+        run: |
+          pnpm audit --prod --audit-level=high
+          npm audit --omit=dev --audit-level=high --prefix account-service
+      - name: Clean source and exact migration evidence
+        run: |
+          git diff --exit-code
+          git diff --check
+          test -z "$(git status --porcelain=v1)"
+          sha256sum account-service/migrations/003_marketplace_identity.sql account-service/migrations/004_property_listing_foundation.sql account-service/migrations/005_marketplace_messaging.sql account-service/migrations/006_listing_moderation.sql
+          git status --porcelain=v1
