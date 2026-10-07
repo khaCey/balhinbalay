@@ -20,3 +20,5 @@ optimisticRepeatInstall: false
 overrides:
   miniflare>sharp: 0.35.4
   '@babel/helper-compilation-targets>browserslist': 4.28.7
+  postcss>source-map-js: 1.2.2
+  next>sharp: 0.35.5
