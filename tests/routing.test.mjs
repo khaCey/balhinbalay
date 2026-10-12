@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {defaults} from '../components/balhinbalay/data.js';
-import {legacyPath,navigationSnapshot,restorePath,routePath} from '../components/balhinbalay/browserState.js';
+import {legacyPath,navigationSnapshot,normaliseQuery,restoreDemo,restorePath,routePath} from '../components/balhinbalay/browserState.js';
 
 const ordinary=['home','search','results','map','profile','login','register','recent','compare','about','contact','privacy','terms','forgot-password'];
 
@@ -33,6 +33,23 @@ test('Back and Forward snapshots recover search and map context without identity
     if(restored.page==='map')assert.equal(restored.mapSelected,1);
     if(restored.page==='property')assert.equal(restored.returnPage,'map');
   }
+});
+
+test('restored sample-era search state becomes an explicit supported real query',()=>{
+  const legacy={...defaults(),method:'School',school:2,radius:5,cities:['City of Cebu','Iloilo City'],tags:['pool'],sort:'Recommended',type:'Studio',keyword:'old school term'};
+  const expected=normaliseQuery(legacy);
+  assert.equal(expected.method,'City');
+  assert.equal(expected.sort,'Newest');
+  assert.equal(expected.type,'Any');
+  assert.deepEqual(expected.cities,['City of Cebu']);
+  assert.equal(expected.keyword,'');
+  for(const key of ['school','radius','tags'])assert.equal(Object.hasOwn(expected,key),false);
+  const current={page:'results',q:normaliseQuery(defaults()),compare:[]};
+  const restored=restorePath('/results','',{bbNav:{bbRoute:true,page:'results',q:legacy}},current);
+  assert.deepEqual(restored.q,expected);
+  assert.deepEqual(restoreDemo({lastSearch:legacy},{lastSearch:null,recent:[],recentCities:[],signals:{}}).lastSearch,expected);
+  assert.equal(normaliseQuery({...expected,method:'Keyword',keyword:'garden'}).keyword,'garden');
+  assert.equal(normaliseQuery({...expected,method:'City',keyword:'hidden old term'}).keyword,'');
 });
 
 test('legacy ordinary links migrate while action tokens remain browser-only',()=>{

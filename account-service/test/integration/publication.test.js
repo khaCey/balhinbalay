@@ -42,6 +42,7 @@ async function pending(actor=lister,building=false) {
 }
 const decide=(x,action='approve',body={},actor=reviewer)=>admin('post',resource(x)+'/'+action,{expected_version:x.version,...body},actor);
 const publicRead=id=>call('get','/api/marketplace/public/listings/'+id);
+const publicCollection=query=>call('get','/api/marketplace/public/listings'+(query?'?'+query:''));
 const change=(x,action='activate',body={},actor=lister)=>consumer('post',`listings/${x.listingId}/${action}`,{expected_version:x.version,...body},actor);
 async function approvedFixture(building=false){const x=await pending(lister,building);const r=await decide(x);assert.equal(r.status,200,JSON.stringify(r.body));return {...x,version:r.body.listing.version};}
 async function current(x){return {...x,version:(await consumer('get','listings/'+x.listingId)).body.listing.version};}
@@ -84,7 +85,7 @@ await test('WRK0040 real PostgreSQL/PostGIS publication',async t=>{
    await pool.query("UPDATE listings SET title='UNREVIEWED SECRET',description='UNREVIEWED private draft',price_amount=999999 WHERE id=$1",[x.listingId]);
    await pool.query("UPDATE properties SET bedrooms=99 WHERE id=$1",[x.propertyId]);
    await pool.query("UPDATE property_private_locations SET exact_location=ST_SetSRID(ST_MakePoint(121.123456,14.654321),4326)::geography WHERE property_id=$1",[x.propertyId]);
-   assert.equal((await change(x)).status,200);
+   {const activation=await change(x);assert.equal(activation.status,200,JSON.stringify(activation.body));}
    let r=await publicRead(x.listingId);assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.headers['cache-control'],'no-store');const p=r.body.listing;
    assert.equal(p.title,saved.payload.listing.title);assert.equal(p.price_amount,saved.payload.listing.price_amount);assert.equal(p.available_from,'2026-11-01');assert.equal(p.property.bedrooms,null);assert.equal(p.location.city,'Synthetic city');assert.equal(p.location.barangay,'Synthetic barangay');assert.equal(p.location.map_point,null);assert.ok(p.published_at);
    assert.doesNotMatch(JSON.stringify(p),/UNREVIEWED|PRIVATE-|121\.123456|14\.654321|@synthetic|street_address|unit_identifier|room_identifier|exact_location|email|phone|password|token|principal|authority|submission_id|responsible_lister/);
@@ -107,6 +108,40 @@ await test('WRK0040 real PostgreSQL/PostGIS publication',async t=>{
    await pool.query("UPDATE property_authorities SET status='revoked' WHERE id=$1",[x.authorityId]);assert.equal((await publicRead(x.listingId)).status,404);await pool.query("UPDATE property_authorities SET status='active' WHERE id=$1",[x.authorityId]);
    await pool.query("UPDATE users SET status='suspended' WHERE id=$1",[lister.id]);assert.equal((await publicRead(x.listingId)).status,404);await pool.query("UPDATE users SET status='active' WHERE id=$1",[lister.id]);assert.equal((await publicRead(x.listingId)).status,200);
    await pool.query('UPDATE listings SET archived_at=now() WHERE id=$1',[x.listingId]);assert.equal((await publicRead(x.listingId)).status,404);
+  });
+  await t.test('real-only public collection reuses approved detail projection and current eligibility',async()=>{
+   const draft=(await consumer('post','listings',{relationship:'OWNER'})).body.listing.id;
+   const pendingListing=await pending();
+   const rejected=await pending();await decide(rejected,'reject',{reason:'Synthetic rejection'});
+   const house=await approvedFixture(),building=await approvedFixture(true);
+   assert.equal((await publicCollection()).status,200);
+   assert.ok(!(await publicCollection()).body.listings.some(x=>[draft,pendingListing.listingId,rejected.listingId,house.listingId,building.listingId].includes(x.id)));
+   assert.equal((await change(house)).status,200);
+   assert.equal((await change(building)).status,200);
+   await pool.query("UPDATE property_private_locations SET exact_location=ST_SetSRID(ST_MakePoint(121.123456,14.654321),4326)::geography WHERE property_id=$1",[house.propertyId]);
+   await pool.query("UPDATE listings SET public_map_point=ST_SetSRID(ST_MakePoint(123.75,10.25),4326)::geography,location_confirmed_at=now() WHERE id=$1",[building.listingId]);
+   let r=await publicCollection('transaction_type=RENT&city=Synthetic%20city&keyword=synthetic%20barangay&sort=price_asc');
+   assert.equal(r.status,200,JSON.stringify(r.body));
+   assert.deepEqual(r.body.listings.find(x=>x.id===building.listingId),(await publicRead(building.listingId)).body.listing);
+   r=await publicCollection('transaction_type=SALE');assert.equal(r.status,200);
+   const projected=r.body.listings.find(x=>x.id===house.listingId);assert.ok(projected);
+   assert.deepEqual(projected,(await publicRead(house.listingId)).body.listing);
+   assert.equal(projected.location.map_point,null);
+   assert.deepEqual((await publicRead(building.listingId)).body.listing.location.map_point,{lat:10.25,lng:123.75});
+   assert.doesNotMatch(JSON.stringify(r.body),/121\.123456|14\.654321|PRIVATE-|street_address|unit_identifier|room_identifier|exact_location|password|token_hash/);
+   await pool.query("UPDATE lister_access SET status='suspended' WHERE user_id=$1",[lister.id]);
+   r=await publicCollection();assert.equal(r.status,200);assert.ok(!r.body.listings.some(x=>[house.listingId,building.listingId].includes(x.id)));
+   await pool.query("UPDATE lister_access SET status='active' WHERE user_id=$1",[lister.id]);
+   await pool.query("UPDATE property_authorities SET status='revoked' WHERE id=$1",[house.authorityId]);
+   r=await publicCollection();assert.ok(!r.body.listings.some(x=>x.id===house.listingId));
+   await pool.query("UPDATE property_authorities SET status='active' WHERE id=$1",[house.authorityId]);
+   await pool.query("UPDATE users SET status='suspended' WHERE id=$1",[lister.id]);
+   r=await publicCollection();assert.ok(!r.body.listings.some(x=>[house.listingId,building.listingId].includes(x.id)));
+   await pool.query("UPDATE users SET status='active' WHERE id=$1",[lister.id]);
+   await pool.query("UPDATE properties SET archived_at=now() WHERE id=$1",[building.propertyId]);
+   r=await publicCollection();assert.ok(!r.body.listings.some(x=>x.id===building.listingId));
+   await change(await current(house),'unlist');
+   r=await publicCollection();assert.ok(!r.body.listings.some(x=>x.id===house.listingId));
   });
   await t.test('unlist and reactivation preserve snapshot, first timestamp and coherent status/audit history',async()=>{
    const x=await approvedFixture();assert.equal((await publicRead(x.listingId)).status,404);assert.equal((await change(x)).status,200);const published=(await publicRead(x.listingId)).body.listing.published_at;

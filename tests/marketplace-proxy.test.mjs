@@ -38,16 +38,19 @@ test('persistent editor uses UUID route/API and leaves sample/local guest persis
  assert.doesNotMatch(ui,/localStorage|Date\.now\(|fake|\.owner\b/);assert.match(ui,/marketplaceRequest\('listings\//);assert.match(ui,/expected_property_version/);assert.match(ui,/expected_authority_version/);assert.match(ui,/Save and submit for review/);assert.match(routes,/route\[0\]==='editor'/);assert.match(routes,/listingId=\{route\[1\]\}/);assert.match(browser,/Historical browser-only saves, messages and listings/);assert.match(admin,/\/api\/admin\/marketplace\//);
 });
 
-test('publication proxy allows only UUID detail and versioned owner actions, with no public credentials',async()=>{
+test('publication proxy allows real collection, UUID detail and owner actions, with no public credentials',async()=>{
+ assert.equal(marketplaceAllowed('GET',['public','listings']),true);
  assert.equal(marketplaceAllowed('GET',['public','listings',id]),true);
  for(const action of ['activate','unlist'])assert.equal(marketplaceAllowed('POST',['listings',id,action]),true);
- for(const [method,path] of [['GET',['public','listings']],['POST',['public','listings',id]],['GET',['listings',id,'activate']],['POST',['listings',id,'activate','extra']],['GET',['public','listings','1']]])assert.equal(marketplaceAllowed(method,path),false);
+ for(const [method,path] of [['POST',['public','listings',id]],['GET',['listings',id,'activate']],['POST',['listings',id,'activate','extra']],['GET',['public','listings','1']]])assert.equal(marketplaceAllowed(method,path),false);
  assert.equal(marketplaceAllowed('POST',['listings',id,'activate'],true),false);
  const previous={APP_URL:process.env.APP_URL,ACCOUNT_API_ORIGIN:process.env.ACCOUNT_API_ORIGIN,ACCOUNT_PROXY_KEY:process.env.ACCOUNT_PROXY_KEY},old=globalThis.fetch;let sent;
  Object.assign(process.env,{APP_URL:'https://site.invalid',ACCOUNT_API_ORIGIN:'https://private-service.invalid',ACCOUNT_PROXY_KEY:'synthetic-only'});
  globalThis.fetch=async(url,options)=>{sent={url:String(url),options};return Response.json({ok:true});};
  try{
   const response=await marketplaceForward(new Request('https://site.invalid/api/marketplace/public/listings/'+id,{headers:{Cookie:'__Host-bb_session=secret; __Host-bb_admin_session=admin-secret'}}),ctx(['public','listings',id]),'GET');assert.equal(response.status,200);assert.equal(sent.options.headers.get('cookie'),null);assert.equal(response.headers.get('cache-control'),'no-store');
+  const collection=await marketplaceForward(new Request('https://site.invalid/api/marketplace/public/listings?city=City%20of%20Cebu&limit=20&keyword=Lahug',{headers:{Cookie:'__Host-bb_session=secret'}}),ctx(['public','listings']),'GET');assert.equal(collection.status,200);assert.equal(sent.options.headers.get('cookie'),null);assert.match(sent.url,/city=City\+of\+Cebu/);
+  assert.equal((await marketplaceForward(new Request('https://site.invalid/api/marketplace/public/listings?tags=pool'),ctx(['public','listings']),'GET')).status,422);
   const mutation=origin=>new Request('https://site.invalid/api/marketplace/listings/'+id+'/activate',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',Cookie:'__Host-bb_session=owner; __Host-bb_admin_session=admin'},body:'{"expected_version":"4"}'});
   assert.equal((await marketplaceForward(mutation('https://evil.invalid'),ctx(['listings',id,'activate']),'POST')).status,403);
   assert.equal((await marketplaceForward(mutation('https://site.invalid'),ctx(['listings',id,'activate']),'POST')).status,200);assert.equal(sent.options.headers.get('cookie'),'__Host-bb_session=owner');assert.equal(sent.options.body,'{"expected_version":"4"}');

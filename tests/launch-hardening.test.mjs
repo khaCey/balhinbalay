@@ -52,12 +52,14 @@ test('legacy account-like demo data is discarded while guest recent views surviv
   assert.deepEqual(restored.convos,[]);
 });
 
-test('query normalisation preserves meaningful zero values', () => {
+test('real query normalisation preserves supported zero values and removes sample-only fields', () => {
   const q = normaliseQuery({...defaults(),school:0,radius:0,min:0,beds:0,baths:0,size:0});
-  assert.equal(q.school,0);
-  assert.equal(q.radius,0);
   assert.equal(q.min,0);
   assert.equal(q.beds,0);
+  assert.equal(q.baths,0);
+  assert.equal(q.size,0);
+  for(const key of ['school','radius','tags'])assert.equal(Object.hasOwn(q,key),false);
+  assert.equal(q.sort,'Newest');
 });
 
 test('keyword and numeric filters tolerate listings with missing data', () => {

@@ -4,6 +4,7 @@ import {transaction} from './marketplace-identity.js';
 import {MarketplaceError,invalid,object,expected,UUID,POLICY,LISTING_FIELDS,PROPERTY_FIELDS,DETAIL_FIELDS,RENT_FIELDS,fields,applicability,submissionErrors} from './marketplace-validation.js';
 
 export const PUBLICATION_POLICY='marketplace_publication_v1';
+// Public collection and detail share the same eligibility boundary.
 const fail=(status,code,message)=>{throw new MarketplaceError(status,code,message);};
 const realId=value=>{if(!UUID.test(String(value||'')))invalid('id','Use a real marketplace UUID.');return value;};
 const nonnull=value=>Object.fromEntries(Object.entries(value).filter(([,v])=>v!=null));
@@ -66,12 +67,7 @@ export function publicProjection(l,{content,location}) {
   development:content.development?pick(content.development,['name','development_type']):null,location:{city:location.city,barangay:location.barangay,map_point:point}};
 }
 
-export function publicListingRouter({pool,route}) {
- const router=express.Router();
- router.get('/listings/:id',route(async(req,res)=>{
-  const notFound=()=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Listing not found.'});
-  if(!UUID.test(String(req.params.id))||Object.keys(req.query).length)return notFound();
-  const row=(await pool.query(`SELECT l.*,a.relationship,a.verification_state,a.status AS authority_status,
+const PUBLIC_CANDIDATES=`SELECT l.*,a.relationship,a.verification_state,a.status AS authority_status,
     ST_Y(l.public_map_point::geometry) AS public_lat,ST_X(l.public_map_point::geometry) AS public_lng
     FROM listings l JOIN properties prop ON prop.id=l.property_id AND prop.archived_at IS NULL
     JOIN principals p ON p.id=l.owner_principal_id AND p.kind='USER' AND p.archived_at IS NULL
@@ -79,7 +75,83 @@ export function publicListingRouter({pool,route}) {
     JOIN lister_access c ON c.user_id=u.id AND c.status='active'
     JOIN property_authorities a ON a.id=l.authority_id AND a.property_id=l.property_id AND a.principal_id=l.owner_principal_id
       AND a.status='active' AND a.verification_state='verified'
-    WHERE l.id=$1 AND l.review_status='approved' AND l.market_status='active' AND l.archived_at IS NULL AND l.published_at IS NOT NULL`,[req.params.id])).rows[0];
+    WHERE l.review_status='approved' AND l.market_status='active' AND l.archived_at IS NULL AND l.published_at IS NOT NULL`;
+
+const integer=(value,defaultValue,max)=>{
+ if(value===undefined)return defaultValue;
+ if(!/^\d+$/.test(String(value))||Number(value)>max)invalid('pagination','Use a valid page and limit.');
+ return Number(value);
+};
+const amount=(value,key)=>{
+ if(value===undefined)return null;
+ if(!/^(?:\d+)(?:\.\d{1,4})?$/.test(String(value))||!Number.isFinite(Number(value)))invalid(key,'Use a valid number.');
+ return Number(value);
+};
+
+export function publicSearchOptions(query) {
+ object(query,['page','limit','sort','transaction_type','city','property_type','min_price','max_price','min_bedrooms','min_bathrooms','min_floor_area','keyword']);
+ const page=integer(query.page,1,100000),limit=integer(query.limit,20,50);
+ if(page<1||limit<1)invalid('pagination','Use a valid page and limit.');
+ const sort=query.sort??'newest';
+ if(!['newest','price_asc','price_desc','area_asc','area_desc'].includes(sort))invalid('sort','Unsupported sort.');
+ const transaction_type=query.transaction_type??null;
+ if(transaction_type!==null&&!['RENT','SALE'].includes(transaction_type))invalid('transaction_type','Unsupported transaction type.');
+ const property_type=query.property_type??null;
+ if(property_type!==null&&!['CONDO','APARTMENT','HOUSE','TOWNHOUSE','ROOM','LAND'].includes(property_type))invalid('property_type','Unsupported property type.');
+ const city=query.city===undefined?null:String(query.city).trim();
+ const keyword=query.keyword===undefined?null:String(query.keyword).trim();
+ if((city&&city.length>100)||(keyword&&keyword.length>200))invalid('search','Search text is too long.');
+ const min_price=amount(query.min_price,'min_price'),max_price=amount(query.max_price,'max_price');
+ const min_bedrooms=amount(query.min_bedrooms,'min_bedrooms'),min_bathrooms=amount(query.min_bathrooms,'min_bathrooms'),min_floor_area=amount(query.min_floor_area,'min_floor_area');
+ if(min_price!==null&&max_price!==null&&min_price>max_price)invalid('price','Maximum price must be at least minimum price.');
+ return {page,limit,sort,transaction_type,property_type,city,keyword,min_price,max_price,min_bedrooms,min_bathrooms,min_floor_area};
+}
+
+export function searchPublicProjections(listings,options) {
+ const text=value=>String(value??'').toLocaleLowerCase();
+ const numeric=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
+ const words=text(options.keyword).split(/\s+/).filter(Boolean);
+ const result=listings.filter(l=>{
+  const price=numeric(l.price_amount),property=l.property||{};
+  if(options.transaction_type&&l.transaction_type!==options.transaction_type)return false;
+  if(options.property_type&&property.property_type!==options.property_type)return false;
+  if(options.city&&text(l.location.city)!==text(options.city))return false;
+  if(options.min_price!==null&&(price===null||price<options.min_price))return false;
+  if(options.max_price!==null&&(price===null||price>options.max_price))return false;
+  if(options.min_bedrooms!==null&&(numeric(property.bedrooms)===null||numeric(property.bedrooms)<options.min_bedrooms))return false;
+  if(options.min_bathrooms!==null&&(numeric(property.bathrooms)===null||numeric(property.bathrooms)<options.min_bathrooms))return false;
+  if(options.min_floor_area!==null&&(numeric(property.floor_area_sqm)===null||numeric(property.floor_area_sqm)<options.min_floor_area))return false;
+  const haystack=text([l.title,l.description,l.location.city,l.location.barangay].join(' '));
+  return words.every(word=>haystack.includes(word));
+ });
+ const value=l=>options.sort.startsWith('price')?numeric(l.price_amount):options.sort.startsWith('area')?numeric(l.property?.floor_area_sqm):new Date(l.published_at).getTime();
+ const direction=options.sort==='price_asc'||options.sort==='area_asc'?1:-1;
+ result.sort((a,b)=>{
+  const av=value(a),bv=value(b);
+  if(av===null||!Number.isFinite(av))return bv===null||!Number.isFinite(bv)?a.id.localeCompare(b.id):1;
+  if(bv===null||!Number.isFinite(bv))return -1;
+  return direction*(av-bv)||a.id.localeCompare(b.id);
+ });
+ const offset=(options.page-1)*options.limit;
+ return {listings:result.slice(offset,offset+options.limit),page:options.page,limit:options.limit,total:result.length,has_more:offset+options.limit<result.length};
+}
+
+export function publicListingRouter({pool,route}) {
+ const router=express.Router();
+ router.get('/listings',route(async(req,res)=>{
+  const options=publicSearchOptions(req.query);
+  const rows=(await pool.query(`${PUBLIC_CANDIDATES} ORDER BY l.id`)).rows;
+  const listings=[];
+  for(const row of rows)try{
+   const approved=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
+   listings.push(publicProjection(row,approved));
+  }catch(error){if(!(error instanceof MarketplaceError))throw error;}
+  res.json({ok:true,...searchPublicProjections(listings,options)});
+ }));
+ router.get('/listings/:id',route(async(req,res)=>{
+  const notFound=()=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Listing not found.'});
+  if(!UUID.test(String(req.params.id))||Object.keys(req.query).length)return notFound();
+  const row=(await pool.query(`${PUBLIC_CANDIDATES} AND l.id=$1`,[req.params.id])).rows[0];
   if(!row)return notFound();
   try {
    const result=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
