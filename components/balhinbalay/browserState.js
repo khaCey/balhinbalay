@@ -1,8 +1,9 @@
 import {base,defaults} from './data.js';
 
 const MODES = new Set(['Rent','Buy']);
-const METHODS = new Set(['City','Keyword','School','Map']);
-const SORTS = new Set(['Recommended','Newest','Price: low to high','Price: high to low','Size: large to small','Size: small to large']);
+const METHODS = new Set(['City','Keyword','Map']);
+const SORTS = new Set(['Newest','Price: low to high','Price: high to low','Size: large to small','Size: small to large']);
+const TYPES = new Set(['Any','Condo','Apartment','House','Townhouse','Room','Land']);
 const PAGES = new Set(['home','search','results','map','property','saved','recent','compare','messages','chat','profile','settings','editProfile','owner','editor','about','contact','privacy','terms','register','login','verify-email','forgot-password','reset-password']);
 const text = (value, fallback = '') => typeof value === 'string' ? value : fallback;
 const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
@@ -18,17 +19,14 @@ export function normaliseQuery(value) {
   return {
     mode: MODES.has(source.mode) ? source.mode : fallback.mode,
     method: METHODS.has(source.method) ? source.method : fallback.method,
-    cities: uniqueStrings(source.cities),
-    keyword: text(source.keyword),
-    school: Math.max(0, Math.trunc(numberOrBlank('school'))),
-    radius: Math.max(0, numberOrBlank('radius')),
-    type: text(source.type, fallback.type),
+    cities: uniqueStrings(source.cities).slice(0,1),
+    keyword: source.method==='Keyword'||source.method==='Map'?text(source.keyword):'',
+    type: TYPES.has(source.type)?source.type:fallback.type,
     min: numberOrBlank('min'), max: numberOrBlank('max'),
     beds: source.beds === 'Any' ? 'Any' : numberOrBlank('beds'),
     baths: source.baths === 'Any' ? 'Any' : numberOrBlank('baths'),
     size: numberOrBlank('size'),
-    tags: uniqueStrings(source.tags),
-    sort: SORTS.has(source.sort) ? source.sort : fallback.sort,
+    sort: SORTS.has(source.sort) ? source.sort : 'Newest',
   };
 }
 

@@ -36,3 +36,15 @@ test('main public pages and real cards contain no sample feed or property photog
  assert.match(files[2],/\/listing\/'\+listing\.id/);
  assert.match(files[2],/Photo not available/);
 });
+
+test('real public shell and page metadata do not label inventory as sample',async()=>{
+ const [shell,metadata,about]=await Promise.all([
+  readFile(new URL('../components/balhinbalay/App.jsx',import.meta.url),'utf8'),
+  readFile(new URL('../app/layout.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../components/balhinbalay/About.jsx',import.meta.url),'utf8'),
+ ]);
+ assert.match(shell,/realBrowse&&!realListing/);
+ assert.match(shell,/Beta preview · Real listings/);
+ assert.doesNotMatch(metadata,/Browse sample homes|Explore sample homes|Listings are illustrative/);
+ assert.match(about,/Public search shows listings that currently meet marketplace publication rules/);
+});

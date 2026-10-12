@@ -20,3 +20,18 @@ test('public search accepts only supported persisted filters and deterministic p
  assert.throws(()=>publicSearchOptions({tags:'pool'}));
  assert.throws(()=>publicSearchOptions({limit:'500'}));
 });
+
+test('unknown numeric fields never become zero or satisfy a minimum, and sort last',()=>{
+ const unknown=listing('unknown',{price_amount:null,property:{property_type:'LAND',bedrooms:null,bathrooms:null,floor_area_sqm:null}});
+ const zero=listing('zero',{price_amount:'0',property:{property_type:'HOUSE',bedrooms:0,bathrooms:0,floor_area_sqm:0}});
+ const supplied=listing('supplied',{price_amount:'100',property:{property_type:'HOUSE',bedrooms:2,bathrooms:1,floor_area_sqm:40}});
+ const search=query=>searchPublicProjections([unknown,zero,supplied],publicSearchOptions(query)).listings.map(x=>x.id);
+ assert.deepEqual(search({min_price:'0'}),['supplied','zero']);
+ assert.deepEqual(search({min_bedrooms:'0'}),['supplied','zero']);
+ assert.deepEqual(search({min_bathrooms:'0'}),['supplied','zero']);
+ assert.deepEqual(search({min_floor_area:'0'}),['supplied','zero']);
+ assert.deepEqual(search({sort:'price_asc'}),['zero','supplied','unknown']);
+ assert.deepEqual(search({sort:'price_desc'}),['supplied','zero','unknown']);
+ assert.deepEqual(search({sort:'area_asc'}),['zero','supplied','unknown']);
+ assert.deepEqual(search({sort:'area_desc'}),['supplied','zero','unknown']);
+});

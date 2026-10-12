@@ -8,9 +8,9 @@ export default function About(){
   return <div className="narrow about-page">
     <div className="page-head"><h1>About BalhinBalay</h1></div>
     <div className="panel">
-      <p>BalhinBalay is a property discovery beta for exploring places to rent or buy. You can search by city, keyword or nearby school, browse results on a list or map, and open property details.</p>
-      <p>This preview currently uses sample listings and illustrative photos. Prices, availability, locations and Lister details have not been verified as real listings. Real account registration may be available, but messages and listing submissions are not available.</p>
-      <p>Changes you make in the preview stay in this browser. Please do not enter private information.</p>
+      <p>BalhinBalay is a property discovery beta for exploring real places to rent or buy. Search by city or keyword, browse results in a list or map, and open listing details.</p>
+      <p>Public search shows listings that currently meet marketplace publication rules. Only confirmed public locations have map pins, and photos may be unavailable. Older isolated sample property and comparison pages remain illustrative.</p>
+      <p>Some preview features stay in this browser. Please do not enter private information into those features.</p>
       <Button onClick={()=>nav('search')}>Explore places</Button>
     </div>
   </div>;

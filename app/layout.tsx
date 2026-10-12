@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "BalhinBalay — Find your place",
-  description: "Browse sample homes and explore search and map features in the BalhinBalay beta preview. Listings are illustrative and enquiries are not delivered.",
+  description: "Explore currently eligible real homes to rent or buy with BalhinBalay search and map. Map pins appear only for confirmed public locations.",
   openGraph: {
     type: "website",
     title: "BalhinBalay — Find your place",
-    description: "Explore sample homes with BalhinBalay's beta search and map preview. Listings are illustrative and enquiries are not delivered.",
+    description: "Explore currently eligible real homes with BalhinBalay search and map. Map pins appear only for confirmed public locations.",
     siteName: "BalhinBalay",
   },
   twitter: {
     card: "summary",
     title: "BalhinBalay — Find your place",
-    description: "Explore sample homes with BalhinBalay's beta search and map preview. Listings are illustrative and enquiries are not delivered.",
+    description: "Explore currently eligible real homes with BalhinBalay search and map. Map pins appear only for confirmed public locations.",
   },
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };

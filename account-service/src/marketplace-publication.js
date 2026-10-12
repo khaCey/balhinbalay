@@ -109,26 +109,27 @@ export function publicSearchOptions(query) {
 
 export function searchPublicProjections(listings,options) {
  const text=value=>String(value??'').toLocaleLowerCase();
+ const numeric=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
  const words=text(options.keyword).split(/\s+/).filter(Boolean);
  const result=listings.filter(l=>{
-  const price=Number(l.price_amount),property=l.property||{};
+  const price=numeric(l.price_amount),property=l.property||{};
   if(options.transaction_type&&l.transaction_type!==options.transaction_type)return false;
   if(options.property_type&&property.property_type!==options.property_type)return false;
   if(options.city&&text(l.location.city)!==text(options.city))return false;
-  if(options.min_price!==null&&price<options.min_price)return false;
-  if(options.max_price!==null&&price>options.max_price)return false;
-  if(options.min_bedrooms!==null&&Number(property.bedrooms)<options.min_bedrooms)return false;
-  if(options.min_bathrooms!==null&&Number(property.bathrooms)<options.min_bathrooms)return false;
-  if(options.min_floor_area!==null&&Number(property.floor_area_sqm)<options.min_floor_area)return false;
+  if(options.min_price!==null&&(price===null||price<options.min_price))return false;
+  if(options.max_price!==null&&(price===null||price>options.max_price))return false;
+  if(options.min_bedrooms!==null&&(numeric(property.bedrooms)===null||numeric(property.bedrooms)<options.min_bedrooms))return false;
+  if(options.min_bathrooms!==null&&(numeric(property.bathrooms)===null||numeric(property.bathrooms)<options.min_bathrooms))return false;
+  if(options.min_floor_area!==null&&(numeric(property.floor_area_sqm)===null||numeric(property.floor_area_sqm)<options.min_floor_area))return false;
   const haystack=text([l.title,l.description,l.location.city,l.location.barangay].join(' '));
   return words.every(word=>haystack.includes(word));
  });
- const value=l=>options.sort.startsWith('price')?Number(l.price_amount):options.sort.startsWith('area')?Number(l.property.floor_area_sqm):new Date(l.published_at).getTime();
+ const value=l=>options.sort.startsWith('price')?numeric(l.price_amount):options.sort.startsWith('area')?numeric(l.property?.floor_area_sqm):new Date(l.published_at).getTime();
  const direction=options.sort==='price_asc'||options.sort==='area_asc'?1:-1;
  result.sort((a,b)=>{
   const av=value(a),bv=value(b);
-  if(!Number.isFinite(av)&&Number.isFinite(bv))return 1;
-  if(Number.isFinite(av)&&!Number.isFinite(bv))return -1;
+  if(av===null||!Number.isFinite(av))return bv===null||!Number.isFinite(bv)?a.id.localeCompare(b.id):1;
+  if(bv===null||!Number.isFinite(bv))return -1;
   return direction*(av-bv)||a.id.localeCompare(b.id);
  });
  const offset=(options.page-1)*options.limit;
