@@ -14,7 +14,7 @@ export const img = p => p.images?.[0] || photos[p.photo || 0];
 export const propertyImages = p => p.images?.length ? p.images : [photos[p.photo || 0], photos[((p.photo || 0) + 2) % 3], photos[((p.photo || 0) + 1) % 3]];
 export const initials = name => String(name || '').split(' ').map(x => x[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'BB';
 export {distance, searchListings} from './searchListings.js';
-export const filterCount = q => ['type','min','max','beds','baths','size'].reduce((n,k) => n + (q[k] && q[k] !== 'Any' ? 1 : 0), 0) + q.tags.length;
+export const filterCount = q => ['type','min','max','beds','baths','size'].reduce((n,k) => n + (q[k] && q[k] !== 'Any' ? 1 : 0), 0);
 export const summary = q => [q.type !== 'Any' ? q.type : 'All property types', q.min || q.max ? `${q.min ? compact(q.min) : 'Any price'} – ${q.max ? compact(q.max) : 'No limit'}` : 'Any budget', q.beds !== 'Any' ? q.beds + '+ bedrooms' : '', q.method === 'Keyword' ? q.keyword : '', ...q.tags, q.method === 'School' ? schools[q.school].name + ' · ' + q.radius + ' km' : ''].filter(Boolean).join(' · ');
 export const costs = suppliedCosts;
 const freshBrowserState=()=>{
@@ -136,7 +136,7 @@ export function useAppModel(initialPage = 'home') {
   const openProperty = id => {const p=prop(id); update(d=>{if(d.recent.includes(p.id))signal(d,p,1);d.recent=[p.id,...d.recent.filter(x=>x!==p.id)].slice(0,12);}); nav('property',{property:p.id,photo:0,returnPage:['map','recent','results','compare'].includes(state.page)?state.page:'home'});};
   const toggleSave = () => setModal({type:'save-search'});
   const compare = id => {if (!state.compare.includes(id) && state.compare.length >= 3) return notify('Compare up to three places. Remove one to add another.');patch({compare:state.compare.includes(id)?state.compare.filter(x=>x!==id):[...state.compare,id]});};
-  const startSearch = (query=state.q) => {if(query.method==='City'&&!query.cities.length){setModal({type:'cities'});return;} if(query.method==='School')query={...query,cities:[schools[query.school].city]}; update(d=>{d.lastSearch=structuredClone(query);d.recentCities=[...new Set([...query.cities,...d.recentCities])].slice(0,6);});nav(query.method==='Map'?'map':'results',{q:query,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null});};
+  const startSearch = (query=state.q) => {update(d=>{d.lastSearch=structuredClone(query);d.recentCities=[...new Set([...query.cities,...d.recentCities])].slice(0,6);});nav(query.method==='Map'?'map':'results',{q:query,mapSelected:null,mapCenter:null,mapZoom:null,mapBounds:null});};
   const chooseMethod = method => {const q={...state.q,method};if(method==='Map')startSearch(q);else nav('search',{q});};
   const openChat = id => nav('chat',{chat:id});
   const message = () => setModal({type:'enquiry'});
