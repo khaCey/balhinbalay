@@ -13,10 +13,10 @@ test('marketplace defaults off and child flags cannot bypass master',()=>{
   const c=readConfig({...env,MARKETPLACE_ENABLED:'true',MARKETPLACE_MESSAGING_ENABLED:'true',MARKETPLACE_MODERATION_ENABLED:'true',MARKETPLACE_PUBLICATION_ENABLED:'true'});
   for(const k of ['marketplaceEnabled','messagingEnabled','moderationEnabled','publicationEnabled'])assert.equal(c[k],true);
 });
-test('release catalogue rejects unused migration007 and changed reviewed bytes',async()=>{
-  await verifyFiles();const dir=await mkdtemp(join(tmpdir(),'bb-wrk0042-files-'));
+test('historical release gate rejects reporting source and preserves its six-migration checksum contract',async()=>{
+  await assert.rejects(verifyFiles(),/catalogue/);const dir=await mkdtemp(join(tmpdir(),'bb-wrk0042-files-'));
   try{
-    await cp(new URL('../migrations/',import.meta.url),dir,{recursive:true});await writeFile(join(dir,'007_unreviewed.sql'),'SELECT 1;');await assert.rejects(verifyFiles(dir),/catalogue/);
+    await cp(new URL('../migrations/',import.meta.url),dir,{recursive:true});await rm(join(dir,'007_listing_reports.sql'));await verifyFiles(dir);await writeFile(join(dir,'007_unreviewed.sql'),'SELECT 1;');await assert.rejects(verifyFiles(dir),/catalogue/);
     await rm(join(dir,'007_unreviewed.sql'));await writeFile(join(dir,'003_marketplace_identity.sql'),'SELECT 1;');await assert.rejects(verifyFiles(dir),/checksum/);
   }finally{await rm(dir,{recursive:true});}
 });

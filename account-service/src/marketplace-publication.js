@@ -136,6 +136,15 @@ export function searchPublicProjections(listings,options) {
  return {listings:result.slice(offset,offset+options.limit),page:options.page,limit:options.limit,total:result.length,has_more:offset+options.limit<result.length};
 }
 
+// Shared single-listing eligibility for detail and authenticated reporting.
+export async function eligiblePublicListing(client,id,lock=false) {
+ if(!UUID.test(String(id||'')))return null;
+ const row=(await client.query(`${PUBLIC_CANDIDATES} AND l.id=$1${lock?' FOR SHARE OF l,prop,p,u,c,a':''}`,[id])).rows[0];
+ if(!row)return null;
+ try{return publicProjection(row,await approvedPublication(client,row,{status:row.authority_status,verification_state:row.verification_state}));}
+ catch(error){if(error instanceof MarketplaceError)return null;throw error;}
+}
+
 export function publicListingRouter({pool,route}) {
  const router=express.Router();
  router.get('/listings',route(async(req,res)=>{
@@ -151,12 +160,9 @@ export function publicListingRouter({pool,route}) {
  router.get('/listings/:id',route(async(req,res)=>{
   const notFound=()=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Listing not found.'});
   if(!UUID.test(String(req.params.id))||Object.keys(req.query).length)return notFound();
-  const row=(await pool.query(`${PUBLIC_CANDIDATES} AND l.id=$1`,[req.params.id])).rows[0];
-  if(!row)return notFound();
-  try {
-   const result=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
-   res.json({ok:true,listing:publicProjection(row,result)});
-  }catch(error){if(error instanceof MarketplaceError)return notFound();throw error;}
+  const listing=await eligiblePublicListing(pool,req.params.id);
+  if(!listing)return notFound();
+  res.json({ok:true,listing});
  }));
  return router;
 }

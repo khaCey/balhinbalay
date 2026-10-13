@@ -1,4 +1,5 @@
 import express from 'express';
+import {listingReportRouter,listingReportAdminRouter} from './marketplace-reporting.js';
 import {messagingRouter} from './marketplace-messaging.js';
 import {moderationRouter} from './marketplace-moderation.js';
 import {publicationRouter,publicListingRouter} from './marketplace-publication.js';
@@ -275,6 +276,7 @@ export function mountMarketplace(app,{pool,config}) {
     });
     res.status(201).json({ok:true,submission:result});
   }));
+  if(config.publicationEnabled)router.use(listingReportRouter({pool,config,session,route,audit}));
   if(config.publicationEnabled)router.use(publicationRouter({pool,config,session,route,lister,principal,owned,audit,update}));
   if(config.messagingEnabled)router.use('/conversations',messagingRouter({pool,config,session,route}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
@@ -330,6 +332,7 @@ export function marketplaceAdminRouter({pool,config}) {
     });
     res.json({ok:true,authority:result});
   }));
+  if(config.moderationEnabled&&config.publicationEnabled)router.use(listingReportAdminRouter({pool,config,session,route,audit}));
   if(config.moderationEnabled)router.use(moderationRouter({pool,config,session,route,audit,statusHistory,update}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
   return router;
