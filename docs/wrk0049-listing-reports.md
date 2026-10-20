@@ -28,3 +28,11 @@ Runtime/browser production verification remains pending a separately authorised 
 
 The historical WRK0042/43 release verifier deliberately remains pinned to migrations001–006 and rejects this seven-migration source. Its tests prove the historical six-file catalogue/checksums still work on their isolated fixture, and explicitly prove reporting source is refused. A separate reviewed reporting deployment release must establish migration007/checksum and new ledger gates; this assignment does not extend or bypass the parked deployment runbook.
 Migration007 SHA256: eedc73aca2d62d19d86a2c521b91643dc98ddbc7f09b11e4c14595daba1d2eab.
+
+## Review corrections — 20 October 2026 JST
+
+The report queue now permits Refresh after its initial request fails; loading still disables the action. Account deletion recognises both foreign-key violation 23503 and restrict violation 23001 as retained history, returning the existing conflict result after rollback rather than propagating a database error. This also matches the corresponding compatibility correction in the separate media candidate. No migration, reporting policy or dependency changed.
+
+Verification: 79/79 Site tests, 45/45 account tests (including three new deletion error/rollback regressions), lint with zero errors/two existing warnings, production build and diff check pass. An isolated React component check used the actual component with a synthetic first-request 503, confirmed Refresh enabled, confirmed one pending retry with Refresh disabled, then confirmed successful queue recovery. Its temporary React renderer dependencies were outside the repository; no manifest/lockfile change occurred. The initial SQLSTATE reproducer injected 23001; it was not a native PostgreSQL18 run.
+
+Native PostgreSQL/PostGIS integration was not rerun in this environment. Chromium could not be installed because the browser download returned an invalid archive; no browser pass is claimed. Existing PostgreSQL18/PostGIS integration results above remain historical. Return WRK0049 to REVIEW for independent acceptance; do not merge or deploy from this correction run.

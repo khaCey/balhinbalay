@@ -39,7 +39,7 @@ export async function guardedDeleteAccount(pool,id) {
       return client.query('DELETE FROM users WHERE id=$1 RETURNING id,email',[id]);
     });
   } catch(error) {
-    if(error.code==='23503')return {history:true,rowCount:0,rows:[]};
+    if(['23503','23001'].includes(error.code))return {history:true,rowCount:0,rows:[]};
     throw error;
   }
 }
