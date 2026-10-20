@@ -1,3 +1,4 @@
+import {validMediaRoot} from './media-storage.js';
 export function readConfig(env=process.env){
   const required=['DATABASE_URL','APP_URL','SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM','PROXY_KEY'];
   for(const name of required)if(!env[name])throw new Error(`${name} is required`);
@@ -10,7 +11,9 @@ export function readConfig(env=process.env){
   if(env.PROXY_KEY.length<32)throw new Error('PROXY_KEY must be at least 32 characters');
   const adminEmails=String(env.ADMIN_EMAILS||'').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean);
   if(adminEmails.some(value=>value.length>254||!/^\S+@\S+\.\S+$/.test(value)))throw new Error('ADMIN_EMAILS contains an invalid email');
+  const mediaRoot=env.LISTING_MEDIA_ROOT?validMediaRoot(env.LISTING_MEDIA_ROOT):null;
   return {appOrigin:appUrl.origin,port,secure:env.SMTP_SECURE==='true',proxyKey:env.PROXY_KEY,
+    mediaRoot,mediaEnabled:env.MARKETPLACE_ENABLED==='true'&&!!mediaRoot,
     adminEmails:[...new Set(adminEmails)],marketplaceEnabled:env.MARKETPLACE_ENABLED==='true',
     messagingEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MESSAGING_ENABLED==='true',
     moderationEnabled:env.MARKETPLACE_ENABLED==='true'&&env.MARKETPLACE_MODERATION_ENABLED==='true',

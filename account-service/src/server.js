@@ -5,6 +5,7 @@ import {mountSiteAdmin} from './site-admin.js';
 import {createMailer} from './email.js';
 import {readConfig} from './config.js';
 import {mountMarketplace} from './marketplace.js';
+import {readyMediaRoot} from './media-storage.js';
 
 const config=readConfig();
 const pool=new Pool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
@@ -24,6 +25,11 @@ try{
   if(config.moderationEnabled||config.publicationEnabled){
     const moderation=await pool.query("SELECT 1 FROM schema_migrations WHERE name='006_listing_moderation.sql'");
     if(!moderation.rowCount)throw new Error('Moderation/publication is enabled but migration006 is absent');
+  }
+  if(config.mediaEnabled){
+    const media=await pool.query("SELECT 1 FROM schema_migrations WHERE name='008_listing_media.sql'");
+    if(!media.rowCount)throw new Error('Listing media is enabled but reviewed migration008 is absent');
+    await readyMediaRoot(config.mediaRoot);
   }
   const app=createAccountApp({pool,mailer,config});
   if(config.marketplaceEnabled)mountMarketplace(app,{pool,config});

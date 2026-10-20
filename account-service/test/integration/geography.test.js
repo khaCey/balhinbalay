@@ -13,7 +13,9 @@ import {createAccountApp} from '../../src/app.js';
 import {mountMarketplace} from '../../src/marketplace.js';
 import {mountSiteAdmin} from '../../src/site-admin.js';
 import {ensureUserPrincipal,transaction} from '../../src/marketplace-identity.js';
-import {inspectDatabase} from '../../scripts/verify-marketplace-release.js';
+import {reviewedRelease} from '../helpers/reviewed-release.js';
+const historical=await reviewedRelease();
+const {inspectDatabase}=historical;
 import {loadPackage,applyGeography,verifyGeography,COUNTS} from '../../scripts/provision-psgc.js';
 
 const connection=process.env.BB_MARKETPLACE_TEST_URL;
@@ -59,7 +61,7 @@ const draftBody=(cityId=city,barangayId=barangay)=>({relationship:'OWNER',proper
 await test('WRK0044 exact authoritative PSGC package on isolated PostgreSQL/PostGIS',async t=>{
   try{
     await t.test('fresh 001→006 import has exact counts, globally unique codes and valid parent relationships',async()=>{
-      fresh=await database('bb_wrk0044_geography_fresh');await migrate(fresh);
+      fresh=await database('bb_wrk0044_geography_fresh');await migrate(fresh,{directory:historical.directory});
       const result=await applyGeography(fresh,rows);assert.deepEqual(result.inserted,COUNTS);assert.deepEqual(result.counts,COUNTS);
       for(const table of Object.keys(COUNTS)){const r=(await fresh.query(`SELECT count(*)::int n,count(DISTINCT code)::int distinct_codes FROM ${table}`)).rows[0];assert.equal(r.n,COUNTS[table]);assert.equal(r.distinct_codes,r.n);}
       assert.equal((await fresh.query('SELECT count(*)::int n FROM cities c JOIN provinces p ON p.id=c.province_id WHERE p.region_id<>c.region_id')).rows[0].n,0);
@@ -70,7 +72,7 @@ await test('WRK0044 exact authoritative PSGC package on isolated PostgreSQL/Post
       upgrade=await database('bb_wrk0044_geography_upgrade');const dir=await mkdtemp(join(tmpdir(),'bb-psgc-account-migrations-'));
       try{for(const name of ['001_accounts.sql','002_session_purpose.sql'])await copyFile(fileURLToPath(new URL('../../migrations/'+name,import.meta.url)),join(dir,name));await migrate(upgrade,{directory:dir});}
       finally{await rm(dir,{recursive:true,force:true});}
-      const original=await seedAccountOnly(upgrade),before=await inspectDatabase(upgrade,'before');await migrate(upgrade);await inspectDatabase(upgrade,'after',before);
+      const original=await seedAccountOnly(upgrade),before=await inspectDatabase(upgrade,'before');await migrate(upgrade,{directory:historical.directory});await inspectDatabase(upgrade,'after',before);
       const prior=await digest(upgrade);assert.deepEqual((await applyGeography(upgrade,rows)).inserted,COUNTS);assert.deepEqual(await digest(upgrade),prior);
       assert.equal((await upgrade.query('SELECT count(*)::int n FROM principals WHERE user_id=$1',[original])).rows[0].n,1);
     });
@@ -119,7 +121,7 @@ await test('WRK0044 exact authoritative PSGC package on isolated PostgreSQL/Post
       bad=structuredClone(rows);bad.barangays[0].city_code='0702223000';await assert.rejects(applyGeography(fresh,bad),/invalid Barangay\/City parent/);assert.deepEqual(await digest(fresh,true),before);
     });
     await t.test('late database failure rolls back all four reference-table inserts atomically',async()=>{
-      partial=await database('bb_wrk0044_geography_atomic');await migrate(partial);
+      partial=await database('bb_wrk0044_geography_atomic');await migrate(partial,{directory:historical.directory});
       await partial.query("CREATE FUNCTION reject_psgc_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Controlled late import failure'; END $$; CREATE TRIGGER reject_psgc_test BEFORE INSERT ON barangays FOR EACH ROW EXECUTE FUNCTION reject_psgc_test()");
       await assert.rejects(applyGeography(partial,rows),/Controlled late import failure/);
       for(const name of Object.keys(COUNTS))assert.equal((await partial.query(`SELECT count(*)::int n FROM ${name}`)).rows[0].n,0);
@@ -171,6 +173,6 @@ await test('WRK0044 exact authoritative PSGC package on isolated PostgreSQL/Post
   }finally{
     for(const pool of [fresh,upgrade,partial])if(pool)await pool.end();
     try{for(const name of databases){for(let n=0;n<100;n++){if(!(await root.query('SELECT 1 FROM pg_stat_activity WHERE datname=$1',[name])).rowCount)break;if(n===99)throw new Error('Disposable connections did not close');await new Promise(r=>setTimeout(r,20));}await root.query(`DROP DATABASE ${name}`);}}
-    finally{await root.end();}
+    finally{await root.end();await historical.cleanup();}
   }
 });

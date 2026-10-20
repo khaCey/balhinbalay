@@ -2,6 +2,7 @@ import express from 'express';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
 import {MarketplaceError,invalid,object,expected,UUID,POLICY,LISTING_FIELDS,PROPERTY_FIELDS,DETAIL_FIELDS,RENT_FIELDS,fields,applicability,submissionErrors} from './marketplace-validation.js';
+import {submittedMedia,publicMediaRouter} from './marketplace-media.js';
 
 export const PUBLICATION_POLICY='marketplace_publication_v1';
 // Public collection and detail share the same eligibility boundary.
@@ -136,27 +137,31 @@ export function searchPublicProjections(listings,options) {
  return {listings:result.slice(offset,offset+options.limit),page:options.page,limit:options.limit,total:result.length,has_more:offset+options.limit<result.length};
 }
 
-export function publicListingRouter({pool,route}) {
+export async function eligiblePublicListing(client,id,lock=false) {
+ const row=(await client.query(`${PUBLIC_CANDIDATES} AND l.id=$1${lock?' FOR SHARE OF l,prop,p,u,c,a':''}`,[id])).rows[0];
+ if(!row)return null;
+ try{return {row,approved:await approvedPublication(client,row,{status:row.authority_status,verification_state:row.verification_state})};}
+ catch(error){if(error instanceof MarketplaceError)return null;throw error;}
+}
+export function publicListingRouter({pool,route,config={}}) {
  const router=express.Router();
+ router.use(publicMediaRouter({pool,config,route,eligiblePublicListing}));
  router.get('/listings',route(async(req,res)=>{
   const options=publicSearchOptions(req.query);
   const rows=(await pool.query(`${PUBLIC_CANDIDATES} ORDER BY l.id`)).rows;
   const listings=[];
   for(const row of rows)try{
    const approved=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
-   listings.push(publicProjection(row,approved));
+   listings.push({...publicProjection(row,approved),media:config.mediaEnabled?await submittedMedia(pool,row.id,approved.submission.id):[]});
   }catch(error){if(!(error instanceof MarketplaceError))throw error;}
   res.json({ok:true,...searchPublicProjections(listings,options)});
  }));
  router.get('/listings/:id',route(async(req,res)=>{
   const notFound=()=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Listing not found.'});
   if(!UUID.test(String(req.params.id))||Object.keys(req.query).length)return notFound();
-  const row=(await pool.query(`${PUBLIC_CANDIDATES} AND l.id=$1`,[req.params.id])).rows[0];
-  if(!row)return notFound();
-  try {
-   const result=await approvedPublication(pool,row,{status:row.authority_status,verification_state:row.verification_state});
-   res.json({ok:true,listing:publicProjection(row,result)});
-  }catch(error){if(error instanceof MarketplaceError)return notFound();throw error;}
+  const found=await eligiblePublicListing(pool,req.params.id);
+  if(!found)return notFound();
+  res.json({ok:true,listing:{...publicProjection(found.row,found.approved),media:config.mediaEnabled?await submittedMedia(pool,found.row.id,found.approved.submission.id):[]}});
  }));
  return router;
 }

@@ -2,6 +2,7 @@ import express from 'express';
 import {messagingRouter} from './marketplace-messaging.js';
 import {moderationRouter} from './marketplace-moderation.js';
 import {publicationRouter,publicListingRouter} from './marketplace-publication.js';
+import {mediaRouter,adminMediaRouter,freezeMedia} from './marketplace-media.js';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
@@ -147,8 +148,9 @@ async function statusHistory(client,id,actor,oldReview,newReview,oldAvailability
 export function mountMarketplace(app,{pool,config}) {
   const router=express.Router();
   router.use(proxy(config));
-  if(config.publicationEnabled)router.use('/public',publicListingRouter({pool,route}));
+  if(config.publicationEnabled)router.use('/public',publicListingRouter({pool,config,route}));
   router.use(route(async(req,res,next)=>{req.marketplaceActor=await session(pool,req,config);next();}));
+  router.use(mediaRouter({pool,config,session,lister,principal,owned,route,audit,update,statusHistory}));
   router.get('/me/lister-access',route(async(req,res)=>{
     const result=await pool.query('SELECT * FROM lister_access WHERE user_id=$1',[req.marketplaceActor.id]);
     res.json({ok:true,lister_access:capProjection(result.rows[0])});
@@ -268,6 +270,7 @@ export function mountMarketplace(app,{pool,config}) {
       if(Object.keys(errors).length)throw new MarketplaceError(422,'SUBMISSION_INVALID','Complete the required fields and property approval.',errors);
       const sid=uuidv7();
       await client.query('INSERT INTO listing_submissions(id,listing_id,listing_version,property_version,validation_policy_version,payload,submitted_by_user_id) VALUES($1,$2,$3,$4,$5,$6,$7)',[sid,id,locked.version,current.property.version,POLICY,snapshot(current),actor.id]);
+      if(config.mediaEnabled)await freezeMedia(client,id,sid);
       await update(client,'listings','id',id,{review_status:'pending',market_status:'unlisted'},true);
       await statusHistory(client,id,actor.id,'draft','pending',locked.availability_status,locked.availability_status,'draft submitted for review');
       await audit(client,actor.id,subject,'listing',id,'submitted',{submission_id:sid,policy:POLICY});
@@ -330,6 +333,7 @@ export function marketplaceAdminRouter({pool,config}) {
     });
     res.json({ok:true,authority:result});
   }));
+  if(config.mediaEnabled)router.use(adminMediaRouter({pool,config,session,route}));
   if(config.moderationEnabled)router.use(moderationRouter({pool,config,session,route,audit,statusHistory,update}));
   router.use((_req,res)=>res.status(404).json({ok:false,code:'NOT_FOUND',message:'Not found.'}));
   return router;
