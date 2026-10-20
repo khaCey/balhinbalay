@@ -20,6 +20,7 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile gallery fits the viewport');
   await page.screenshot({path:new URL('gallery-375.png',directory).pathname,fullPage:true});
   await page.setViewportSize({width:1280,height:900});await page.screenshot({path:new URL('gallery-1280.png',directory).pathname,fullPage:true});
+  await page.route('**/api/marketplace/public/listings/**/media/**',route=>route.fulfill({status:404,json:{ok:false}}));await page.reload();await page.getByText('Photo not available',{exact:true}).waitFor({timeout:10000});
   const propertyId='55555555-5555-4555-8555-555555555555',authorityId='66666666-6666-4666-8666-666666666666';
   let version='2',media=[],posts=0,patches=0,stale=false,approved=false;
   const photo=id=>({id,width:1200,height:630,url:`/api/marketplace/listings/${listingId}/media/${id}/gallery`,thumbnail_url:`/api/marketplace/listings/${listingId}/media/${id}/thumb`,share_url:`/api/marketplace/listings/${listingId}/media/${id}/share`});
@@ -48,6 +49,8 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
   await input.setInputFiles([{name:'one.jpg',mimeType:'image/jpeg',buffer:jpeg},{name:'two.jpg',mimeType:'image/jpeg',buffer:jpeg}]);
   await page.getByText('Photo 2',{exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);
   assert.equal(posts,2);assert.equal(await page.getByLabel('Title',{exact:true}).inputValue(),'Unsaved title survives photo changes');
+  const thumb=await page.locator('.bb-photo-grid img').first().boundingBox();assert.ok(Math.abs(thumb.width/thumb.height-4/3)<0.02,'Photo thumbnails retain 4:3 proportions');
+  const remove=await page.getByRole('button',{name:'Remove',exact:true}).first().boundingBox();assert.ok(remove.width>=44&&remove.height>=44,'Photo controls have usable mobile targets');
   await page.getByRole('button',{name:'Make cover',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);
   assert.equal(media[0].id,'33333333-3333-4333-8333-333333333333');assert.equal(patches,1);
   await page.getByRole('button',{name:'Move photo 1 later',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);assert.equal(media[0].id,publicAsset);

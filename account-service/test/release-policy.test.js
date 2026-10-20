@@ -10,6 +10,7 @@ test('marketplace defaults off and child flags cannot bypass master',()=>{
   for(const e of [env,{...env,MARKETPLACE_ENABLED:'TRUE'},{...env,MARKETPLACE_MESSAGING_ENABLED:'true',MARKETPLACE_MODERATION_ENABLED:'true',MARKETPLACE_PUBLICATION_ENABLED:'true'}]){
     const c=readConfig(e);for(const k of ['marketplaceEnabled','messagingEnabled','moderationEnabled','publicationEnabled'])assert.equal(c[k],false);
   }
+  const root=join(tmpdir(),'bb-config-media');assert.equal(readConfig({...env,LISTING_MEDIA_ROOT:root}).mediaEnabled,false);assert.equal(readConfig({...env,MARKETPLACE_ENABLED:'true',LISTING_MEDIA_ROOT:root}).mediaEnabled,true);
   const c=readConfig({...env,MARKETPLACE_ENABLED:'true',MARKETPLACE_MESSAGING_ENABLED:'true',MARKETPLACE_MODERATION_ENABLED:'true',MARKETPLACE_PUBLICATION_ENABLED:'true'});
   for(const k of ['marketplaceEnabled','messagingEnabled','moderationEnabled','publicationEnabled'])assert.equal(c[k],true);
 });
