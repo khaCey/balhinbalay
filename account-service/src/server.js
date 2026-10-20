@@ -1,4 +1,4 @@
-import {Pool} from 'pg';
+import {createAccountPool} from './database.js';
 import {createAccountApp} from './app.js';
 import {mountLocalAdmin} from './admin.js';
 import {mountSiteAdmin} from './site-admin.js';
@@ -7,7 +7,7 @@ import {readConfig} from './config.js';
 import {mountMarketplace} from './marketplace.js';
 
 const config=readConfig();
-const pool=new Pool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
+const pool=createAccountPool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
 const mailer=createMailer();
 try{
   const result=await pool.query(`SELECT count(*)::int AS count FROM schema_migrations
