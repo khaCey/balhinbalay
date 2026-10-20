@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Pool} from 'pg';
 import {v7 as uuidv7} from 'uuid';
-import {createHash,randomBytes} from 'node:crypto';
+import {createHash,createHmac,randomBytes} from 'node:crypto';
+import {request as httpRequest} from 'node:http';
 import {mkdtemp,rm,readdir,chmod} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -79,7 +80,7 @@ await test('WRK0062 real PostgreSQL/PostGIS media and approval boundaries',async
    let x=await withPhoto(),asset=x.media[0].id;x=await submit(x);
    const adminPath=`listings/${x.listing.id}/submissions/${x.submission.id}`;
    let r=await call('get',adminPath,undefined,reviewer,true);assert.equal(r.status,200);assert.equal(r.body.media[0].id,asset);assert.doesNotMatch(JSON.stringify(r.body.media),/PRIVATE|storage|sha256|owner_principal/);
-   assert.equal((await call('get',adminPath+'/media/'+asset+'/share',undefined,reviewer,true)).status,200);assert.equal((await call('get',adminPath+'/media/'+asset+'/share',undefined,owner,true)).status,403);
+   assert.equal((await call('get',adminPath+'/media/'+asset+'/share',undefined,reviewer,true)).status,200);assert.equal((await call('get',adminPath+'/media/'+asset+'/share',undefined,owner,true)).status,401);
    assert.equal((await upload(x)).status,409);assert.equal((await call('patch',`listings/${x.listing.id}/media`,{expected_version:x.listing.version,asset_ids:[]})).status,409);assert.equal((await call('get',imagePath(x,asset),undefined,null)).status,404);
    x=await approve(x);assert.equal((await upload(x)).status,409);assert.equal((await call('get',imagePath(x,asset),undefined,null)).status,404);x=await publish(x);
    r=await publicRead(x.listing.id);assert.equal(r.status,200);assert.equal(r.body.listing.media[0].id,asset);r=await call('get',imagePath(x,asset),undefined,null);assert.equal(r.status,200);assert.equal(r.headers['cache-control'],'no-store');const metadata=await sharp(r.body).metadata();assert.deepEqual([metadata.width,metadata.height],[1200,630]);assert.equal(metadata.exif,undefined);
@@ -104,6 +105,19 @@ await test('WRK0062 real PostgreSQL/PostGIS media and approval boundaries',async
   });
   await t.test('a pre-media zero-photo listing still submits, approves and publishes without content mutation',async()=>{
    const x=await publish(await approve(await submit(legacy)));const r=await publicRead(x.listing.id);assert.equal(r.status,200);assert.deepEqual(r.body.listing.media,[]);assert.equal(r.body.listing.title,legacy.listing.title);
+  });
+  await t.test('revoking the real session during a streamed upload prevents attachment and file writes',async()=>{
+   const x=await draft(),bucket=createHmac('sha256',config.proxyKey).update('listing-photo:'+owner.id).digest('hex');
+   const count=(await pool.query('SELECT count FROM auth_rate_limits WHERE bucket_hash=$1',[bucket])).rows[0]?.count||0;
+   const files=(await readdir(mediaRoot)).sort(),server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+   let pending;
+   try{
+    const response=new Promise((resolve,reject)=>{pending=httpRequest({host:'127.0.0.1',port:server.address().port,path:'/api/marketplace/listings/'+x.listing.id+'/media',method:'POST',headers:{Origin:config.appOrigin,'x-balhinbalay-proxy-key':config.proxyKey,Cookie:owner.cookie,'Content-Type':'image/jpeg','X-Listing-Version':x.listing.version,'Content-Length':photo.length}},res=>{res.resume();res.once('end',()=>resolve(res.statusCode));});pending.on('error',reject);pending.write(photo.subarray(0,10));});
+    let passed=false;for(let n=0;n<150;n++){if(((await pool.query('SELECT count FROM auth_rate_limits WHERE bucket_hash=$1',[bucket])).rows[0]?.count||0)>count){passed=true;break;}await new Promise(resolve=>setTimeout(resolve,20));}
+    assert.ok(passed,'Upload passed its initial authority check before revocation');
+    await pool.query('UPDATE auth_sessions SET revoked_at=now() WHERE token_hash=$1',[sha(owner.raw)]);pending.end(photo.subarray(10));assert.equal(await response,401);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM listing_media WHERE listing_id=$1',[x.listing.id])).rows[0].n,0);assert.deepEqual((await readdir(mediaRoot)).sort(),files);
+   }finally{pending?.destroy();await pool.query('UPDATE auth_sessions SET revoked_at=NULL WHERE token_hash=$1',[sha(owner.raw)]);await new Promise(resolve=>server.close(resolve));}
   });
  }finally{
   if(pool)await pool.end();

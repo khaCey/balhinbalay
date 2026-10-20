@@ -1,7 +1,5 @@
 name: WRK0062 listing media and sharing verification
 on:
-  push:
-    branches: [codex/wrk0062-media-sharing]
   pull_request:
     branches: [server]
 permissions:
@@ -50,6 +48,8 @@ jobs:
         run: pnpm lint
       - name: Production build
         run: pnpm build
+      - name: Actual initial HTML for social crawlers and withdrawal
+        run: node scripts/verify-listing-sharing.mjs
       - name: Production audits
         run: |
           pnpm audit --prod --audit-level=high

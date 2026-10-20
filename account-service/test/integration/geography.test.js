@@ -16,7 +16,7 @@ import {ensureUserPrincipal,transaction} from '../../src/marketplace-identity.js
 import {reviewedRelease} from '../helpers/reviewed-release.js';
 const historical=await reviewedRelease();
 const {inspectDatabase}=historical;
-import {loadPackage,applyGeography,verifyGeography,COUNTS} from '../../scripts/provision-psgc.js';
+const {loadPackage,applyGeography,verifyGeography,COUNTS}=historical.geography;
 
 const connection=process.env.BB_MARKETPLACE_TEST_URL;
 if(!connection)throw new Error('Disposable PostgreSQL/PostGIS URL required');

@@ -39,7 +39,9 @@ export async function guardedDeleteAccount(pool,id) {
       return client.query('DELETE FROM users WHERE id=$1 RETURNING id,email',[id]);
     });
   } catch(error) {
-    if(error.code==='23503')return {history:true,rowCount:0,rows:[]};
+    // PostgreSQL 18 reports an explicit ON DELETE RESTRICT as 23001. Older
+    // supported servers also use 23503. Both mean retained history, not 503.
+    if(['23503','23001'].includes(error.code))return {history:true,rowCount:0,rows:[]};
     throw error;
   }
 }
