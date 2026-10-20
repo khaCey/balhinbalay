@@ -52,7 +52,7 @@ Migrations001–006 are byte-unchanged. Migration007 belongs to the independent,
 
 The historical `verify-marketplace-release.js` and `provision-psgc.js` remain byte-unchanged. Their exact six-migration gate deliberately refuses this new source. Historical regression tests run byte-identical copies with their original six migrations; this is a test fixture, never a deployment bypass.
 
-PostgreSQL18 integration exposed an existing account-deletion response bug: explicit RESTRICT constraints can report SQLSTATE 23001. `guardedDeleteAccount` now treats 23001 and 23503 as retained-history conflicts. It still refuses deletion and preserves the transactional guard.
+PostgreSQL 18 integration exposed an existing account-deletion response bug: explicit RESTRICT constraints can report SQLSTATE 23001. `guardedDeleteAccount` now treats 23001 and 23503 as retained-history conflicts. It still refuses deletion and preserves the transactional guard.
 
 ## API boundaries
 
@@ -83,6 +83,10 @@ For source rollback, disable media and return to the separately verified previou
 Public platforms may retain copies they previously fetched. Origin withdrawal and no-store prevent new authorised delivery; they cannot erase Facebook's external cache. A real rescrape is required after an approved public release.
 
 ## Verification
+
+Verified code candidate `e5f8971ff49ff904b8668ba93272e933f8195a2c`: [CI run 39386019096](https://github.com/khaCey/balhinbalay/actions/runs/39386019096) passes 45/45 account tests, 91/91 Site tests and 110/110 real PostgreSQL/PostGIS tests. Full lint passes with 0 errors/two existing warnings; production build, initial crawler/browser HTML and the Chromium mobile/desktop flows pass. Four synthetic screenshots are retained in the workflow artifact. This is 246 passing automated tests plus the HTTP/browser procedures, not an overall green CI claim.
+
+The Site production audit still fails with 1 HIGH Next.js finding on the unchanged 16.3.6 pin (GHSA-cjq9-62q9-8jv4), 5 moderate and 2 low findings. The exact account manifest/lock separately audits with 0 vulnerabilities. No remote image patterns are configured and no current exploit is asserted. The audit gate is not suppressed. IDE0197 / WRK0068 captures the proposed minimum 16.3.8 Next/ESLint patch, awaiting Owner approval under the preceding IDE0167 scope. PR #9 remains Draft; no merge/deployment is approved. See the [source handoff](wrk0062/HANDOFF.md).
 
 `node --test tests/*.test.mjs`, account `npm test`, full disposable PostgreSQL/PostGIS integration, `pnpm lint`, `pnpm build`, `node scripts/verify-listing-sharing.mjs` and the isolated Chromium `--browser` profile exercise the source. The CI workflow keeps production dependency audits as a failing release gate when advisories remain; it does not suppress findings or deploy anything.
 
