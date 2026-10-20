@@ -27,8 +27,8 @@ export function validMediaRoot(value) {
 export async function readyMediaRoot(value) {
  const root=validMediaRoot(value);
  await mkdir(root,{recursive:true,mode:0o700});
- const stat=await lstat(root),actual=await realpath(root);
- if(!stat.isDirectory()||stat.isSymbolicLink()||(stat.mode&0o077)||within(sourceRoot,actual))
+ const stat=await lstat(root),actual=await realpath(root),sourceActual=await realpath(sourceRoot);
+ if(!stat.isDirectory()||stat.isSymbolicLink()||(stat.mode&0o077)||within(sourceActual,actual))
   throw new Error('Listing media needs a private regular directory outside application source');
  return root;
 }

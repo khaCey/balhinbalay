@@ -106,6 +106,21 @@ await test('WRK0062 real PostgreSQL/PostGIS media and approval boundaries',async
   await t.test('a pre-media zero-photo listing still submits, approves and publishes without content mutation',async()=>{
    const x=await publish(await approve(await submit(legacy)));const r=await publicRead(x.listing.id);assert.equal(r.status,200);assert.deepEqual(r.body.listing.media,[]);assert.equal(r.body.listing.title,legacy.listing.title);
   });
+  await t.test('active/history photo limits and the account rate bucket reject uploads before attachment',async()=>{
+   const x=await draft(),subject=(await pool.query('SELECT owner_principal_id FROM listings WHERE id=$1',[x.listing.id])).rows[0].owner_principal_id;
+   const sample=(await pool.query('SELECT id FROM media_assets ORDER BY id LIMIT 1')).rows[0].id;
+   for(let n=0;n<100;n++){
+    const asset=uuidv7();await pool.query("INSERT INTO media_assets(id,owner_principal_id,created_by_user_id,media_type) VALUES($1,$2,$3,'IMAGE')",[asset,subject,owner.id]);
+    if(n<20)await pool.query('INSERT INTO media_variants SELECT $1,variant,mime_type,width,height,byte_length,sha256 FROM media_variants WHERE asset_id=$2',[asset,sample]);
+    await pool.query('INSERT INTO listing_media(listing_id,asset_id,position,removed_at) VALUES($1,$2,$3,$4)',[x.listing.id,asset,n<20?n:null,n<20?null:new Date()]);
+   }
+   let r=await upload(x);assert.equal(r.status,422);assert.equal(r.body.code,'PHOTO_LIMIT');
+   r=await call('patch',`listings/${x.listing.id}/media`,{expected_version:x.listing.version,asset_ids:[]});assert.equal(r.status,200);const current=await fresh(x);r=await upload(current);assert.equal(r.status,422);assert.equal(r.body.code,'PHOTO_HISTORY_LIMIT');
+   const bucket=createHmac('sha256',config.proxyKey).update('listing-photo:'+owner.id).digest('hex'),before=(await pool.query('SELECT * FROM auth_rate_limits WHERE bucket_hash=$1',[bucket])).rows[0];
+   await pool.query('UPDATE auth_rate_limits SET count=30,window_start=now() WHERE bucket_hash=$1',[bucket]);
+   try{r=await upload(current);assert.equal(r.status,429);assert.equal(r.body.code,'RATE_LIMITED');assert.equal((await fresh(current)).listing.version,current.listing.version);}
+   finally{await pool.query('UPDATE auth_rate_limits SET count=$2,window_start=$3 WHERE bucket_hash=$1',[bucket,before.count,before.window_start]);}
+  });
   await t.test('revoking the real session during a streamed upload prevents attachment and file writes',async()=>{
    const x=await draft(),bucket=createHmac('sha256',config.proxyKey).update('listing-photo:'+owner.id).digest('hex');
    const count=(await pool.query('SELECT count FROM auth_rate_limits WHERE bucket_hash=$1',[bucket])).rows[0]?.count||0;

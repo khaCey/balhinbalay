@@ -18,7 +18,7 @@ This is source implementation and verification. Opening the PR does not authoris
 
 ## Storage and limits
 
-`LISTING_MEDIA_ROOT` enables media only when `MARKETPLACE_ENABLED=true`. It must be an absolute private directory outside application source, build and public directories, with mode0700 and ownership matching the account-service process. It is deliberately unset by default. Startup verifies migration008 and the private root; it never runs migrations.
+`LISTING_MEDIA_ROOT` enables media only when `MARKETPLACE_ENABLED=true`. It must be an absolute private directory outside application source, build and public directories, with mode 0700 and ownership matching the account-service process. It is deliberately unset by default. Startup verifies migration008 and the private root; it never runs migrations.
 
 The approved architecture is a dedicated persistent Akamaru filesystem volume, with metadata in PostgreSQL. No cloud storage provider is introduced. Example container target: `/var/lib/balhinbalay/listing-photos`; a future release must verify the actual Compose service, host path, UID/GID and writable capacity before adding the mount.
 
@@ -26,16 +26,16 @@ The approved architecture is a dedicated persistent Akamaru filesystem volume, w
 | --- | --- |
 | Formats | Actual JPEG, PNG or WebP only; no SVG, GIF, HEIC, URL imports or original-file delivery |
 | Upload | 8 MiB maximum, streamed limit checked even without Content-Length |
-| Decode | Single image, up to36 megapixels; decode/re-encode, automatic orientation, EXIF/GPS/ICC removed |
-| Active photos | Up to20 per listing; first is the cover |
-| Stored history | Up to100 uploaded assets per listing, including removed photos; no automatic destructive purge |
-| Rate | Up to30 upload attempts per account per hour, using an HMAC account bucket |
-| Concurrency | At most2 active uploads per Site/account-service process and at most2 image decodes |
-| Gallery | WebP, bounded by1600×1600, original composition retained |
-| Thumbnail | WebP,480×360 crop |
-| Sharing | JPEG,1200×630 crop |
+| Decode | Single image, up to 36 megapixels; decode/re-encode, automatic orientation, EXIF/GPS/ICC removed |
+| Active photos | Up to 20 per listing; first is the cover |
+| Stored history | Up to 100 uploaded assets per listing, including removed photos; no automatic destructive purge |
+| Rate | Up to 30 upload attempts per account per hour, using an HMAC account bucket |
+| Concurrency | At most 2 active uploads per Site/account-service process and at most2 image decodes |
+| Gallery | WebP, bounded by 1600×1600, original composition retained |
+| Thumbnail | WebP, 480×360 crop |
+| Sharing | JPEG, 1200×630 crop |
 
-Files use server-generated UUID directories, fixed derivative names and0700/0600 permissions. Processing writes a private temporary directory, syncs files, then atomically renames before committing immutable metadata. A known database rollback removes newly uncommitted bytes. An ambiguous commit outcome retains private bytes for reviewed reconciliation; it never deletes possibly committed media. Disk-full/permission errors cannot publish a half-complete asset. Restarting against the same volume reopens existing files and verifies size/checksum before delivery.
+Files use server-generated UUID directories, fixed derivative names and 0700/0600 permissions. Processing writes a private temporary directory, syncs files, then atomically renames before committing immutable metadata. A known database rollback removes newly uncommitted bytes. An ambiguous commit outcome retains private bytes for reviewed reconciliation; it never deletes possibly committed media. Disk-full/permission errors cannot publish a half-complete asset. Restarting against the same volume reopens existing files and verifies size/checksum before delivery.
 
 Removed and historical assets are retained privately because immutable reviews may reference them. Volume persistence is not an off-host backup. Do not silently introduce a purge or backup provider: the accepted deferred backup decisions remain separate.
 
@@ -52,7 +52,7 @@ Migrations001–006 are byte-unchanged. Migration007 belongs to the independent,
 
 The historical `verify-marketplace-release.js` and `provision-psgc.js` remain byte-unchanged. Their exact six-migration gate deliberately refuses this new source. Historical regression tests run byte-identical copies with their original six migrations; this is a test fixture, never a deployment bypass.
 
-PostgreSQL18 integration exposed an existing account-deletion response bug: explicit RESTRICT constraints can report SQLSTATE23001. `guardedDeleteAccount` now treats23001 and23503 as retained-history conflicts. It still refuses deletion and preserves the transactional guard.
+PostgreSQL18 integration exposed an existing account-deletion response bug: explicit RESTRICT constraints can report SQLSTATE 23001. `guardedDeleteAccount` now treats 23001 and 23503 as retained-history conflicts. It still refuses deletion and preserves the transactional guard.
 
 ## API boundaries
 
@@ -86,4 +86,4 @@ Public platforms may retain copies they previously fetched. Origin withdrawal an
 
 `node --test tests/*.test.mjs`, account `npm test`, full disposable PostgreSQL/PostGIS integration, `pnpm lint`, `pnpm build`, `node scripts/verify-listing-sharing.mjs` and the isolated Chromium `--browser` profile exercise the source. The CI workflow keeps production dependency audits as a failing release gate when advisories remain; it does not suppress findings or deploy anything.
 
-The browser tool is pinned to Playwright1.62.1 (published30 July2026) in a runner-temporary installation. Site/account manifests and runtime dependency policy are not changed for this test tool. Screenshots are retained as the `listing-media-browser` workflow artifact. Live Akamaru volume/restart behaviour and Facebook's public unfurl are separate acceptance checks after release approval.
+The browser tool is pinned to Playwright 1.62.1 (published 30 July 2026) in a runner-temporary installation. Site/account manifests and runtime dependency policy are not changed for this test tool. Screenshots are retained as the `listing-media-browser` workflow artifact. Live Akamaru volume/restart behaviour and Facebook's public unfurl are separate acceptance checks after release approval.
