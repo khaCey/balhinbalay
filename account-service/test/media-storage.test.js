@@ -35,7 +35,7 @@ test('private persistent storage reopens after restart and refuses tampering/col
  }finally{await rm(root,{recursive:true,force:true});}
 });
 test('storage rejects source/public roots, traversal and symlinked assets or variants',async()=>{
- for(const path of ['relative','/',new URL('../../public/',import.meta.url).pathname])assert.throws(()=>validMediaRoot(path));
+ for(const path of ['relative','/',new URL('../../public/',import.meta.url).pathname,new URL('../../..photos/',import.meta.url).pathname])assert.throws(()=>validMediaRoot(path));
  const root=await mkdtemp(join(tmpdir(),'bb-media-path-')),outside=await mkdtemp(join(tmpdir(),'bb-media-outside-')),asset=uuidv7(),s=mediaStorage(root);
  try{await symlink(outside,join(root,asset));await assert.rejects(s.read(asset,'share',{byte_length:1,sha256:'a'.repeat(64)}));await assert.rejects(s.read('../elsewhere','share',{}));await assert.rejects(s.read(asset,'constructor',{}));}
  finally{await rm(root,{recursive:true,force:true});await rm(outside,{recursive:true,force:true});}

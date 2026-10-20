@@ -52,7 +52,10 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
   assert.equal(media[0].id,'33333333-3333-4333-8333-333333333333');assert.equal(patches,1);
   await page.getByRole('button',{name:'Move photo 1 later',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);assert.equal(media[0].id,publicAsset);
   await page.getByRole('button',{name:'Remove',exact:true}).last().click();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);assert.equal(media.length,1);
-  await page.screenshot({path:new URL('editor-375.png',directory).pathname,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile editor fits the viewport');
+  await page.screenshot({path:new URL('editor-375.png',directory).pathname,fullPage:true});
+  const overflow=await page.evaluate(()=>({viewport:innerWidth,width:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].map(el=>({tag:el.tagName,class:el.className,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width,text:el.textContent?.slice(0,65)})).filter(el=>el.right>innerWidth+1||el.left< -1).slice(0,20)}));
+  if(overflow.width>overflow.viewport)console.log('Mobile overflow diagnostics:',JSON.stringify(overflow));
+  assert.ok(overflow.width<=overflow.viewport,'Mobile editor fits the viewport');
   stale=true;await page.getByRole('button',{name:'Remove',exact:true}).click();await page.getByRole('alert').filter({hasText:'This listing changed'}).waitFor();assert.equal(await input.isDisabled(),true);assert.equal(await page.getByLabel('Title',{exact:true}).inputValue(),'Unsaved title survives photo changes');assert.equal(media.length,1);
   await page.getByRole('button',{name:'Reload saved listing',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('input[type=file]')?.disabled);
   assert.equal(await page.getByLabel('Title',{exact:true}).inputValue(),'Saved synthetic draft');

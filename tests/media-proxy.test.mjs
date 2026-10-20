@@ -32,3 +32,10 @@ test('public images drop cookies and retain no-store/nosniff without forwarding 
  const r=await forward(pub,'GET',{headers:{cookie:'__Host-bb_session=user; __Host-bb_admin_session=admin'}});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.equal(r.headers.get('set-cookie'),null);assert.equal(r.headers.get('x-private'),null);assert.deepEqual([...new Uint8Array(await r.arrayBuffer())],[1,2,3]);
  globalThis.fetch=async()=>new Response('<svg/>',{headers:{'content-type':'image/svg+xml'}});assert.equal((await forward(pub)).status,502);
 }));
+test('only two uploads buffer concurrently and slots are released after completed responses',async()=>fixture(async()=>{
+ const pending=[];let posts=0;
+ globalThis.fetch=async(_url,options)=>{if(options.method!=='POST')return Response.json({ok:true,available:true,version:'2'});posts++;await new Promise(resolve=>pending.push(resolve));return Response.json({ok:true},{status:201});};
+ const first=upload(),second=upload();for(let n=0;n<100&&posts<2;n++)await new Promise(resolve=>setTimeout(resolve,1));assert.equal(posts,2);
+ assert.equal((await upload()).status,503);for(const resolve of pending)resolve();assert.deepEqual((await Promise.all([first,second])).map(r=>r.status),[201,201]);
+ globalThis.fetch=async(_url,options)=>Response.json(options.method==='POST'?{ok:true}:{ok:true,available:true,version:'2'},{status:options.method==='POST'?201:200});assert.equal((await upload()).status,201);
+}));

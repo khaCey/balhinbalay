@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import {constants} from 'node:fs';
 import {mkdir,lstat,realpath,open,rename,rm} from 'node:fs/promises';
-import {isAbsolute,resolve,relative,join} from 'node:path';
+import {isAbsolute,resolve,relative,join,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {MarketplaceError,UUID} from './marketplace-validation.js';
@@ -12,7 +12,7 @@ export const PHOTO_TYPES=['image/jpeg','image/png','image/webp'];
 const variants={gallery:['gallery.webp','image/webp'],thumb:['thumb.webp','image/webp'],share:['share.jpg','image/jpeg']};
 const parentSource=fileURLToPath(new URL('../../',import.meta.url));
 const sourceRoot=resolve(parentSource)==='/'?fileURLToPath(new URL('../',import.meta.url)):parentSource;
-const within=(parent,path)=>{const rel=relative(parent,path);return rel===''||(!rel.startsWith('..')&&!isAbsolute(rel));};
+const within=(parent,path)=>{const rel=relative(parent,path);return rel===''||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel));};
 const failure=(status,code,message)=>new MarketplaceError(status,code,message);
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 let processing=0;

@@ -37,6 +37,7 @@ function sendImage(res,result) {
 
 export function mediaRouter({pool,config,session,lister,principal,owned,route,audit,update,statusHistory}) {
  const router=express.Router(),store=config.mediaEnabled?mediaStorage(config.mediaRoot):null;
+ let uploads=0;
  const path='/listings/:id/media';
  async function owner(client,req,version,write=false) {
   const actor=await session(client,req,config,false,true);await lister(client,actor.id,true);
@@ -62,7 +63,7 @@ export function mediaRouter({pool,config,session,lister,principal,owned,route,au
   const result=await transaction(pool,async client=>{const {l}=await owner(client,req);return {ok:true,available:!!store,version:String(l.version),media:store?await draftMedia(client,l.id):[]};});
   res.json(result);
  }));
- const preflight=route(async(req,_res,next)=>{
+ const preflight=route(async(req,res,next)=>{
   noQuery(req);enabled();
   const type=String(req.get('Content-Type')||'').toLowerCase();
   if(!PHOTO_TYPES.includes(type))fail(415,'IMAGE_TYPE_REJECTED','Use JPEG, PNG or WebP.');
@@ -73,6 +74,10 @@ export function mediaRouter({pool,config,session,lister,principal,owned,route,au
    ON CONFLICT(bucket_hash) DO UPDATE SET count=CASE WHEN auth_rate_limits.window_start<$3 THEN 1 ELSE auth_rate_limits.count+1 END,
    window_start=CASE WHEN auth_rate_limits.window_start<$3 THEN $2 ELSE auth_rate_limits.window_start END RETURNING count`,[bucket,now,new Date(now.getTime()-3600000)]);
   if(result.rows[0].count>30)fail(429,'RATE_LIMITED','Please wait before uploading more photos.');
+  if(uploads>=2)fail(503,'IMAGE_PROCESSING_BUSY','Photo uploads are busy. Please try again shortly.');
+  uploads++;let released=false;
+  const release=()=>{if(!released){released=true;uploads--;}};
+  req.once('aborted',release);res.once('finish',release);res.once('close',release);
   req.photoVersion=version;next();
  });
  router.post(path,preflight,express.raw({type:PHOTO_TYPES,limit:MAX_PHOTO_BYTES}),route(async(req,res)=>{
@@ -83,7 +88,8 @@ export function mediaRouter({pool,config,session,lister,principal,owned,route,au
     const counts=(await client.query('SELECT count(*)::int total,count(*) FILTER(WHERE removed_at IS NULL)::int active FROM listing_media WHERE listing_id=$1',[l.id])).rows[0];
     if(counts.active>=MAX_PHOTOS)fail(422,'PHOTO_LIMIT','Use up to 20 photos per listing.');
     if(counts.total>=100)fail(422,'PHOTO_HISTORY_LIMIT','This draft has reached its stored-photo limit. Contact BalhinBalay for help.');
-    await store.write(asset,processed);stored=true;
+    try{await store.write(asset,processed);stored=true;}
+    catch{fail(503,'MEDIA_STORAGE_UNAVAILABLE','The photo could not be stored. Your listing has not changed. Please try again later.');}
     await client.query("INSERT INTO media_assets(id,owner_principal_id,created_by_user_id,media_type) VALUES($1,$2,$3,'IMAGE')",[asset,context.subject,context.actor.id]);
     for(const [variant,v] of Object.entries(processed))await client.query('INSERT INTO media_variants(asset_id,variant,mime_type,width,height,byte_length,sha256) VALUES($1,$2,$3,$4,$5,$6,$7)',[asset,variant,v.mime_type,v.width,v.height,v.byte_length,v.sha256]);
     await client.query('INSERT INTO listing_media(listing_id,asset_id,position) VALUES($1,$2,$3)',[l.id,asset,counts.active]);
