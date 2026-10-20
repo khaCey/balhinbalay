@@ -17,9 +17,9 @@ const account=createServer((req,res)=>{
  if(req.url===`/api/marketplace/public/listings/${listingId}`){
   requests++;assert.equal(req.headers.cookie,undefined);res.setHeader('Content-Type','application/json');
   if(mode==='gone'||mode==='unavailable'){res.statusCode=mode==='gone'?404:503;res.end(JSON.stringify({ok:false,listing:{title:'PRIVATE-WITHDRAWN-TITLE',description:'PRIVATE-ADDRESS'}}));return;}
-  res.end(JSON.stringify({ok:true,listing:{...fixture,media:mode==='empty'?[]:[{id:asset,width:1200,height:630,url:mediaBase+'/gallery',thumbnail_url:mediaBase+'/thumb',share_url:mediaBase+'/share'}]}}));return;
+  res.end(JSON.stringify({ok:true,listing:{...fixture,media:mode==='empty'?[]:[asset,'33333333-3333-4333-8333-333333333333'].map(id=>({id,width:1200,height:630,url:`/api/marketplace/public/listings/${listingId}/media/${id}/gallery`,thumbnail_url:`/api/marketplace/public/listings/${listingId}/media/${id}/thumb`,share_url:`/api/marketplace/public/listings/${listingId}/media/${id}/share`}))}}));return;
  }
- if(req.url?.startsWith(mediaBase+'/')&&mode==='photo'){res.setHeader('Content-Type','image/jpeg');res.end(jpeg);return;}
+ if(req.url?.startsWith(`/api/marketplace/public/listings/${listingId}/media/`)&&mode==='photo'){res.setHeader('Content-Type','image/jpeg');res.end(jpeg);return;}
  res.statusCode=404;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:false,code:'NOT_FOUND'}));
 });
 await new Promise(resolve=>account.listen(0,'127.0.0.1',resolve));
@@ -40,7 +40,9 @@ try{
   const h=ua.startsWith('Mozilla')?result.text:head(result.text);
   assert.equal(meta(h,'og:title'),'Synthetic Cebu home | BalhinBalay');assert.equal(meta(h,'og:image'),'https://balhinbalay.com'+mediaBase+'/share');assert.equal(meta(h,'twitter:card'),'summary_large_image');assert.match(h,new RegExp(`<link[^>]+rel="canonical"[^>]+href="https://balhinbalay.com/listing/${listingId}"`));assert.doesNotMatch(result.text,/PRIVATE-WITHDRAWN|PRIVATE-ADDRESS/);
  }
+ if(process.argv.includes('--browser')){const {verifyPhotoBrowser}=await import('./verify-listing-photos-browser.mjs');await verifyPhotoBrowser({app,listingId,jpeg,publicAsset:asset});}
  mode='empty';let result=await html('/listing/'+listingId);assert.equal(meta(head(result.text),'og:image'),'https://balhinbalay.com/sharing-default.jpg');
+ mode='broken-photo';result=await html('/listing/'+listingId);assert.equal(meta(head(result.text),'og:image'),'https://balhinbalay.com/sharing-default.jpg');assert.equal(meta(head(result.text),'og:title'),'Synthetic Cebu home | BalhinBalay');
  mode='gone';result=await html('/listing/'+listingId);assert.equal(result.response.status,404);assert.doesNotMatch(result.text,/Synthetic Cebu home|1200000|Lahug|PRIVATE-WITHDRAWN|PRIVATE-ADDRESS|22222222/);assert.match(result.text,/noindex/);
  mode='unavailable';result=await html('/listing/'+listingId);assert.equal(meta(head(result.text),'og:title'),'Listing unavailable | BalhinBalay');assert.match(result.text,/noindex/);assert.doesNotMatch(result.text,/Synthetic Cebu home|PRIVATE-WITHDRAWN|PRIVATE-ADDRESS/);
  result=await html('/search');assert.equal(meta(head(result.text),'og:title'),'BalhinBalay — Find your place');

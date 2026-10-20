@@ -50,12 +50,27 @@ jobs:
         run: pnpm build
       - name: Actual initial HTML for social crawlers and withdrawal
         run: node scripts/verify-listing-sharing.mjs
-      - name: Production audits
+      - name: Isolated pinned browser test tool
         run: |
-          pnpm audit --prod --audit-level=high
-          npm audit --omit=dev --audit-level=high --prefix account-service
+          npm install --prefix "$RUNNER_TEMP/bb-media-browser" --ignore-scripts --no-audit --no-fund --package-lock=false --no-save playwright@1.62.1
+          node "$RUNNER_TEMP/bb-media-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Mobile and desktop photo controls in Chromium
+        env:
+          BB_PLAYWRIGHT_MODULE: ${{ runner.temp }}/bb-media-browser/node_modules/playwright/index.mjs
+        run: node scripts/verify-listing-sharing.mjs --browser
+      - name: Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: listing-media-browser
+          path: .sites-runtime/media-browser/
+          if-no-files-found: ignore
       - name: Source integrity
         run: |
           git diff --exit-code
           git diff --check
           sha256sum account-service/migrations/*.sql
+      - name: Production audits
+        run: |
+          pnpm audit --prod --audit-level=high
+          npm audit --omit=dev --audit-level=high --prefix account-service
