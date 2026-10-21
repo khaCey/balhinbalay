@@ -1,5 +1,8 @@
 name: WRK0071 integrated MVP verification
 on:
+  pull_request:
+    branches: [server]
+    paths-ignore: ["docs/**"]
   push:
     branches: [codex/wrk0071-integrated-mvp]
     paths-ignore: ["docs/**"]
