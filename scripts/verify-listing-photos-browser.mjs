@@ -23,7 +23,7 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
    await route.fulfill({status:201,json:{ok:true,message:'Report received. Our team will review it.'}});
   });
   await page.getByRole('button',{name:'Report listing',exact:true}).click();
-  await page.getByLabel('Reason',{exact:true}).selectOption('INACCURATE_INFORMATION');
+  await page.getByRole('region',{name:'Report listing',exact:true}).getByRole('combobox').selectOption('INACCURATE_INFORMATION');
   await page.getByLabel('Details (optional)',{exact:true}).fill('Synthetic combined browser report');
   await page.getByRole('button',{name:'Submit report',exact:true}).click();await page.getByText('Report received. Our team will review it.',{exact:true}).waitFor();assert.equal(reports,1);
   assert.equal(await page.locator('.bb-gallery-main').evaluate(img=>img.complete&&img.naturalWidth>0),true,'Reporting preserves the visible photo gallery');
