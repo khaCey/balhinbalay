@@ -12,7 +12,9 @@ import {migrate} from '../../src/migrate.js';
 import {createAccountApp} from '../../src/app.js';
 import {mountMarketplace} from '../../src/marketplace.js';
 import {mountSiteAdmin} from '../../src/site-admin.js';
-import {inspectDatabase,requirePreserved} from '../../scripts/verify-marketplace-release.js';
+import {reviewedRelease} from '../helpers/reviewed-release.js';
+const historical=await reviewedRelease();
+const {inspectDatabase,requirePreserved}=historical;
 
 const connection=process.env.BB_MARKETPLACE_TEST_URL;
 if(!connection)throw new Error('Disposable local test URL required');
@@ -50,7 +52,7 @@ await test('WRK0042 exact RC migration, preflight and backup restoration',async 
       const restored=await inspectDatabase(open(names[1]),'before');requirePreserved(before,restored);assert.equal(restored.database,names[1]);
     });
     await t.test('manual account-only upgrade and repeated runner preserve all original fields',async()=>{
-      await migrate(pool);await migrate(pool);after=await inspectDatabase(pool,'after',before);assert.equal(after.ledger.length,6);
+      await migrate(pool,{directory:historical.directory});await migrate(pool,{directory:historical.directory});after=await inspectDatabase(pool,'after',before);assert.equal(after.ledger.length,6);
       assert.equal((await pool.query('SELECT count(*)::int n FROM principals')).rows[0].n,2);assert.equal((await pool.query('SELECT count(*)::int n FROM lister_access')).rows[0].n,0);
     });
     await t.test('unexpected ledger fails the read-only gate',async()=>{
@@ -65,8 +67,8 @@ await test('WRK0042 exact RC migration, preflight and backup restoration',async 
     await t.test('manual CLI requires a previous record, is read-only and writes only digest evidence',async()=>{
       const {writeFile}=await import('node:fs/promises');const previous=join(dir,'before.json'),record=join(dir,'after.json');await writeFile(previous,JSON.stringify(before));
       const env={...process.env,DATABASE_URL:new URL('/'+names[0],connection).href};
-      const r=spawnSync(process.execPath,['scripts/verify-marketplace-release.js','after','--previous',previous,'--record',record],{cwd:new URL('../../',import.meta.url),env,encoding:'utf8'});assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stdout+r.stderr,/postgresql:|synthetic-only|@synthetic/);requirePreserved(before,JSON.parse(await readFile(record,'utf8')));
-      const bad=spawnSync(process.execPath,['scripts/verify-marketplace-release.js','after','--record',join(dir,'bad.json')],{cwd:new URL('../../',import.meta.url),env,encoding:'utf8'});assert.equal(bad.status,1);assert.doesNotMatch(bad.stdout+bad.stderr,/postgresql:/);
+      const r=spawnSync(process.execPath,[historical.cli,'after','--previous',previous,'--record',record],{cwd:new URL('../../',import.meta.url),env,encoding:'utf8'});assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stdout+r.stderr,/postgresql:|synthetic-only|@synthetic/);requirePreserved(before,JSON.parse(await readFile(record,'utf8')));
+      const bad=spawnSync(process.execPath,[historical.cli,'after','--record',join(dir,'bad.json')],{cwd:new URL('../../',import.meta.url),env,encoding:'utf8'});assert.equal(bad.status,1);assert.doesNotMatch(bad.stdout+bad.stderr,/postgresql:/);
     });
     await t.test('full marketplace history backup restores stable listing/submission/review/thread/message identities',async()=>{
       const config={appOrigin:'https://test.balhinbalay.invalid',proxyKey:'synthetic-release-proxy-key-00000000',adminEmails:['reviewer@synthetic.invalid'],marketplaceEnabled:true,moderationEnabled:true,publicationEnabled:true,messagingEnabled:true,sessionDays:14,verificationHours:24,resetMinutes:15};
@@ -96,6 +98,6 @@ await test('WRK0042 exact RC migration, preflight and backup restoration',async 
         }
         await root.query(`DROP DATABASE IF EXISTS ${name}`);
       }
-    }finally{await root.end();if(dir)await rm(dir,{recursive:true});}
+    }finally{await root.end();await historical.cleanup();if(dir)await rm(dir,{recursive:true});}
   }
 });

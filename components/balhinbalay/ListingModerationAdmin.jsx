@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
+import {PhotoGallery} from './ListingPhotos';
 
 async function request(path,body) {
  const response=await fetch('/api/admin/marketplace/'+path,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});
@@ -34,7 +35,7 @@ export default function ListingModerationAdmin() {
   {items.map(item=><article key={item.id} style={{marginBottom:12}}><strong>{item.title||'Submitted listing'}</strong><p className="admin-muted">{date(item.submitted_at)} · {item.listing_id}</p><button className="admin-button admin-secondary" disabled={busy} onClick={()=>open(item)}>Review submission</button></article>)}
   {cursor&&<button className="admin-button admin-secondary" disabled={busy} onClick={()=>load(true)}>More submissions</button>}
   {detail&&<section aria-label="Submission detail"><h3>{detail.submission.payload.listing.title}</h3><p>Submitted {date(detail.submission.submitted_at)} · {detail.submission.id}</p>
-   <h4>Immutable submitted content</h4><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(detail.submission.payload,null,2)}</pre>
+   <PhotoGallery key={detail.submission.id} media={detail.media} title={detail.submission.payload.listing.title}/><h4>Immutable submitted content</h4><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(detail.submission.payload,null,2)}</pre>
    <h4>Current review context</h4><p>Property authority: {detail.context.verification_state} / {detail.context.authority_status}. Responsible Lister capability: {detail.context.lister_status||'none'}. Relationship: {detail.context.relationship}.</p>
    <h4>Submission history</h4><ul>{detail.history.map(item=><li key={item.submission_id}>{date(item.submitted_at)} · {item.outcome||'pending'}{item.reviewed_at&&` · reviewed ${date(item.reviewed_at)}`}{item.reason&&` · ${item.reason}`}</li>)}</ul>
    <label className="admin-field">Rejection reason<textarea className="admin-input" maxLength={2000} value={reason} onChange={e=>setReason(e.target.value)} disabled={busy}/></label>

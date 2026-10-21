@@ -26,3 +26,6 @@
 .mini-card .real-listing-fallback{width:90px;min-width:90px;height:76px;min-height:76px;border-radius:10px}
 .mini-card .real-listing-fallback strong{font-size:14px}
 .mini-card .real-listing-fallback span{font-size:10px}
+
+/* Approved real-listing photos retain the established card proportions. */
+.real-listing-photo{width:100%;height:100%;overflow:hidden;background:#eef3f6}.real-listing-photo img{display:block;width:100%;height:100%;object-fit:cover}.mini-card .real-listing-photo{width:90px;height:76px;flex-shrink:0;border-radius:8px}.real-listing-photo .real-listing-fallback{height:100%}

@@ -2,6 +2,7 @@ import express from 'express';
 import {v7 as uuidv7} from 'uuid';
 import {transaction} from './marketplace-identity.js';
 import {MarketplaceError,invalid,object,expected,UUID} from './marketplace-validation.js';
+import {submittedMedia} from './marketplace-media.js';
 
 const fail=(status,code,message)=>{throw new MarketplaceError(status,code,message);};
 const id=value=>{if(!UUID.test(String(value||'')))invalid('id','Use a real marketplace UUID.');return value;};
@@ -39,7 +40,7 @@ export function moderationRouter({pool,config,session,route,audit,statusHistory,
   const history=await pool.query(`SELECT s.id AS submission_id,s.submitted_at,s.listing_version,
    r.reviewer_user_id,r.outcome,r.reason,r.reviewed_at FROM listing_submissions s
    LEFT JOIN listing_submission_reviews r ON r.submission_id=s.id WHERE s.listing_id=$1 ORDER BY s.listing_version`,[listingId]);
-  res.json({ok:true,submission:row,context,history:history.rows});
+  res.json({ok:true,submission:row,context,history:history.rows,media:config.mediaEnabled?await submittedMedia(pool,listingId,submissionId,true):[]});
  }));
  for(const action of ['approve','reject'])router.post(path+'/'+action,route(async(req,res)=>{
   const listingId=id(req.params.listingId),submissionId=id(req.params.submissionId);
