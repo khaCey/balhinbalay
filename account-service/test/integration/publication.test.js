@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Pool} from 'pg';
+import {createAccountPool} from '../../src/database.js';
 import {v7 as uuidv7} from 'uuid';
 import {createHash,randomBytes} from 'node:crypto';
 import request from 'supertest';
@@ -14,7 +14,7 @@ const connection=process.env.BB_MARKETPLACE_TEST_URL;
 if(!connection)throw new Error('Disposable PostgreSQL/PostGIS URL required');
 const url=new URL(connection);
 if(!['localhost','127.0.0.1'].includes(url.hostname)||url.pathname!=='/postgres'||process.env.BB_MARKETPLACE_DISPOSABLE!=='true')throw new Error('Synthetic disposable service only');
-const root=new Pool({connectionString:connection}),db='bb_wrk0040_publication';
+const root=createAccountPool({connectionString:connection}),db='bb_wrk0040_publication';
 const config={appOrigin:'https://test.balhinbalay.invalid',proxyKey:'synthetic-moderation-proxy-key-000000',adminEmails:['reviewer@synthetic.invalid','reviewer2@synthetic.invalid'],marketplaceEnabled:true,moderationEnabled:true,publicationEnabled:true,sessionDays:14,verificationHours:24,resetMinutes:15};
 const sha=s=>createHash('sha256').update(s).digest('hex');
 let pool,app,reviewer,lister,stranger,city,barangay;
@@ -48,7 +48,7 @@ async function approvedFixture(building=false){const x=await pending(lister,buil
 async function current(x){return {...x,version:(await consumer('get','listings/'+x.listingId)).body.listing.version};}
 await test('WRK0040 real PostgreSQL/PostGIS publication',async t=>{
  try{
-  await root.query(`CREATE DATABASE ${db} TEMPLATE template0`);pool=new Pool({connectionString:new URL('/'+db,connection).href});await migrate(pool);await migrate(pool);
+  await root.query(`CREATE DATABASE ${db} TEMPLATE template0`);pool=createAccountPool({connectionString:new URL('/'+db,connection).href});await migrate(pool);await migrate(pool);
   app=createAccountApp({pool,config,mailer:{verify:async()=>{},reset:async()=>{}}});mountMarketplace(app,{pool,config});mountSiteAdmin(app,{pool,config});
   reviewer=await user(config.adminEmails[0]);lister=await user('lister@synthetic.invalid');stranger=await user('stranger@synthetic.invalid');await grant(lister);await grant(stranger);
   const region=uuidv7();city=uuidv7();barangay=uuidv7();

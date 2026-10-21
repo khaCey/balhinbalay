@@ -1,13 +1,14 @@
-import {Pool} from 'pg';
+import {createAccountPool} from './database.js';
 import {createAccountApp} from './app.js';
 import {mountLocalAdmin} from './admin.js';
 import {mountSiteAdmin} from './site-admin.js';
 import {createMailer} from './email.js';
 import {readConfig} from './config.js';
 import {mountMarketplace} from './marketplace.js';
+import {readyMediaRoot} from './media-storage.js';
 
 const config=readConfig();
-const pool=new Pool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
+const pool=createAccountPool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
 const mailer=createMailer();
 try{
   const result=await pool.query(`SELECT count(*)::int AS count FROM schema_migrations
@@ -24,6 +25,11 @@ try{
   if(config.moderationEnabled||config.publicationEnabled){
     const moderation=await pool.query("SELECT 1 FROM schema_migrations WHERE name='006_listing_moderation.sql'");
     if(!moderation.rowCount)throw new Error('Moderation/publication is enabled but migration006 is absent');
+  }
+  if(config.mediaEnabled){
+    const media=await pool.query("SELECT 1 FROM schema_migrations WHERE name='008_listing_media.sql'");
+    if(!media.rowCount)throw new Error('Listing media is enabled but reviewed migration008 is absent');
+    await readyMediaRoot(config.mediaRoot);
   }
   const app=createAccountApp({pool,mailer,config});
   if(config.marketplaceEnabled)mountMarketplace(app,{pool,config});
