@@ -26,6 +26,7 @@ jobs:
     env:
       BB_MARKETPLACE_TEST_URL: postgresql://postgres:disposable-media-verification-only@127.0.0.1:55432/postgres
       BB_MARKETPLACE_DISPOSABLE: 'true'
+      TZ: UTC
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
