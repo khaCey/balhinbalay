@@ -17,6 +17,16 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
   await page.waitForFunction(()=>document.querySelector('.bb-gallery-main')?.src.endsWith('/33333333-3333-4333-8333-333333333333/gallery'));
   await page.waitForFunction(()=>{const img=document.querySelector('.bb-gallery-main');return img?.complete&&img.naturalWidth>0;});
   assert.equal(await page.locator('.bb-gallery-main').evaluate(img=>img.complete&&img.naturalWidth>0),true);
+  let reports=0;
+  await page.route('**/api/marketplace/listings/'+listingId+'/reports',async route=>{
+   assert.equal(route.request().method(),'POST');assert.deepEqual(route.request().postDataJSON(),{reason:'INACCURATE_INFORMATION',details:'Synthetic combined browser report'});reports++;
+   await route.fulfill({status:201,json:{ok:true,message:'Report received. Our team will review it.'}});
+  });
+  await page.getByRole('button',{name:'Report listing',exact:true}).click();
+  await page.getByLabel('Reason',{exact:true}).selectOption('INACCURATE_INFORMATION');
+  await page.getByLabel('Details (optional)',{exact:true}).fill('Synthetic combined browser report');
+  await page.getByRole('button',{name:'Submit report',exact:true}).click();await page.getByText('Report received. Our team will review it.',{exact:true}).waitFor();assert.equal(reports,1);
+  assert.equal(await page.locator('.bb-gallery-main').evaluate(img=>img.complete&&img.naturalWidth>0),true,'Reporting preserves the visible photo gallery');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile gallery fits the viewport');
   await page.screenshot({path:new URL('gallery-375.png',directory).pathname,fullPage:true});
   await page.setViewportSize({width:1280,height:900});await page.screenshot({path:new URL('gallery-1280.png',directory).pathname,fullPage:true});
@@ -65,6 +75,6 @@ export async function verifyPhotoBrowser({app,listingId,jpeg,publicAsset}) {
   assert.equal(await page.getByLabel('Title',{exact:true}).inputValue(),'Saved synthetic draft');
   approved=true;await page.reload();await page.getByText('Submitted photos cannot be changed. They remain part of the saved review.').waitFor();assert.equal(await page.getByLabel('Add listing photos').count(),0);assert.equal(await page.getByRole('button',{name:'Remove',exact:true}).count(),0);
   assert.deepEqual(problems,[],'No uncaught browser errors');await context.close();
-  console.log('PASS Chromium mobile/desktop gallery, two sequential uploads, unsaved-field preservation, cover/reorder/remove, stale-version recovery and approved read-only photos.');
+  console.log('PASS Chromium combined reporting/gallery, mobile/desktop gallery, two sequential uploads, unsaved-field preservation, cover/reorder/remove, stale-version recovery and approved read-only photos.');
  }finally{await browser.close();}
 }
