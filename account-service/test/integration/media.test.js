@@ -87,7 +87,7 @@ await test('WRK0062 real PostgreSQL/PostGIS media and approval boundaries',async
    r=await call('post',`listings/${x.listing.id}/unlist`,{expected_version:x.listing.version});assert.equal(r.status,200);assert.equal((await call('get',imagePath(x,asset),undefined,null)).status,404);assert.equal((await publicRead(x.listing.id)).status,404);
   });
   await t.test('reporting a dated photo listing preserves publication, photos and reporter privacy',async()=>{
-   let x=await withPhoto();
+   let x=await withPhoto();const asset=x.media[0].id;
    await pool.query("UPDATE listings SET available_from='2026-11-01' WHERE id=$1",[x.listing.id]);
    x=await publish(await approve(await submit(x)));
    const before=await publicRead(x.listing.id);assert.equal(before.status,200);assert.equal(before.body.listing.available_from,'2026-11-01');
@@ -97,9 +97,9 @@ await test('WRK0062 real PostgreSQL/PostGIS media and approval boundaries',async
    r=await call('get',`listing-reports/${report}`,undefined,reviewer,true);assert.equal(r.status,200);assert.equal(r.body.report.reported_by_user_id,stranger.id);
    r=await call('post',`listing-reports/${report}/review`,{expected_version:r.body.report.version,status:'UNDER_REVIEW'},reviewer,true);assert.equal(r.status,200);
    const after=await publicRead(x.listing.id);assert.deepEqual(after.body,before.body);assert.doesNotMatch(JSON.stringify(after.body),/PRIVATE-REPORT|reported_by_user_id|reporter_email/);
-   assert.equal((await call('get',imagePath(x,x.media[0].id),undefined,null)).status,200);
+   assert.equal((await call('get',imagePath(x,asset),undefined,null)).status,200);
    assert.equal((await call('post',`listings/${x.listing.id}/unlist`,{expected_version:x.listing.version})).status,200);
-   assert.equal((await call('post',path,{reason:'OTHER'},owner)).status,404);assert.equal((await call('get',imagePath(x,x.media[0].id),undefined,null)).status,404);
+   assert.equal((await call('post',path,{reason:'OTHER'},owner)).status,404);assert.equal((await call('get',imagePath(x,asset),undefined,null)).status,404);
   });
   await t.test('capability, account and authority withdrawal deny guessed public media URLs immediately',async()=>{
    let x=await withPhoto(),asset=x.media[0].id;x=await publish(await approve(await submit(x)));
