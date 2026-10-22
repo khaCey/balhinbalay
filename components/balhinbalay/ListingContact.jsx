@@ -1,6 +1,6 @@
 'use client';
 import {useState} from 'react';
-import Link from 'next/link';
+import Link from './InternalLink';
 import {useRouter} from 'next/navigation';
 import {useApp} from './model';
 import {Button} from './ui';

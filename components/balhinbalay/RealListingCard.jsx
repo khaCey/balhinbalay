@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Direct approved media URL retains no-store and eligibility checks. */
 import {useState} from 'react';
 import {photoUrl} from './photoClient';
-import Link from 'next/link';
+import Link from './InternalLink';
 import {money} from './model';
 import {Icon} from './ui';
 
