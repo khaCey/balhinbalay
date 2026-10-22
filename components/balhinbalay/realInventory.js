@@ -28,6 +28,7 @@ export async function fetchRealListings(q,{signal,limit=50,all=false}={}) {
 
 export function useRealListings(q,{limit=50,all=false}={}) {
  const [value,setValue]=useState({key:null,listings:[],total:0,loading:true,error:null});
+ const [attempt,setAttempt]=useState(0);
  const key=JSON.stringify([q?.mode,q?.cities?.[0],q?.type,q?.min,q?.max,q?.beds,q?.baths,q?.size,q?.keyword,q?.sort,limit,all]);
  useEffect(()=>{
   const controller=new AbortController();
@@ -37,8 +38,9 @@ export function useRealListings(q,{limit=50,all=false}={}) {
   return()=>controller.abort();
  // The serialized query is the complete public request contract.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[key]);
- return value.key===key?value:{listings:[],total:0,loading:true,error:null};
+ },[key,attempt]);
+ const retry=()=>{setValue({key,listings:[],total:0,loading:true,error:null});setAttempt(n=>n+1);};
+ return {...(value.key===key?value:{listings:[],total:0,loading:true,error:null}),retry};
 }
 
 export function realMapPins(listings) {
