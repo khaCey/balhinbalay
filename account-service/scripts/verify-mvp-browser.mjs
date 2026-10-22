@@ -65,7 +65,7 @@ try{
  site=spawn(process.execPath,[join(root,'node_modules/vinext/dist/cli.js'),'start','--hostname','127.0.0.1','--port',String(sitePort)],{cwd:root,env:{...process.env,NODE_ENV:'production',APP_URL:appOrigin,ACCOUNT_API_ORIGIN:'http://127.0.0.1:'+account.address().port,ACCOUNT_ALLOW_LOCAL_HTTP:'true',ACCOUNT_PROXY_KEY:config.proxyKey},stdio:['ignore','pipe','pipe']});
  site.stdout.on('data',x=>logs.push(String(x)));site.stderr.on('data',x=>logs.push(String(x)));
  let ready=false;for(let i=0;i<200;i++){if(site.exitCode!==null)throw new Error('Built Site exited');try{if((await fetch('http://127.0.0.1:'+sitePort+'/favicon.svg')).ok){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,100));}assert.ok(ready,'Built Site starts');
- const module=await import(pathToFileURL(process.env.BB_PLAYWRIGHT_MODULE).href),{chromium}=module.default||module;
+ const browserModule=await import(pathToFileURL(process.env.BB_PLAYWRIGHT_MODULE).href),{chromium}=browserModule.default||browserModule;
  browser=await chromium.launch({headless:true});
  async function pageFor(role,mobile=false){const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:mobile?{width:375,height:812}:{width:1280,height:900}});const page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await context.tracing.start({screenshots:true,snapshots:true});return {page,context,role};}
  const owner=await pageFor('owner',true),reviewer=await pageFor('reviewer'),seeker=await pageFor('seeker'),guest=await pageFor('guest',true);
