@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from '../../components/balhinbalay/InternalLink';
 import React,{useCallback,useEffect,useState} from 'react';
 import MarketplaceAdmin from '@/components/balhinbalay/MarketplaceAdmin';
 import ListingModerationAdmin from '@/components/balhinbalay/ListingModerationAdmin';

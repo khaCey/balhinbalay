@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
-import Link from 'next/link';
+import Link from './InternalLink';
 import {Button} from './ui';
 import {marketplaceRequest} from './Marketplace';
 const errorText=cause=>cause.code==='UNAUTHENTICATED'?'Your session has ended. Sign in again.':cause.message||'Messages could not be reached. Try again.';
