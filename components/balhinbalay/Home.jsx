@@ -14,10 +14,10 @@ export function SearchBox(){
 
 export default function Home(){
  const {state,startSearch}=useApp();
- const {listings,loading,error}=useRealListings({mode:state.q.mode,sort:'Newest'},{limit:3});
+ const {listings,loading,error,retry}=useRealListings({mode:state.q.mode,sort:'Newest'},{limit:3});
  return <><div className="home-hero"><div><div className="eyebrow"><Icon name="pin"/>A place to call yours</div><h1>Where do you<br/>want to <span>live?</span></h1><p className="hero-copy">Find your city. Explore real places.<br/>Feel a little closer to home.</p></div><SearchBox/></div>
   <section className="section"><div className="section-head"><div><h2>Recently published homes</h2><p>Real places ready to explore.</p></div><button className="text-btn" onClick={()=>startSearch({...state.q,method:'City',cities:[]})}>See all →</button></div>
-   {loading?<p role="status">Loading real listings…</p>:error?<p role="alert">{error}</p>:listings.length?<div className="rail">{listings.map(listing=><RealListingCard key={listing.id} listing={listing}/>)}</div>:<p className="muted">No real {state.q.mode==='Buy'?'sale':'rental'} listings are active right now. Check back soon.</p>}
+   {loading?<p role="status">Loading real listings…</p>:error?<div><p role="alert">{error}</p><Button className="secondary" onClick={retry}>Try again</Button></div>:listings.length?<div className="rail">{listings.map(listing=><RealListingCard key={listing.id} listing={listing}/>)}</div>:<p className="muted">No real {state.q.mode==='Buy'?'sale':'rental'} listings are active right now. Check back soon.</p>}
   </section>
  </>;
 }

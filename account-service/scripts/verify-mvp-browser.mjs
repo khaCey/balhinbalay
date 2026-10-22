@@ -26,7 +26,9 @@ if(!['127.0.0.1','localhost'].includes(url.hostname)||url.pathname!=='/postgres'
 if(!process.env.BB_PLAYWRIGHT_MODULE)throw new Error('Pinned test-only Playwright module required');
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const directory=await mkdtemp(join(tmpdir(),'bb-mvp-browser-'));
-const evidence=join(root,'.sites-runtime','mvp-browser');await mkdir(evidence,{recursive:true});
+const engine=process.env.BB_BROWSER_ENGINE||'chromium',extended=process.env.BB_EXTENDED_QA==='true';
+if(!['chromium','webkit'].includes(engine))throw new Error('Unsupported browser engine');
+const evidence=join(root,'.sites-runtime',extended?'mvp-recovery-'+engine:'mvp-browser');await mkdir(evidence,{recursive:true});
 const adminPool=createAccountPool({connectionString:connection});
 const db='bb_wrk0084_acceptance',title='Synthetic MVP acceptance home';
 let pool,account,edge,site,browser,created=false;
@@ -51,8 +53,11 @@ try{
  await pool.query("INSERT INTO barangays VALUES($1,$2,'MVP-BRGY','Synthetic Lahug')",[barangay,city]);
  // Test-only self-signed HTTPS edge allows the actual Secure host cookies.
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-subj','/CN=127.0.0.1','-addext','subjectAltName=IP:127.0.0.1'],{stdio:'ignore'});
- let sitePort;
- edge=httpsServer({key:await readFile(join(directory,'key.pem')),cert:await readFile(join(directory,'cert.pem'))},(req,res)=>{
+ let sitePort,mapScriptUnavailable=false,edgeDelay=0;
+ edge=httpsServer({key:await readFile(join(directory,'key.pem')),cert:await readFile(join(directory,'cert.pem'))},async(req,res)=>{
+  // Controlled transport faults at the disposable edge; API payloads stay real.
+  if(mapScriptUnavailable&&req.url==='/assets/leaflet.js'){res.writeHead(503);res.end();return;}
+  if(edgeDelay&&req.url.startsWith('/api/marketplace/public/listings'))await new Promise(resolve=>setTimeout(resolve,edgeDelay));
   const forwarded=httpRequest({hostname:'127.0.0.1',port:sitePort,path:req.url,method:req.method,headers:req.headers},upstream=>{res.writeHead(upstream.statusCode,upstream.headers);upstream.pipe(res);});
   forwarded.on('error',()=>{res.writeHead(502);res.end();});req.pipe(forwarded);
  });await listen(edge);
@@ -65,9 +70,9 @@ try{
  site=spawn(process.execPath,[join(root,'node_modules/vinext/dist/cli.js'),'start','--hostname','127.0.0.1','--port',String(sitePort)],{cwd:root,env:{...process.env,NODE_ENV:'production',APP_URL:appOrigin,ACCOUNT_API_ORIGIN:'http://127.0.0.1:'+account.address().port,ACCOUNT_ALLOW_LOCAL_HTTP:'true',ACCOUNT_PROXY_KEY:config.proxyKey},stdio:['ignore','pipe','pipe']});
  site.stdout.on('data',x=>logs.push(String(x)));site.stderr.on('data',x=>logs.push(String(x)));
  let ready=false;for(let i=0;i<200;i++){if(site.exitCode!==null)throw new Error('Built Site exited');try{if((await fetch('http://127.0.0.1:'+sitePort+'/favicon.svg')).ok){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,100));}assert.ok(ready,'Built Site starts');
- const browserModule=await import(pathToFileURL(process.env.BB_PLAYWRIGHT_MODULE).href),{chromium}=browserModule.default||browserModule;
- browser=await chromium.launch({headless:true});
- async function pageFor(role,mobile=false){const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:mobile?{width:375,height:812}:{width:1280,height:900}});const page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await context.tracing.start({screenshots:true,snapshots:true});return {page,context,role};}
+ const browserModule=await import(pathToFileURL(process.env.BB_PLAYWRIGHT_MODULE).href),engines=browserModule.default||browserModule;
+ browser=await engines[engine].launch({headless:true});
+ async function pageFor(role,mobile=false){const context=await browser.newContext({ignoreHTTPSErrors:true,isMobile:mobile,hasTouch:mobile,viewport:mobile?{width:375,height:812}:{width:1280,height:900}});const page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await context.tracing.start({screenshots:true,snapshots:true});return {page,context,role};}
  const owner=await pageFor('owner',true),reviewer=await pageFor('reviewer'),seeker=await pageFor('seeker'),guest=await pageFor('guest',true);
  const pages=[owner,reviewer,seeker,guest];
  async function api(actor,path,{method='GET',body,status=200}={}){
@@ -81,7 +86,9 @@ try{
   await reviewer.page.reload();await reviewer.page.getByRole('row').filter({hasText:users.owner.email}).filter({has:reviewer.page.getByRole('button',{name:'Grant / restore',exact:true})}).getByRole('button',{name:'Grant / restore',exact:true}).click();await reviewer.page.getByText('Decision saved.',{exact:true}).waitFor();
   await owner.page.reload();await field(owner.page,'Your relationship to the property').selectOption('OWNER');await owner.page.getByRole('button',{name:'Create private draft',exact:true}).click();await owner.page.waitForURL('**/editor/*');const id=owner.page.url().split('/').at(-1);assert.match(id,/^[a-f0-9-]{36}$/);
   await field(owner.page,'Title').fill(title);await field(owner.page,'Description').fill('Synthetic real-service browser acceptance listing.');await field(owner.page,'Physical property type').selectOption('HOUSE');await field(owner.page,'For rent or sale').selectOption('RENT');await field(owner.page,'Asking amount').fill('15000');await field(owner.page,'Currency').selectOption('PHP');await field(owner.page,'Availability').selectOption('AVAILABLE');await field(owner.page,'Available from').fill('2026-11-01');await field(owner.page,'Recognised city').selectOption(city);await field(owner.page,'Barangay').selectOption(barangay);await field(owner.page,'Pricing period').selectOption('MONTHLY');await field(owner.page,'street address').fill('PRIVATE-MVP-STREET');await owner.page.getByRole('button',{name:'Save private draft',exact:true}).click();await owner.page.getByText('Private draft saved.',{exact:true}).waitFor();
-  const jpeg=await sharp({create:{width:100,height:70,channels:3,background:'#547f99'}}).jpeg().toBuffer();await owner.page.getByLabel('Add listing photos',{exact:true}).setInputFiles({name:'fixture.jpg',mimeType:'image/jpeg',buffer:jpeg});await owner.page.getByRole('img',{name:'Listing photo 1',exact:true}).waitFor();
+  // Saving refreshes versioned photo status; file injection must wait for the enabled control.
+  await owner.page.waitForFunction(()=>{const input=document.querySelector('input[aria-label="Add listing photos"]');return input&&!input.disabled;});
+  const jpeg=await sharp({create:{width:100,height:70,channels:3,background:'#547f99'}}).jpeg().toBuffer();const uploaded=owner.page.waitForResponse(response=>response.request().method()==='POST'&&response.url().endsWith('/listings/'+id+'/media'));await owner.page.getByLabel('Add listing photos',{exact:true}).setInputFiles({name:'fixture.jpg',mimeType:'image/jpeg',buffer:jpeg});const uploadResponse=await uploaded;assert.equal(uploadResponse.status(),201,await uploadResponse.text());await owner.page.getByRole('img',{name:'Listing photo 1',exact:true}).waitFor();
   const privateDraft=await api(owner,'/api/marketplace/listings/'+id);const media=await api(owner,'/api/marketplace/listings/'+id+'/media');const photo=media.media[0];await api(guest,'/api/marketplace/public/listings/'+id,{status:404});
   await reviewer.page.reload();await reviewer.page.getByRole('button',{name:'Approve authority',exact:true}).click();await reviewer.page.getByText('Decision saved.',{exact:true}).waitFor();
   await owner.page.reload();await owner.page.getByText('Your property authority: Approved. No listing becomes public through this editor.',{exact:true}).waitFor();await owner.page.getByRole('button',{name:'Save and submit for review',exact:true}).click();await owner.page.getByText('Submitted for review. Your listing is not public.',{exact:true}).waitFor();pass('browser Lister request/grant, complete dated rental draft, photo upload, manual authority and immutable submission');
@@ -90,6 +97,35 @@ try{
   await guest.page.goto(appOrigin+'/search');await guest.page.getByRole('tab',{name:'Keyword',exact:true}).click();await field(guest.page,'Keyword').fill(title);await guest.page.getByRole('button',{name:'Find a place',exact:true}).click();await guest.page.getByRole('link',{name:title,exact:true}).click();await guest.page.getByRole('heading',{name:title,exact:true}).waitFor();await guest.page.getByRole('img',{name:title+' — photo 1',exact:true}).waitFor();await guest.page.getByRole('link',{name:'Sign in to contact',exact:true}).waitFor();await guest.page.getByRole('link',{name:'Sign in to report',exact:true}).waitFor();
   const published=await api(guest,'/api/marketplace/public/listings/'+id);assert.equal(published.listing.available_from,'2026-11-01');assert.doesNotMatch(JSON.stringify(published),/PRIVATE-MVP|owner@mvp-fixture/);assert.equal(published.listing.location.map_point,null);assert.equal(published.listing.media[0].id,photo.id);
   const crawler=await guest.context.request.get(appOrigin+'/listing/'+id,{headers:{'user-agent':'facebookexternalhit/1.1'}});const html=await crawler.text();assert.ok(html.includes('og:image'));assert.ok(html.includes('/'+photo.id+'/share'));assert.doesNotMatch(html,/PRIVATE-MVP-STREET/);pass('admin photo review leaves unlisted; Lister activates; real public search/detail, date, guest gates and initial sharing HTML');
+  if(extended){
+   const detailUrl=guest.page.url();
+   await guest.page.goBack();await guest.page.getByRole('link',{name:title,exact:true}).waitFor();
+   await guest.page.goForward();await guest.page.getByRole('heading',{name:title,exact:true}).waitFor();
+   await guest.page.reload();await guest.page.getByRole('heading',{name:title,exact:true}).waitFor();
+   assert.equal(guest.page.url(),detailUrl);
+   assert.ok(await guest.page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Mobile listing has no horizontal overflow');
+   await guest.page.getByRole('link',{name:'Explore real listings',exact:true}).click();await guest.page.waitForURL('**/search');
+   await guest.page.goBack();await guest.page.getByRole('heading',{name:title,exact:true}).waitFor();
+   pass(engine+' mobile history, refresh, direct detail, link navigation and width');
+   // Stop the actual upstream service, then recover the same port and persisted data.
+   const accountPort=account.address().port;await close(account);account=null;
+   await guest.page.goto(appOrigin+'/results');await guest.page.getByRole('alert').filter({hasText:'Real listings could not be reached'}).waitFor();
+   assert.equal(await guest.page.getByRole('link',{name:title,exact:true}).count(),0,'Outage does not show stale or sample cards');
+   account=httpServer(app);await new Promise(resolve=>account.listen(accountPort,'127.0.0.1',resolve));
+   await guest.page.getByRole('button',{name:'Try again',exact:true}).click();await guest.page.getByRole('link',{name:title,exact:true}).waitFor();
+   pass(engine+' actual Account outage shows truthful error; retry recovers without losing query');
+   edgeDelay=700;
+   await guest.page.getByRole('combobox',{name:'Sort properties',exact:true}).selectOption('Price: low to high');
+   await guest.page.getByRole('status').filter({hasText:'Loading real listings'}).waitFor();
+   await guest.page.getByRole('link',{name:title,exact:true}).waitFor();edgeDelay=0;
+   assert.ok(await guest.page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Mobile results have no horizontal overflow');
+   pass(engine+' delayed real response exposes loading then recovers results');
+   mapScriptUnavailable=true;
+   await guest.page.getByRole('button',{name:'Map',exact:true}).click();await guest.page.getByText('Map is unavailable',{exact:true}).waitFor();
+   await guest.page.getByRole('button',{name:'View list',exact:true}).click();await guest.page.getByRole('link',{name:title,exact:true}).waitFor();mapScriptUnavailable=false;
+   pass(engine+' unavailable local map library retains a working list fallback');
+   await guest.page.getByRole('link',{name:title,exact:true}).click();await guest.page.getByRole('heading',{name:title,exact:true}).waitFor();
+  }
   await guest.page.screenshot({path:join(evidence,'public-mobile.png'),fullPage:true});
   await seeker.page.goto(appOrigin+'/listing/'+id);await seeker.page.getByLabel('First message',{exact:true}).fill('Synthetic first enquiry');await seeker.page.getByRole('button',{name:'Send in-app message',exact:true}).click();await seeker.page.waitForURL('**/chat/*');await seeker.page.getByText('Synthetic first enquiry',{exact:true}).waitFor();const thread=seeker.page.url().split('/').at(-1);
   await owner.page.goto(appOrigin+'/messages');await owner.page.getByRole('link',{name:title,exact:true}).click();await owner.page.getByLabel('Message',{exact:true}).fill('Synthetic Lister reply');await owner.page.getByRole('button',{name:'Send message',exact:true}).click();await owner.page.getByText('Synthetic Lister reply',{exact:true}).waitFor();await seeker.page.reload();await seeker.page.getByText('Synthetic Lister reply',{exact:true}).waitFor();await api(reviewer,'/api/marketplace/conversations/'+thread,{status:401});await api(guest,'/api/marketplace/conversations/'+thread,{status:401});pass('real first contact, shared two-person inbox/thread and reply persistence with guest/admin-purpose denial');
