@@ -84,7 +84,8 @@ jobs:
           path: |
             .sites-runtime/media-browser/
             .sites-runtime/mvp-recovery-*/
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: error
       - name: Source integrity
         run: |
           git diff --exit-code
