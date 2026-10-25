@@ -123,5 +123,8 @@ await test('WRK0038 real PostgreSQL/PostGIS messaging',async t=>{
    await pool.query('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND purpose=\'user\'',[seeker.id]);assert.equal((await call('get','conversations')).status,401);assert.equal((await send()).status,401);
    await pool.query("UPDATE auth_sessions SET revoked_at=NULL,expires_at=now()-interval '1 second' WHERE user_id=$1 AND purpose='user'",[seeker.id]);assert.equal((await call('get',`conversations/${thread}/messages`)).status,401);
   });
- }finally{if(pool)await pool.end();if(upgrade)await upgrade.end();for(const name of names)await root.query(`DROP DATABASE IF EXISTS ${name} WITH(FORCE)`);await root.end();}
+ }finally{if(pool)await pool.end();if(upgrade)await upgrade.end();
+  // Require every pool connection to close before database disposal.
+  // FORCE can emit a late client error after the assertions have finished.
+  for(const name of names)await root.query(`DROP DATABASE IF EXISTS ${name}`);await root.end();}
 });
