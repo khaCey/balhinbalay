@@ -29,3 +29,5 @@
 
 /* Approved real-listing photos retain the established card proportions. */
 .real-listing-photo{width:100%;height:100%;overflow:hidden;background:#eef3f6}.real-listing-photo img{display:block;width:100%;height:100%;object-fit:cover}.mini-card .real-listing-photo{width:90px;height:76px;flex-shrink:0;border-radius:8px}.real-listing-photo .real-listing-fallback{height:100%}
+
+.install-banner{position:fixed;z-index:80;left:16px;right:16px;bottom:calc(80px + env(safe-area-inset-bottom));max-width:460px;margin:auto;background:white;color:#182637;padding:18px;border:1px solid #d9e2ed;border-radius:16px;box-shadow:0 8px 32px #142b4933}.install-banner p{margin:8px 0 14px;font-size:14px;line-height:1.5}.install-actions{display:flex;gap:10px;flex-wrap:wrap}.install-actions button{min-height:44px}@media(min-width:769px){.install-banner{bottom:24px}}
